@@ -1,0 +1,174 @@
+/**
+ * @file globals.css
+ * @description Zipgrid global CSS — three-mode theme system (Light / Dark / Night).
+ * Uses CSS custom properties (HSL) consumed by Tailwind CSS v4 + shadcn/ui.
+ *
+ * THEME RULES (non-negotiable):
+ * - Light:  #FFFFFF background — pure white
+ * - Dark:   #000000 background — TRUE BLACK (not #111, not dark blue)
+ * - Night:  #0D0D0D background — near-black with warm amber text
+ * - Accent: #00C853 — Zipgrid green (unchanged across all modes)
+ * - Radius: 6px — not pill/rounded, not 0
+ *
+ * @version 0.1.0
+ * @since 2026-09-25
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+ * LIGHT MODE (default)
+ * Background: pure white. Text: near-black.
+ * ============================================================ */
+:root {
+  --background:           0 0% 100%;        /* #FFFFFF */
+  --foreground:           0 0% 4%;          /* #0A0A0A */
+  --card:                 0 0% 100%;
+  --card-foreground:      0 0% 4%;
+  --popover:              0 0% 100%;
+  --popover-foreground:   0 0% 4%;
+  --primary:              142 100% 39%;     /* #00C853 accent green */
+  --primary-foreground:   0 0% 100%;
+  --secondary:            0 0% 97%;         /* #F7F7F7 */
+  --secondary-foreground: 0 0% 4%;
+  --muted:                0 0% 94%;         /* #F0F0F0 */
+  --muted-foreground:     0 0% 45%;         /* #737373 */
+  --accent:               142 100% 39%;
+  --accent-foreground:    0 0% 100%;
+  --destructive:          0 84% 60%;        /* #E53E3E */
+  --destructive-foreground: 0 0% 100%;
+  --border:               0 0% 89%;         /* #E2E2E2 */
+  --input:                0 0% 89%;
+  --ring:                 142 100% 39%;
+  --radius:               0.375rem;         /* 6px */
+
+  /* Semantic surface tokens */
+  --surface-1:            0 0% 100%;        /* page background */
+  --surface-2:            0 0% 97%;         /* card / section */
+  --surface-3:            0 0% 94%;         /* hover state */
+  --surface-overlay:      0 0% 0% / 0.04;  /* subtle overlay */
+}
+
+/* ============================================================
+ * DARK MODE
+ * Background: TRUE BLACK #000000 — OLED-optimised.
+ * Not #111111. Not #1A1A1A. Not dark blue. Pure black.
+ * ============================================================ */
+.dark {
+  --background:           0 0% 0%;          /* #000000 TRUE BLACK */
+  --foreground:           0 0% 98%;         /* #FAFAFA */
+  --card:                 0 0% 7%;          /* #111111 */
+  --card-foreground:      0 0% 98%;
+  --popover:              0 0% 7%;
+  --popover-foreground:   0 0% 98%;
+  --primary:              142 100% 39%;     /* accent green unchanged */
+  --primary-foreground:   0 0% 0%;
+  --secondary:            0 0% 10%;         /* #1A1A1A */
+  --secondary-foreground: 0 0% 98%;
+  --muted:                0 0% 10%;
+  --muted-foreground:     0 0% 63%;         /* #A0A0A0 */
+  --accent:               142 100% 39%;
+  --accent-foreground:    0 0% 0%;
+  --destructive:          0 62% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border:               0 0% 16%;         /* #2A2A2A */
+  --input:                0 0% 10%;
+  --ring:                 142 100% 39%;
+
+  --surface-1:            0 0% 0%;
+  --surface-2:            0 0% 7%;
+  --surface-3:            0 0% 12%;
+  --surface-overlay:      0 0% 100% / 0.04;
+}
+
+/* ============================================================
+ * NIGHT MODE
+ * Near-black background with warm amber text.
+ * Reduces blue light for extended desk use.
+ * ============================================================ */
+.night {
+  --background:           0 0% 5%;          /* #0D0D0D */
+  --foreground:           35 60% 88%;       /* #F5E6C8 warm amber */
+  --card:                 0 0% 8%;
+  --card-foreground:      35 60% 88%;
+  --popover:              0 0% 8%;
+  --popover-foreground:   35 60% 88%;
+  --primary:              142 80% 35%;      /* slightly warmer green */
+  --primary-foreground:   0 0% 0%;
+  --secondary:            0 0% 10%;
+  --secondary-foreground: 35 50% 80%;
+  --muted:                0 0% 12%;
+  --muted-foreground:     35 30% 60%;
+  --accent:               142 80% 35%;
+  --accent-foreground:    0 0% 0%;
+  --destructive:          0 70% 55%;
+  --destructive-foreground: 0 0% 100%;
+  --border:               30 10% 18%;
+  --input:                0 0% 10%;
+  --ring:                 35 60% 88%;
+
+  --surface-1:            0 0% 5%;
+  --surface-2:            0 0% 8%;
+  --surface-3:            0 0% 12%;
+  --surface-overlay:      35 60% 88% / 0.04;
+}
+
+/* ============================================================
+ * BASE STYLES
+ * ============================================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  border-color: hsl(var(--border));
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Focus ring — always visible, never hidden */
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+  border-radius: calc(var(--radius) - 2px);
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Monospace — used for kWh, £, codes */
+.font-mono {
+  font-family: 'JetBrains Mono', 'Menlo', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Smooth theme transitions (not on first paint) */
+html.theme-ready * {
+  transition-property: background-color, border-color, color;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}

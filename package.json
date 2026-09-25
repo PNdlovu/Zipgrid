@@ -1,0 +1,31 @@
+{
+  "name": "zipgrid",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md,css}\"",
+    "typecheck": "turbo run typecheck",
+    "db:migrate": "tsx db/scripts/migrate.ts",
+    "db:seed:demo": "tsx db/scripts/seed.ts",
+    "db:verify": "tsx db/scripts/verify.ts",
+    "health-check": "tsx scripts/health-check.ts"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=20",
+    "npm": ">=10"
+  },
+  "packageManager": "npm@10.x"
+}
