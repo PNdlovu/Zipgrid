@@ -12,4 +12,6 @@
 export { AuthService } from './AuthService'
 export { UserService } from './UserService'
 export { KycService } from './KycService'
+export type { UserRecord } from './UserService'
+export type { RegisterInput, AuthTokens, LoginInput } from './AuthService'
 export type { IdentityDomainTypes } from './types'
