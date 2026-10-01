@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
       clientSecret,
       amountPence,
       status,
-    }, 201)
+    }, undefined, 201)
   } catch (err) {
     if (err instanceof AppError) {
       return apiError(err.code ?? 'APP_ERROR', err.message, err.statusCode ?? 400)
