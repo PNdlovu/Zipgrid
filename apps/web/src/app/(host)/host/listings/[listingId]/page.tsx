@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file page.tsx
  * @description /host/listings/[listingId] — Host listing detail / overview page.
  * Shows: status, key stats (sessions, revenue, kWh, rating), quick actions
@@ -240,7 +240,7 @@ export default function HostListingDetailPage({
       {/* ── Header ── */}
       <div className="flex flex-wrap items-start gap-4">
         <Link
-          href="/listings"
+          href="/host/listings"
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"
           aria-label="Back to listings"
         >
