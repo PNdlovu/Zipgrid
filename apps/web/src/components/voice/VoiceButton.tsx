@@ -15,58 +15,6 @@
 
 'use client'
 
-// SpeechRecognition is a browser API not always typed in older TS DOM lib versions
-declare global {
-  interface Window {
-    SpeechRecognition: typeof SpeechRecognition | undefined
-    webkitSpeechRecognition: typeof SpeechRecognition | undefined
-  }
-  // eslint-disable-next-line no-var
-  var SpeechRecognition: {
-    new (): {
-      lang: string
-      continuous: boolean
-      interimResults: boolean
-      start(): void
-      stop(): void
-      abort(): void
-      onresult: ((event: SpeechRecognitionEvent) => void) | null
-      onerror: ((event: SpeechRecognitionErrorEvent) => void) | null
-      onend: (() => void) | null
-    }
-  }
-  interface SpeechRecognition {
-    lang: string
-    continuous: boolean
-    interimResults: boolean
-    start(): void
-    stop(): void
-    abort(): void
-    onresult: ((event: SpeechRecognitionEvent) => void) | null
-    onerror: ((event: SpeechRecognitionErrorEvent) => void) | null
-    onend: (() => void) | null
-  }
-  interface SpeechRecognitionEvent extends Event {
-    resultIndex: number
-    results: SpeechRecognitionResultList
-  }
-  interface SpeechRecognitionErrorEvent extends Event {
-    error: string
-  }
-  interface SpeechRecognitionResultList {
-    length: number
-    [index: number]: SpeechRecognitionResult
-  }
-  interface SpeechRecognitionResult {
-    isFinal: boolean
-    [index: number]: SpeechRecognitionAlternative
-  }
-  interface SpeechRecognitionAlternative {
-    transcript: string
-    confidence: number
-  }
-}
-
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Mic, MicOff, X, Loader2, Volume2 } from 'lucide-react'
@@ -126,7 +74,8 @@ export function VoiceButton({ role = 'driver', context, className }: Props) {
   const [response, setResponse]     = useState('')
   const [expanded, setExpanded]     = useState(false)
   const [supported, setSupported]   = useState(true)
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SpeechRecognition not in TS lib in all build environments
+  const recognitionRef = useRef<any>(null)
 
   // Feature-detect on mount
   useEffect(() => {

@@ -11,6 +11,10 @@ import type { NextConfig } from 'next'
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   output: 'standalone',   // required for Railway Docker deployment
+  eslint: {
+    // ESLint runs in CI/pre-commit — don't block production builds
+    ignoreDuringBuilds: true,
+  },
   transpilePackages: [
     '@zipgrid/types',
     '@zipgrid/api-client',
