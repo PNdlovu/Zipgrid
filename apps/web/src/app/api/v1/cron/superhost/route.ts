@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
         eventBus.publish({
           type: 'SUPERHOST_AWARDED',
           hostProfileId: row.host_profile_id,
-        } as Parameters<typeof eventBus.publish>[0])
+        })
         promoted++
       } else if (!qualifies && row.is_superhost) {
         await db.execute(

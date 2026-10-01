@@ -24,6 +24,7 @@ export type DomainEvent =
   | { type: 'KYC_VERIFIED'; userId: string }
   | { type: 'LISTING_PUBLISHED'; listingId: string; hostId: string }
   | { type: 'INCIDENT_REPORTED'; incidentId: string; listingId: string; severity: 'low' | 'medium' | 'high' }
+  | { type: 'SUPERHOST_AWARDED'; hostProfileId: string }
 
 class DomainEventBus extends EventEmitter {
   /**
