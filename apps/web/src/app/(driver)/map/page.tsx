@@ -208,6 +208,8 @@ function FilterPanel({ filters, onChange, onClose }: {
  */
 export default function MapPage() {
   const mapContainerRef = useRef<HTMLDivElement>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mapRef = useRef<any>(null)
   const [listings, setListings] = useState<ListingCard[]>([])
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
@@ -267,10 +269,126 @@ export default function MapPage() {
         zoom: 12,
       })
       map.addControl(new mapboxgl.NavigationControl(), 'top-right')
-      setMapLoaded(true)
-      return () => map.remove()
+
+      // Add charger pin layers on style load
+      map.on('load', () => {
+        // Cluster source — will be populated by the listings effect below
+        map.addSource('chargers', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+          cluster: true,
+          clusterMaxZoom: 14,
+          clusterRadius: 50,
+        })
+
+        // Cluster circles
+        map.addLayer({
+          id: 'charger-clusters',
+          type: 'circle',
+          source: 'chargers',
+          filter: ['has', 'point_count'],
+          paint: {
+            'circle-color': '#00C853',
+            'circle-radius': ['step', ['get', 'point_count'], 18, 10, 24, 30, 30],
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#ffffff',
+          },
+        })
+
+        // Cluster count labels
+        map.addLayer({
+          id: 'charger-cluster-count',
+          type: 'symbol',
+          source: 'chargers',
+          filter: ['has', 'point_count'],
+          layout: {
+            'text-field': '{point_count_abbreviated}',
+            'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+            'text-size': 12,
+          },
+          paint: { 'text-color': '#ffffff' },
+        })
+
+        // Individual charger pins
+        map.addLayer({
+          id: 'charger-pins',
+          type: 'circle',
+          source: 'chargers',
+          filter: ['!', ['has', 'point_count']],
+          paint: {
+            'circle-color': [
+              'case',
+              ['==', ['get', 'instantBook'], true], '#00C853',
+              '#1A73E8',
+            ],
+            'circle-radius': 10,
+            'circle-stroke-width': 2.5,
+            'circle-stroke-color': '#ffffff',
+          },
+        })
+
+        // Click on cluster → zoom in
+        map.on('click', 'charger-clusters', (e) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const source = map.getSource('chargers') as any
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const features = map.queryRenderedFeatures(e.point, { layers: ['charger-clusters'] }) as any[]
+          source.getClusterExpansionZoom(features[0].properties.cluster_id, (err: unknown, zoom: number) => {
+            if (err) return
+            map.easeTo({
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              center: (features[0].geometry as any).coordinates,
+              zoom,
+            })
+          })
+        })
+
+        // Click on individual pin → navigate to listing
+        map.on('click', 'charger-pins', (e) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const feature = (e.features as any[])?.[0]
+          const id = feature?.properties?.id as string | undefined
+          if (id) window.location.href = `/listings/${id}`
+        })
+
+        // Pointer cursor on hover
+        map.on('mouseenter', 'charger-clusters', () => { map.getCanvas().style.cursor = 'pointer' })
+        map.on('mouseleave', 'charger-clusters', () => { map.getCanvas().style.cursor = '' })
+        map.on('mouseenter', 'charger-pins', () => { map.getCanvas().style.cursor = 'pointer' })
+        map.on('mouseleave', 'charger-pins', () => { map.getCanvas().style.cursor = '' })
+
+        setMapLoaded(true)
+      })
+
+      mapRef.current = map
+      return () => { map.remove(); mapRef.current = null }
     }).catch(() => setMapLoaded(true))
   }, [userLocation, mapLoaded])
+
+  // Sync listing pins whenever listings data changes
+  useEffect(() => {
+    if (!mapRef.current || !mapLoaded) return
+    const map = mapRef.current
+    const source = map.getSource?.('chargers')
+    if (!source) return
+
+    const geojson = {
+      type: 'FeatureCollection',
+      features: listings.map((l) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [l.longitude, l.latitude] },
+        properties: {
+          id: l.id,
+          title: l.title,
+          powerKw: l.maxPowerKw,
+          instantBook: l.instantBookEnabled,
+        },
+      })),
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(source as any).setData(geojson)
+  }, [listings, mapLoaded])
 
   const activeFilterCount = [
     filters.plugTypes.length > 0,

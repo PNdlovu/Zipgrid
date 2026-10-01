@@ -25,7 +25,7 @@ const FOOTER_LINKS = {
     { href: '/blog', label: 'Blog' },
     { href: '/help', label: 'Help Centre' },
     { href: '/safety', label: 'Safety & Insurance' },
-    { href: '/auth/register', label: 'Get started' },
+    { href: '/register', label: 'Get started' },
   ],
   Legal: [
     { href: '/legal/privacy', label: 'Privacy Policy' },

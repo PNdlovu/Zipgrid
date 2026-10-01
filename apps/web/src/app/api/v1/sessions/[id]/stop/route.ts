@@ -35,7 +35,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       `SELECT cs.id, cs.ocpp_transaction_id, cs.charge_point_id, cs.status
        FROM charging_sessions cs
        JOIN bookings b ON b.id = cs.booking_id
-       JOIN driver_profiles dp ON dp.id = b.driver_id
+       JOIN driver_profiles dp ON dp.id = b.driver_profile_id
        WHERE cs.id = $1 AND dp.user_id = $2
        LIMIT 1`,
       [id, userId],

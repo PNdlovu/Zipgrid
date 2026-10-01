@@ -96,7 +96,7 @@ function ResetPasswordForm() {
         </div>
         <button
           type="button"
-          onClick={() => router.push('/auth/login')}
+          onClick={() => router.push('/login')}
           className={cn(
             'flex h-11 w-full items-center justify-center rounded-[6px] bg-[hsl(var(--primary))]',
             'text-sm font-semibold text-[hsl(var(--primary-foreground))] transition-opacity hover:opacity-90',

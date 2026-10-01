@@ -139,7 +139,7 @@ export default function ForDriversPage() {
             </p>
             <div className="flex flex-col items-center gap-3 sm:flex-row">
               <Link
-                href="/auth/register"
+                href="/register"
                 className={cn(
                   'flex min-h-[48px] items-center rounded-[6px] bg-[hsl(var(--primary))] px-7 py-3',
                   'text-base font-semibold text-[hsl(var(--primary-foreground))] transition-opacity hover:opacity-90',
@@ -345,7 +345,7 @@ export default function ForDriversPage() {
               </p>
             </div>
             <Link
-              href="/auth/register"
+              href="/register"
               className={cn(
                 'ml-auto flex shrink-0 min-h-[44px] items-center gap-2 rounded-[6px]',
                 'border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-5 py-2.5',
@@ -365,7 +365,7 @@ export default function ForDriversPage() {
         headline="Ready to find charging near you?"
         subtext="Free to sign up. No subscription required to search and book. Pay only when you charge."
         primaryLabel="Create your free account"
-        primaryHref="/auth/register"
+        primaryHref="/register"
         secondaryLabel="View pricing"
         secondaryHref="/pricing"
       />

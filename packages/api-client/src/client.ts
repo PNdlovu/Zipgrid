@@ -38,3 +38,25 @@ apiClient.interceptors.response.use(
     return Promise.reject(error)
   },
 )
+
+// ── Convenience wrappers used by domain clients ──────────────
+
+/** GET request, returns unwrapped `data` object. */
+export async function apiGet<T>(url: string, params?: Record<string, unknown>): Promise<T> {
+  return apiClient.get<T, T>(url, { params })
+}
+
+/** POST request, returns unwrapped `data` object. */
+export async function apiPost<T>(url: string, body?: unknown): Promise<T> {
+  return apiClient.post<T, T>(url, body)
+}
+
+/** PATCH request, returns unwrapped `data` object. */
+export async function apiPatch<T>(url: string, body?: unknown): Promise<T> {
+  return apiClient.patch<T, T>(url, body)
+}
+
+/** DELETE request, returns unwrapped `data` object. */
+export async function apiDelete<T = { deleted: boolean }>(url: string): Promise<T> {
+  return apiClient.delete<T, T>(url)
+}

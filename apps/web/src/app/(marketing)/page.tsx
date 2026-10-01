@@ -183,7 +183,7 @@ export default function HomePage() {
             {/* CTAs */}
             <div className="flex flex-col items-center gap-3 sm:flex-row">
               <Link
-                href="/auth/register"
+                href="/register"
                 className={cn(
                   'flex min-h-[48px] items-center rounded-[6px] bg-[hsl(var(--primary))] px-7 py-3',
                   'text-base font-semibold text-[hsl(var(--primary-foreground))] transition-opacity hover:opacity-90',
@@ -356,7 +356,7 @@ export default function HomePage() {
         headline="Your charger is sitting idle right now."
         subtext="The average Zipgrid host earns £140/month from a charger that cost £1,200 to install. That's an 11-month payback."
         primaryLabel="List your charger"
-        primaryHref="/auth/register?role=host"
+        primaryHref="/register?role=host"
         secondaryLabel="How hosting works"
         secondaryHref="/for-homeowners"
       />
@@ -508,7 +508,7 @@ export default function HomePage() {
                 ))}
               </div>
               <Link
-                href="/auth/register"
+                href="/register"
                 className={cn(
                   'flex min-h-[44px] w-fit items-center gap-2 rounded-[6px] border border-[hsl(var(--border))]',
                   'px-5 py-2.5 text-sm font-medium text-[hsl(var(--foreground))]',
@@ -528,7 +528,7 @@ export default function HomePage() {
         headline="Ready to charge smarter?"
         subtext="Join thousands of UK drivers already using Zipgrid. Free to sign up, no subscription required to search."
         primaryLabel="Find charging near me"
-        primaryHref="/auth/register"
+        primaryHref="/register"
         secondaryLabel="Learn how it works"
         secondaryHref="/for-drivers"
       />

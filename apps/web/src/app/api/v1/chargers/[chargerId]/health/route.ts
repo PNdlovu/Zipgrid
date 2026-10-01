@@ -82,3 +82,100 @@ export async function GET(request: NextRequest, { params }: Params) {
     return apiError('INTERNAL_ERROR', 'An unexpected error occurred', 500)
   }
 }
+
+/**
+ * POST /api/v1/chargers/[chargerId]/health
+ * Receives fault/status notifications pushed by the OCPP service.
+ * Authenticated via OCPP_SERVICE_SECRET (not user JWT).
+ * Records the event and optionally notifies the host.
+ */
+export async function POST(request: NextRequest, { params }: Params) {
+  const secret = process.env['OCPP_SERVICE_SECRET'] ?? 'dev-ocpp-secret'
+  const auth   = request.headers.get('authorization') ?? ''
+  if (auth !== `Bearer ${secret}`) {
+    return apiError('UNAUTHORIZED', 'Invalid service secret', 401)
+  }
+
+  const { chargerId } = await params
+
+  let body: unknown
+  try { body = await request.json() } catch {
+    return apiError('INVALID_JSON', 'Request body must be valid JSON', 400)
+  }
+
+  const { connectorId, status, errorCode } = body as {
+    connectorId?: number
+    status?: string
+    errorCode?: string
+  }
+
+  try {
+    const { getDb } = await import('@/lib/db')
+    const db = await getDb()
+
+    // Look up charger by internal ID to get chargePointId + host
+    const deviceRes = await db.execute(
+      `SELECT cd.charge_point_id, hp.user_id AS host_user_id
+       FROM charger_devices cd
+       JOIN host_profiles hp ON hp.id = cd.host_profile_id
+       WHERE cd.id = $1 LIMIT 1`,
+      [chargerId],
+    )
+    if (deviceRes.rows.length === 0) {
+      return apiError('NOT_FOUND', 'Charger not found', 404)
+    }
+    const device = deviceRes.rows[0] as { charge_point_id: string; host_user_id: string }
+
+    // Persist fault to ocpp_event_log
+    if (status === 'Faulted' && errorCode && errorCode !== 'NoError') {
+      const { v4: uuidv4 } = await import('uuid')
+      await db.execute(
+        `INSERT INTO ocpp_event_log
+           (id, charge_point_id, connector_id, action, payload, created_at)
+         VALUES ($1, $2, $3, 'StatusNotification', $4::jsonb, NOW())`,
+        [
+          uuidv4(),
+          device.charge_point_id,
+          connectorId ?? 0,
+          JSON.stringify({ status, errorCode }),
+        ],
+      )
+
+      // Update device status
+      await db.execute(
+        `UPDATE charger_devices
+         SET current_status = $2, error_code = $3, updated_at = NOW()
+         WHERE id = $1`,
+        [chargerId, status, errorCode],
+      )
+
+      // Best-effort: notify the host
+      try {
+        const { NotificationService } = await import('@/domains/notifications/NotificationService')
+        await NotificationService.send({
+          userId: device.host_user_id,
+          category: 'system_message',
+          title: 'Charger fault reported',
+          body: `Charger ${device.charge_point_id} reported a fault: ${errorCode}. Check the charger health page.`,
+          actionUrl: `/host/chargers/${chargerId}`,
+          channels: ['in_app'],
+        })
+      } catch {
+        // Non-fatal — fault is already logged
+      }
+    } else if (status) {
+      // Non-fault status update
+      await db.execute(
+        `UPDATE charger_devices
+         SET current_status = $2, error_code = $3, updated_at = NOW()
+         WHERE id = $1`,
+        [chargerId, status, errorCode ?? 'NoError'],
+      )
+    }
+
+    return apiResponse({ received: true })
+  } catch (err) {
+    if (err instanceof AppError) return apiError(err.code, err.message, err.statusCode)
+    return apiError('INTERNAL_ERROR', 'An unexpected error occurred', 500)
+  }
+}

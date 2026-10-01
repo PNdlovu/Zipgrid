@@ -29,14 +29,70 @@ export async function GET(_request: NextRequest, { params }: Params) {
 }
 
 const UpdateListingSchema = z.object({
-  title: z.string().min(5).max(120).optional(),
-  description: z.string().max(2000).optional(),
-  pricePerKwhPence: z.number().int().nonnegative().optional(),
-  pricePerHourPence: z.number().int().nonnegative().optional(),
-  idleFeePerMinPence: z.number().int().nonnegative().optional(),
-  instantBookEnabled: z.boolean().optional(),
-  accessInstructions: z.string().max(1000).optional(),
-}).strict()
+  // Basic info
+  title:                z.string().min(5).max(120).optional(),
+  description:          z.string().max(2000).optional(),
+  // Location
+  addressLine1:         z.string().min(3).max(200).optional(),
+  addressLine2:         z.string().max(200).optional(),
+  city:                 z.string().min(2).max(100).optional(),
+  postcode:             z.string().min(3).max(10).optional(),
+  // Charger specs
+  chargerLevel:         z.enum(['level_1', 'level_2', 'dc_fast', 'dc_ultra_fast']).optional(),
+  maxPowerKw:           z.number().positive().max(400).optional(),
+  chargerBrand:         z.string().max(80).optional(),
+  chargerModel:         z.string().max(80).optional(),
+  ocppChargePointId:    z.string().max(100).optional(),
+  isSmartCharger:       z.boolean().optional(),
+  // Pricing
+  pricingModel:         z.enum(['per_kwh', 'per_hour', 'per_session', 'hybrid']).optional(),
+  pricePerKwhPence:     z.number().int().nonnegative().optional(),
+  pricePerHourPence:    z.number().int().nonnegative().optional(),
+  pricePerSessionPence: z.number().int().nonnegative().optional(),
+  idleFeePerMinPence:   z.number().int().nonnegative().optional(),
+  instantBookEnabled:   z.boolean().optional(),
+  // Access & amenities
+  accessType:           z.enum(['always_open', 'gate_code', 'buzz_in', 'key_pickup', 'app_unlock']).optional(),
+  accessInstructions:   z.string().max(1000).optional(),
+  wifiAvailable:        z.boolean().optional(),
+  restroomAvailable:    z.boolean().optional(),
+  shelterAvailable:     z.boolean().optional(),
+  lightingAvailable:    z.boolean().optional(),
+  wheelchairAccessible: z.boolean().optional(),
+  evParkingOnly:        z.boolean().optional(),
+  minBookingHours:      z.number().positive().max(72).optional(),
+  maxBookingHours:      z.number().positive().max(72).optional(),
+  // Status (host can pause/resume)
+  status:               z.enum(['active', 'paused', 'draft']).optional(),
+})
+
+/** camelCase → snake_case field name mapping for DB columns that don't follow the pattern */
+const FIELD_MAP: Record<string, string> = {
+  pricePerKwhPence:     'price_per_kwh_cents',
+  pricePerHourPence:    'price_per_hour_cents',
+  pricePerSessionPence: 'price_per_session_cents',
+  idleFeePerMinPence:   'idle_fee_per_min_cents',
+  ocppChargePointId:    'ocpp_charge_point_id',
+  isSmartCharger:       'is_smart_charger',
+  maxPowerKw:           'max_power_kw',
+  chargerLevel:         'charger_level',
+  chargerBrand:         'charger_brand',
+  chargerModel:         'charger_model',
+  addressLine1:         'address_line1',
+  addressLine2:         'address_line2',
+  instantBookEnabled:   'instant_book_enabled',
+  accessType:           'access_type',
+  accessInstructions:   'access_instructions',
+  wifiAvailable:        'wifi_available',
+  restroomAvailable:    'restroom_available',
+  shelterAvailable:     'shelter_available',
+  lightingAvailable:    'lighting_available',
+  evParkingOnly:        'ev_parking_only',
+  wheelchairAccessible: 'wheelchair_accessible',
+  minBookingHours:      'min_booking_hours',
+  maxBookingHours:      'max_booking_hours',
+  pricingModel:         'pricing_model',
+}
 
 /** PATCH /api/v1/listings/[id] — update listing fields */
 export async function PATCH(request: NextRequest, { params }: Params) {
@@ -70,7 +126,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     for (const [key, val] of Object.entries(parsed.data)) {
       if (val === undefined) continue
-      const col = key.replace(/([A-Z])/g, '_$1').toLowerCase()
+      // Use explicit mapping if available, otherwise fall back to camelCase→snake_case
+      const col = FIELD_MAP[key] ?? key.replace(/([A-Z])/g, '_$1').toLowerCase()
       sets.push(`${col} = $${i++}`)
       vals.push(val)
     }

@@ -137,7 +137,7 @@ function RegisterForm() {
         <p className="text-sm text-[hsl(var(--muted-foreground))]">
           Already have an account?{' '}
           <Link
-            href="/auth/login"
+            href="/login"
             className="font-medium text-[hsl(var(--primary))] hover:opacity-80"
           >
             Sign in

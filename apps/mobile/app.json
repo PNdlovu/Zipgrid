@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "Zipgrid",
+    "slug": "zipgrid",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "uk.zipgrid.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Zipgrid uses your location to find nearby chargers.",
+        "NSLocationAlwaysUsageDescription": "Zipgrid can alert you to nearby chargers while driving.",
+        "NSMicrophoneUsageDescription": "Zipgrid uses the microphone for voice commands.",
+        "NFCReaderUsageDescription": "Used to scan NFC tags on charging stations."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "uk.zipgrid.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "RECORD_AUDIO",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#00C853"
+        }
+      ]
+    ],
+    "scheme": "zipgrid",
+    "extra": {
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+      }
+    }
+  }
+}

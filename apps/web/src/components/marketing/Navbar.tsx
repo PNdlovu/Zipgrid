@@ -118,13 +118,13 @@ export function Navbar() {
             {/* Desktop CTAs */}
             <div className="hidden items-center gap-2 lg:flex">
               <Link
-                href="/auth/login"
+                href="/login"
                 className="rounded-[6px] px-4 py-2 text-sm font-medium text-[hsl(var(--muted-foreground))] transition-colors hover:text-[hsl(var(--foreground))]"
               >
                 Sign in
               </Link>
               <Link
-                href="/auth/register"
+                href="/register"
                 className={cn(
                   'rounded-[6px] bg-[hsl(var(--primary))] px-4 py-2 text-sm font-medium',
                   'text-[hsl(var(--primary-foreground))] transition-opacity',
@@ -196,7 +196,7 @@ export function Navbar() {
                 <ThemeToggle />
               </div>
               <Link
-                href="/auth/login"
+                href="/login"
                 className={cn(
                   'flex items-center justify-center rounded-[6px] border border-[hsl(var(--border))]',
                   'px-4 py-2.5 text-sm font-medium text-[hsl(var(--foreground))]',
@@ -206,7 +206,7 @@ export function Navbar() {
                 Sign in
               </Link>
               <Link
-                href="/auth/register"
+                href="/register"
                 className={cn(
                   'flex items-center justify-center rounded-[6px] bg-[hsl(var(--primary))]',
                   'px-4 py-2.5 text-sm font-medium text-[hsl(var(--primary-foreground))]',

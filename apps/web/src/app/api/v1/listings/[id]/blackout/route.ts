@@ -1,6 +1,7 @@
 /**
  * @file route.ts
- * @description POST /api/v1/listings/[id]/blackout — add blackout date.
+ * @description GET  /api/v1/listings/[id]/blackout — list blackout dates.
+ *              POST /api/v1/listings/[id]/blackout — add blackout date.
  *              DELETE /api/v1/listings/[id]/blackout — remove blackout date.
  *
  * @module apps/web/api/v1/listings/[id]/blackout
@@ -21,6 +22,26 @@ const BlackoutSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD format'),
   reason: z.string().max(200).optional(),
 })
+
+/** GET /api/v1/listings/[id]/blackout?from=YYYY-MM-DD&to=YYYY-MM-DD */
+export async function GET(request: NextRequest, { params }: Params) {
+  const { id } = await params
+  const { searchParams } = request.nextUrl
+
+  const fromParam = searchParams.get('from')
+  const toParam   = searchParams.get('to')
+  if (!fromParam || !toParam) {
+    return apiError('VALIDATION_ERROR', 'from and to query params are required (YYYY-MM-DD)', 422)
+  }
+
+  try {
+    const dates = await AvailabilityService.getBlackouts(id, fromParam, toParam)
+    return apiResponse(dates)
+  } catch (err) {
+    if (err instanceof AppError) return apiError(err.code, err.message, err.statusCode)
+    return apiError('INTERNAL_ERROR', 'An unexpected error occurred', 500)
+  }
+}
 
 export async function POST(request: NextRequest, { params }: Params) {
   const userId = request.headers.get('x-user-id')

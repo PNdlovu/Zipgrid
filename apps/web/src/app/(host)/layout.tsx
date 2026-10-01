@@ -26,16 +26,18 @@ import {
   Menu,
   X,
   ChevronRight,
+  BookOpen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const NAV_ITEMS = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/host/chargers', icon: PlugZap, label: 'My Chargers' },
-  { href: '/host/listings', icon: MapPin, label: 'Listings' },
-  { href: '/host/sessions', icon: CalendarDays, label: 'Sessions' },
-  { href: '/host/earnings', icon: BarChart3, label: 'Earnings' },
-  { href: '/host/settings', icon: Settings, label: 'Settings' },
+  { href: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/chargers',   icon: PlugZap,         label: 'My Chargers' },
+  { href: '/listings',   icon: MapPin,          label: 'Listings' },
+  { href: '/bookings',   icon: BookOpen,        label: 'Bookings' },
+  { href: '/sessions',   icon: CalendarDays,    label: 'Sessions' },
+  { href: '/earnings',   icon: BarChart3,       label: 'Earnings' },
+  { href: '/settings',   icon: Settings,        label: 'Settings' },
 ] as const
 
 /**
@@ -120,7 +122,7 @@ export default function HostLayout({ children }: { children: React.ReactNode }) 
         {/* Bottom: list charger CTA */}
         <div className="border-t border-[hsl(var(--border))] p-4">
           <Link
-            href="/host/listings/new"
+            href="/listings/new"
             className={cn(
               'flex h-9 w-full items-center justify-center gap-2 rounded-[6px]',
               'bg-[hsl(var(--primary))] text-xs font-semibold text-[hsl(var(--primary-foreground))]',

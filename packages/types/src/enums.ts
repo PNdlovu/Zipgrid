@@ -109,3 +109,87 @@ export enum RewardsTier {
   Gold = 'gold',
   Platinum = 'platinum',
 }
+
+// ─────────────────────────────────────────────────────────────
+// Module T / U additions — Planning Baseline v2.2
+// ─────────────────────────────────────────────────────────────
+
+export enum WearablePlatformEnum {
+  AppleWatch = 'apple_watch',
+  WearOS = 'wear_os',
+  Garmin = 'garmin',
+  Fitbit = 'fitbit',
+}
+
+export enum AgentTaskType {
+  FaultDiagnosis = 'fault_diagnosis',
+  TariffScheduling = 'tariff_scheduling',
+  InstallerSuggestion = 'installer_suggestion',
+  PricingSuggestion = 'pricing_suggestion',
+  IdleFeeAlert = 'idle_fee_alert',
+  RecurringBooking = 'recurring_booking',
+  ReviewResponseDraft = 'review_response_draft',
+  DemandSpikeAlert = 'demand_spike_alert',
+  General = 'general',
+  // Module U — AI Commute Agent
+  CommuteChargeSchedule = 'commute_charge_schedule',
+  PriceSpikeAlert = 'price_spike_alert',
+  JourneyChargeSuggestion = 'journey_charge_suggestion',
+  MonthlySpendInsight = 'monthly_spend_insight',
+  BatteryHealthAlert = 'battery_health_alert',
+}
+
+export enum VenueVerticalEnum {
+  CareHome = 'care_home',
+  WarehouseLogistics = 'warehouse_logistics',
+  HotelHospitality = 'hotel_hospitality',
+  RetailPark = 'retail_park',
+  SportsClub = 'sports_club',
+  ChurchCommunity = 'church_community',
+  PropertyDeveloper = 'property_developer',
+  GeneralSmb = 'general_smb',
+}
+
+// ─────────────────────────────────────────────────────────────
+// Planning Baseline v2.3 additions
+// ─────────────────────────────────────────────────────────────
+
+export enum SupportedVoiceLocale {
+  EnGB = 'en-GB',
+  EnIE = 'en-IE',
+  NlNL = 'nl-NL',
+  DeDE = 'de-DE',
+  FrBE = 'fr-BE',
+  FrFR = 'fr-FR',
+  EsES = 'es-ES',
+  PlPL = 'pl-PL',
+  RoRO = 'ro-RO',
+}
+
+export enum PoiCategory {
+  Toilet = 'toilet',
+  Restaurant = 'restaurant',
+  Cafe = 'cafe',
+  PlayArea = 'play_area',
+  Supermarket = 'supermarket',
+  Pharmacy = 'pharmacy',
+  Park = 'park',
+  Hotel = 'hotel',
+  PetrolStation = 'petrol_station',
+}
+
+export enum ListingHealthInsightType {
+  PhotosStale = 'photos_stale',
+  PhotosMissing = 'photos_missing',
+  DescriptionShort = 'description_short',
+  InstructionsUnclear = 'instructions_unclear',
+  InstructionsMissing = 'instructions_missing',
+  PriceBelowMarket = 'price_below_market',
+  PriceAboveMarket = 'price_above_market',
+  AvailabilityNarrow = 'availability_narrow',
+  ResponseTimeSlow = 'response_time_slow',
+  ReviewsLow = 'reviews_low',
+  ReviewsStale = 'reviews_stale',
+  AccessibilityIncomplete = 'accessibility_incomplete',
+  AllGood = 'all_good',
+}

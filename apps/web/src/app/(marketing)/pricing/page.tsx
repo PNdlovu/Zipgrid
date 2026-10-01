@@ -73,7 +73,7 @@ const PLANS = [
     price: 'Free',
     priceNote: 'No subscription',
     cta: 'Get started free',
-    ctaHref: '/auth/register',
+    ctaHref: '/register',
     highlight: false,
     description: 'Search, book, and charge. Free to sign up, free to book.',
   },
@@ -84,7 +84,7 @@ const PLANS = [
     price: 'Free',
     priceNote: '15% commission on earnings',
     cta: 'List your charger',
-    ctaHref: '/auth/register?role=host',
+    ctaHref: '/register?role=host',
     highlight: false,
     description: 'List one charger, earn passively. Only pay when you earn.',
   },
@@ -95,7 +95,7 @@ const PLANS = [
     price: '£29',
     priceNote: '/month + 12% commission',
     cta: 'Start Pro trial',
-    ctaHref: '/auth/register?role=host&type=smb&plan=pro',
+    ctaHref: '/register?role=host&type=smb&plan=pro',
     highlight: true,
     description: 'Unlimited chargers, dynamic pricing, and advanced analytics.',
   },
@@ -358,7 +358,7 @@ export default function PricingPage() {
         headline="Start free. Upgrade when you're ready."
         subtext="No credit card required to sign up. Upgrade to Pro or Enterprise any time."
         primaryLabel="Get started free"
-        primaryHref="/auth/register"
+        primaryHref="/register"
         secondaryLabel="Talk to sales"
         secondaryHref="/contact"
       />

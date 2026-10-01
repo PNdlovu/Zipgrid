@@ -1,0 +1,45 @@
+name: OCPP Service — CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'apps/ocpp-service/**'
+      - '.github/workflows/ocpp-ci.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'apps/ocpp-service/**'
+
+defaults:
+  run:
+    working-directory: apps/ocpp-service
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  typecheck-test:
+    name: Typecheck & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: apps/ocpp-service/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npm test
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/zipgrid_test
+          OCPP_SERVICE_SECRET: ci-test-secret

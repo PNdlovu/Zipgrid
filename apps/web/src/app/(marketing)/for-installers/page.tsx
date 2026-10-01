@@ -115,7 +115,7 @@ export default function ForInstallersPage() {
             </p>
             <div className="flex flex-col items-center gap-3 sm:flex-row">
               <Link
-                href="/auth/register?role=installer"
+                href="/register?role=installer"
                 className={cn(
                   'flex min-h-[48px] items-center rounded-[6px] bg-[hsl(var(--primary))] px-7 py-3',
                   'text-base font-semibold text-[hsl(var(--primary-foreground))] transition-opacity hover:opacity-90',
@@ -204,7 +204,7 @@ export default function ForInstallersPage() {
         headline="Join the Zipgrid installer marketplace."
         subtext="List your business today. Free to start, no monthly subscription."
         primaryLabel="List my installer business"
-        primaryHref="/auth/register?role=installer"
+        primaryHref="/register?role=installer"
         secondaryLabel="View pricing"
         secondaryHref="/pricing"
       />

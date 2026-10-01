@@ -13,14 +13,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { MapPin, CalendarDays, Zap, User } from 'lucide-react'
+import { MapPin, CalendarDays, Zap, User, Wallet, Gift, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const BOTTOM_NAV = [
-  { href: '/map', icon: MapPin, label: 'Map' },
-  { href: '/driver/bookings', icon: CalendarDays, label: 'Bookings' },
-  { href: '/driver/session', icon: Zap, label: 'Session' },
-  { href: '/profile', icon: User, label: 'Profile' },
+  { href: '/map',      icon: MapPin,       label: 'Map' },
+  { href: '/bookings', icon: CalendarDays, label: 'Bookings' },
+  { href: '/session',  icon: Zap,          label: 'Session' },
+  { href: '/wallet',   icon: Wallet,       label: 'Wallet' },
+  { href: '/profile',  icon: User,         label: 'Profile' },
 ] as const
 
 /**
@@ -60,6 +61,22 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
           )
         })}
       </nav>
+
+      {/* Emergency floating button — visible on map/bookings screens */}
+      {(pathname === '/map' || pathname === '/bookings') && (
+        <Link
+          href="/emergency"
+          className={cn(
+            'fixed bottom-20 right-4 z-40 flex h-12 items-center gap-2 rounded-full px-4',
+            'bg-[hsl(var(--destructive))] text-white shadow-lg',
+            'text-xs font-bold transition-opacity hover:opacity-90',
+          )}
+          aria-label="Emergency charging mode"
+        >
+          <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+          SOS
+        </Link>
+      )}
     </div>
   )
 }

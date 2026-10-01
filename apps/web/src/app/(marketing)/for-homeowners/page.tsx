@@ -122,7 +122,7 @@ export default function ForHomeownersPage() {
             </p>
             <div className="flex flex-col items-center gap-3 sm:flex-row">
               <Link
-                href="/auth/register?role=host"
+                href="/register?role=host"
                 className={cn(
                   'flex min-h-[48px] items-center rounded-[6px] bg-[hsl(var(--primary))] px-7 py-3',
                   'text-base font-semibold text-[hsl(var(--primary-foreground))] transition-opacity hover:opacity-90',
@@ -352,7 +352,7 @@ export default function ForHomeownersPage() {
         headline="Start earning from your charger today."
         subtext="List your charger in under 10 minutes. Free to start — no monthly fee."
         primaryLabel="List my charger"
-        primaryHref="/auth/register?role=host"
+        primaryHref="/register?role=host"
         secondaryLabel="Read about safety"
         secondaryHref="/safety"
       />

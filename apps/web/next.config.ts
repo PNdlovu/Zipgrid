@@ -28,7 +28,19 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  experimental: {},
+  // instrumentationHook graduated to stable in Next.js 15 — no config flag needed.
+
+  // Permanent redirects for old /auth/* paths that are now at the route root
+  async redirects() {
+    return [
+      { source: '/auth/login',           destination: '/login',    permanent: true },
+      { source: '/auth/register',        destination: '/register', permanent: true },
+      { source: '/auth/forgot-password', destination: '/forgot-password', permanent: true },
+      { source: '/auth/reset-password',  destination: '/reset-password',  permanent: true },
+      { source: '/auth/verify-email',    destination: '/verify-email',    permanent: true },
+      { source: '/auth/verify-phone',    destination: '/verify-phone',    permanent: true },
+    ]
+  },
 }
 
 export default nextConfig

@@ -64,7 +64,7 @@ export default function ForgotPasswordPage() {
           </p>
         </div>
         <Link
-          href="/auth/login"
+          href="/login"
           className={cn(
             'flex h-11 w-full items-center justify-center rounded-[6px] border border-[hsl(var(--border))]',
             'text-sm font-medium text-[hsl(var(--foreground))] transition-colors',
@@ -133,7 +133,7 @@ export default function ForgotPasswordPage() {
       </form>
 
       <Link
-        href="/auth/login"
+        href="/login"
         className="text-center text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
       >
         ← Back to sign in

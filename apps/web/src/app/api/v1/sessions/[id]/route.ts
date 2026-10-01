@@ -29,14 +29,14 @@ export async function GET(request: NextRequest, { params }: Params) {
               cs.price_per_kwh_cents, cs.power_w, cs.soc_percent,
               cs.started_at, cs.ended_at, cs.charge_point_id,
               cl.title AS listing_title, cl.city,
-              u.display_name AS host_name
+              u.full_name AS host_name
        FROM charging_sessions cs
        JOIN bookings b ON b.id = cs.booking_id
        JOIN charger_listings cl ON cl.id = b.listing_id
        JOIN host_profiles hp ON hp.id = cl.host_profile_id
        JOIN users u ON u.id = hp.user_id
        WHERE cs.id = $1
-         AND (b.driver_id = (SELECT id FROM driver_profiles WHERE user_id = $2)
+         AND (b.driver_profile_id = (SELECT id FROM driver_profiles WHERE user_id = $2)
               OR hp.user_id = $2)
        LIMIT 1`,
       [id, userId],
@@ -53,10 +53,12 @@ export async function GET(request: NextRequest, { params }: Params) {
       pricePerKwhPence: Number(row['price_per_kwh_cents'] ?? 0),
       powerW: row['power_w'] != null ? Number(row['power_w']) : null,
       socPercent: row['soc_percent'] != null ? Number(row['soc_percent']) : null,
-      startedAt: row['started_at'],
-      listingTitle: row['listing_title'],
-      listingCity: row['city'],
-      hostName: row['host_name'],
+      startedAt: row['started_at'] ?? null,
+      endedAt: row['ended_at'] ?? null,
+      chargePointId: row['charge_point_id'] ?? null,
+      listingTitle: row['listing_title'] ?? null,
+      listingCity: row['city'] ?? null,
+      hostName: row['host_name'] ?? null,
     })
   } catch (err) {
     if (err instanceof AppError) return apiError(err.code, err.message, err.statusCode)

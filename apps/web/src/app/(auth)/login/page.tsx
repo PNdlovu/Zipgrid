@@ -69,7 +69,7 @@ function LoginForm() {
 
       const json = (await res.json()) as {
         success: boolean
-        data?: { requiresVerification?: boolean }
+        data?: { requiresVerification?: boolean; accessToken?: string; roles?: string[] }
         error?: { code?: string; message: string }
       }
 
@@ -85,6 +85,15 @@ function LoginForm() {
             : (json.error?.message ?? 'Something went wrong. Please try again.'),
         )
         return
+      }
+
+      // Store the access token in a cookie so the Edge middleware can verify it.
+      // The refresh token is already set as HttpOnly by the API route.
+      // __zg_at is NOT HttpOnly so client JS can write it; middleware reads it.
+      if (json.data?.accessToken) {
+        const isSecure = window.location.protocol === 'https:'
+        const age = data.rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 15 // 30 days or 15 min
+        document.cookie = `__zg_at=${json.data.accessToken}; path=/; max-age=${age}; SameSite=Lax${isSecure ? '; Secure' : ''}`
       }
 
       router.push(redirectTo)
@@ -103,7 +112,7 @@ function LoginForm() {
         <p className="text-sm text-[hsl(var(--muted-foreground))]">
           Don&apos;t have an account?{' '}
           <Link
-            href="/auth/register"
+            href="/register"
             className="font-medium text-[hsl(var(--primary))] hover:opacity-80"
           >
             Sign up free
@@ -133,15 +142,6 @@ function LoginForm() {
         />
 
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-[hsl(var(--foreground))]">Password</span>
-            <Link
-              href="/auth/forgot-password"
-              className="text-xs text-[hsl(var(--primary))] hover:opacity-80"
-            >
-              Forgot password?
-            </Link>
-          </div>
           <AuthInput
             label="Password"
             id="login-password"
@@ -151,8 +151,15 @@ function LoginForm() {
             error={errors.password?.message}
             {...register('password')}
           />
+          <div className="flex justify-end">
+            <Link
+              href="/auth/forgot-password"
+              className="text-xs text-[hsl(var(--primary))] hover:opacity-80"
+            >
+              Forgot password?
+            </Link>
+          </div>
         </div>
-
         {/* Remember me */}
         <label className="flex items-center gap-2.5 text-sm text-[hsl(var(--muted-foreground))]">
           <input

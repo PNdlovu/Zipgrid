@@ -61,24 +61,38 @@ export async function POST(request: NextRequest) {
     const hostProfileId = (hostResult.rows[0] as { id: string }).id
 
     const chargerId = uuidv4()
-    const rawApiKey = uuidv4().replace(/-/g, '') // 32-char hex key
-    // In production: hash the API key before storing — store hash, return plain
-    // For now store plain for development simplicity
+    // Generate a 32-byte random API key and store only the SHA-256 hash.
+    // The plain-text key is returned ONCE to the host — it cannot be recovered.
+    const rawApiKey = Array.from(
+      crypto.getRandomValues(new Uint8Array(24)),
+      (b) => b.toString(16).padStart(2, '0'),
+    ).join('')  // 48-char hex key
+
+    const keyBuffer = await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(rawApiKey),
+    )
+    const apiKeyHash = Array.from(new Uint8Array(keyBuffer))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
+
     const ocppBaseUrl = process.env['OCPP_CENTRAL_SYSTEM_URL'] ?? 'wss://ocpp.zipgrid.co.uk'
     const ocppUrl = `${ocppBaseUrl}/1.6/${parsed.data.chargePointId}`
 
     await db.execute(
       `INSERT INTO charger_devices
-         (id, host_profile_id, charge_point_id, brand, model, api_key, ocpp_url, status, created_at, updated_at)
+         (id, host_profile_id, charge_point_id, brand, model, api_key_hash, ocpp_url, status, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', NOW(), NOW())`,
-      [chargerId, hostProfileId, parsed.data.chargePointId, parsed.data.brand, parsed.data.model, rawApiKey, ocppUrl],
+      [chargerId, hostProfileId, parsed.data.chargePointId, parsed.data.brand, parsed.data.model, apiKeyHash, ocppUrl],
     )
 
     return apiResponse({
       chargerId,
       chargePointId: parsed.data.chargePointId,
       ocppUrl,
+      // Plain-text key shown ONCE — not stored. Host must save this immediately.
       apiKey: rawApiKey,
+      apiKeyNote: 'Save this key now — it cannot be shown again.',
     }, undefined, 201)
   } catch (err) {
     if (err instanceof AppError) return apiError(err.code, err.message, err.statusCode)

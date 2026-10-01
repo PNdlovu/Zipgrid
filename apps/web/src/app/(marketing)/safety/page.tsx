@@ -343,7 +343,7 @@ export default function SafetyPage() {
         headline="Safety built in from the start."
         subtext="Every host and driver on Zipgrid is protected. Join a platform that takes your safety as seriously as you do."
         primaryLabel="Get started"
-        primaryHref="/auth/register"
+        primaryHref="/register"
         secondaryLabel="Read the Trust & Safety Policy"
         secondaryHref="/legal/trust-safety"
       />

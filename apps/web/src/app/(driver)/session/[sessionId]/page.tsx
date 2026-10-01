@@ -16,13 +16,15 @@ import { use, useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import {
   Zap, Square, MapPin, Clock, Battery, ArrowLeft,
-  AlertTriangle, CheckCircle2, Loader2,
+  AlertTriangle, CheckCircle2, Loader2, Star,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { LeaveReviewModal } from '@/components/reviews/LeaveReviewModal'
 
 type SessionState = {
   id: string
   status: 'preparing' | 'charging' | 'paused' | 'finishing' | 'completed' | 'faulted'
+  bookingId: string
   energyConsumedWh: number
   totalCostPence: number
   pricePerKwhPence: number
@@ -31,6 +33,7 @@ type SessionState = {
   startedAt: string
   listingTitle: string
   listingCity: string
+  listingId: string | null
   hostName: string
 }
 
@@ -64,6 +67,8 @@ export default function SessionPage({ params }: { params: Promise<{ sessionId: s
   const [stopError, setStopError] = useState<string | null>(null)
   const [elapsed, setElapsed] = useState('0s')
   const [pulseKey, setPulseKey] = useState(0)
+  const [showReview, setShowReview] = useState(false)
+  const [hasReviewed, setHasReviewed] = useState(false)
 
   const fetchSession = useCallback(async () => {
     try {
@@ -141,6 +146,7 @@ export default function SessionPage({ params }: { params: Promise<{ sessionId: s
   const isFaulted = session.status === 'faulted'
 
   return (
+    <>
     <div className="flex min-h-screen flex-col bg-[hsl(var(--background))]">
       {/* Header */}
       <header className="flex items-center gap-3 border-b border-[hsl(var(--border))] px-4 py-4">
@@ -254,6 +260,26 @@ export default function SessionPage({ params }: { params: Promise<{ sessionId: s
                 You charged {kwhDelivered.toFixed(2)} kWh for £{costPounds.toFixed(2)}.
               </p>
             </div>
+            {!hasReviewed && (
+              <button
+                type="button"
+                onClick={() => setShowReview(true)}
+                className={cn(
+                  'flex h-11 w-full items-center justify-center gap-2 rounded-[6px]',
+                  'border border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--primary)/0.06)] text-sm font-semibold',
+                  'text-[hsl(var(--primary))] transition-colors hover:bg-[hsl(var(--primary)/0.1)]',
+                )}
+              >
+                <Star className="h-4 w-4" aria-hidden="true" />
+                Rate this session
+              </button>
+            )}
+            {hasReviewed && (
+              <p className="flex items-center gap-1.5 text-sm text-[hsl(var(--muted-foreground))]">
+                <CheckCircle2 className="h-4 w-4 text-[hsl(var(--primary))]" aria-hidden="true" />
+                Review submitted — thanks!
+              </p>
+            )}
             <Link
               href="/driver/bookings"
               className={cn(
@@ -290,5 +316,17 @@ export default function SessionPage({ params }: { params: Promise<{ sessionId: s
         )}
       </main>
     </div>
+
+    {/* Review modal */}
+    {showReview && session.listingId && (
+      <LeaveReviewModal
+        bookingId={session.bookingId}
+        listingId={session.listingId}
+        listingTitle={session.listingTitle}
+        onClose={() => setShowReview(false)}
+        onSubmitted={() => setHasReviewed(true)}
+      />
+    )}
+  </>
   )
 }

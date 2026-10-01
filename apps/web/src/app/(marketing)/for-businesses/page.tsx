@@ -116,7 +116,7 @@ export default function ForBusinessesPage() {
             </p>
             <div className="flex flex-col items-center gap-3 sm:flex-row">
               <Link
-                href="/auth/register?role=host&type=smb"
+                href="/register?role=host&type=smb"
                 className={cn(
                   'flex min-h-[48px] items-center rounded-[6px] bg-[hsl(var(--primary))] px-7 py-3',
                   'text-base font-semibold text-[hsl(var(--primary-foreground))] transition-opacity hover:opacity-90',
@@ -209,7 +209,7 @@ export default function ForBusinessesPage() {
         headline="Ready to run EV charging as a business?"
         subtext="Get started free. Upgrade to Pro or Enterprise when your volumes grow."
         primaryLabel="Start your business account"
-        primaryHref="/auth/register?role=host&type=smb"
+        primaryHref="/register?role=host&type=smb"
         secondaryLabel="See pricing"
         secondaryHref="/pricing"
       />

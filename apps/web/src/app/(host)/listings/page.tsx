@@ -92,7 +92,7 @@ export default function HostListingsPage() {
           </p>
         </div>
         <Link
-          href="/host/listings/new"
+          href="/listings/new"
           className={cn(
             'flex h-9 items-center gap-2 rounded-[6px] bg-[hsl(var(--primary))] px-4',
             'text-sm font-semibold text-[hsl(var(--primary-foreground))] transition-opacity hover:opacity-90',
@@ -118,7 +118,7 @@ export default function HostListingsPage() {
             </p>
           </div>
           <Link
-            href="/host/listings/new"
+            href="/listings/new"
             className={cn(
               'flex h-10 items-center gap-2 rounded-[6px] bg-[hsl(var(--primary))] px-5',
               'text-sm font-semibold text-[hsl(var(--primary-foreground))] transition-opacity hover:opacity-90',

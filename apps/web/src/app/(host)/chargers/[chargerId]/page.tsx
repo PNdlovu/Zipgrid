@@ -158,7 +158,7 @@ export default function ChargerDetailPage({ params }: { params: Promise<{ charge
       <div className="flex flex-col items-center gap-4 p-16 text-center">
         <AlertTriangle className="h-8 w-8 text-[hsl(var(--muted-foreground))]" aria-hidden="true" />
         <p className="text-sm text-[hsl(var(--muted-foreground))]">Charger not found or you don&apos;t have access.</p>
-        <Link href="/host/chargers" className="text-sm font-medium text-[hsl(var(--primary))] hover:opacity-80">
+        <Link href="/chargers" className="text-sm font-medium text-[hsl(var(--primary))] hover:opacity-80">
           ← Back to chargers
         </Link>
       </div>
@@ -169,7 +169,7 @@ export default function ChargerDetailPage({ params }: { params: Promise<{ charge
     <div className="flex flex-col gap-6 p-6 lg:p-8">
       {/* Header */}
       <div className="flex flex-wrap items-start gap-4">
-        <Link href="/host/chargers" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]" aria-label="Back to chargers">
+        <Link href="/chargers" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]" aria-label="Back to chargers">
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         </Link>
         <div className="flex-1">

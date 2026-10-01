@@ -84,9 +84,23 @@ export type ListingRow = {
   pricePerSessionPence: number | null
   idleFeePerMinPence: number
   instantBookEnabled: boolean
+  accessType: string
+  accessInstructions: string | null
+  wifiAvailable: boolean
+  restroomAvailable: boolean
+  shelterAvailable: boolean
+  lightingAvailable: boolean
+  wheelchairAccessible: boolean
+  evParkingOnly: boolean
+  minBookingHours: number
+  maxBookingHours: number
   averageRating: number | null
   reviewCount: number
   totalKwhDelivered: number
+  /** Distance from search origin in metres — only present on searchNearby results */
+  distanceMetres?: number
+  /** Cover photos — only populated by getById() */
+  photos: Array<{ id: string; url: string; isCover: boolean }>
   createdAt: Date
   updatedAt: Date
 }
@@ -155,25 +169,46 @@ export const ListingService = {
   },
 
   /**
-   * Retrieves a single listing by ID.
+   * Retrieves a single listing by ID, including photos.
    * @throws {NotFoundError} if not found
    */
   async getById(id: string): Promise<ListingRow> {
     const db = await getDb()
-    const result = await db.execute(
-      `SELECT id, host_profile_id, title, description, status,
-              address_line1, city, postal_code, latitude, longitude,
-              charger_level, plug_types, max_power_kw, num_ports,
-              charger_brand, charger_model, ocpp_charge_point_id, is_smart_charger,
-              pricing_model, price_per_kwh_cents, price_per_hour_cents,
-              price_per_session_cents, idle_fee_per_min_cents,
-              instant_book_enabled, average_rating, review_count,
-              total_kwh_delivered, created_at, updated_at
-       FROM charger_listings WHERE id = $1 LIMIT 1`,
-      [id],
-    )
-    if (result.rows.length === 0) throw new NotFoundError('Listing', id)
-    return this._mapRow(result.rows[0]!)
+
+    const [listingResult, photoResult] = await Promise.all([
+      db.execute(
+        `SELECT id, host_profile_id, title, description, status,
+                address_line1, city, postal_code, latitude, longitude,
+                charger_level, plug_types, max_power_kw, num_ports,
+                charger_brand, charger_model, ocpp_charge_point_id, is_smart_charger,
+                pricing_model, price_per_kwh_cents, price_per_hour_cents,
+                price_per_session_cents, idle_fee_per_min_cents,
+                access_type, access_instructions,
+                wifi_available, restroom_available, shelter_available,
+                lighting_available, wheelchair_accessible, ev_parking_only,
+                min_booking_hours, max_booking_hours,
+                instant_book_enabled, average_rating, review_count,
+                total_kwh_delivered, created_at, updated_at
+         FROM charger_listings WHERE id = $1 LIMIT 1`,
+        [id],
+      ),
+      db.execute(
+        `SELECT id, photo_url AS url, is_cover
+         FROM listing_photos
+         WHERE listing_id = $1
+         ORDER BY sort_order ASC, created_at ASC`,
+        [id],
+      ),
+    ])
+
+    if (listingResult.rows.length === 0) throw new NotFoundError('Listing', id)
+
+    const photos = photoResult.rows.map((r) => {
+      const p = r as Record<string, unknown>
+      return { id: p['id'] as string, url: p['url'] as string, isCover: Boolean(p['is_cover']) }
+    })
+
+    return this._mapRow(listingResult.rows[0]!, photos)
   },
 
   /**
@@ -188,6 +223,10 @@ export const ListingService = {
               charger_brand, charger_model, ocpp_charge_point_id, is_smart_charger,
               pricing_model, price_per_kwh_cents, price_per_hour_cents,
               price_per_session_cents, idle_fee_per_min_cents,
+              access_type, access_instructions,
+              wifi_available, restroom_available, shelter_available,
+              lighting_available, wheelchair_accessible, ev_parking_only,
+              min_booking_hours, max_booking_hours,
               instant_book_enabled, average_rating, review_count,
               total_kwh_delivered, created_at, updated_at
        FROM charger_listings WHERE host_profile_id = $1
@@ -258,6 +297,10 @@ export const ListingService = {
               charger_brand, charger_model, ocpp_charge_point_id, is_smart_charger,
               pricing_model, price_per_kwh_cents, price_per_hour_cents,
               price_per_session_cents, idle_fee_per_min_cents,
+              access_type, access_instructions,
+              wifi_available, restroom_available, shelter_available,
+              lighting_available, wheelchair_accessible, ev_parking_only,
+              min_booking_hours, max_booking_hours,
               instant_book_enabled, average_rating, review_count,
               total_kwh_delivered, created_at, updated_at,
               ST_Distance(location, ST_MakePoint($2,$1)::GEOGRAPHY) AS distance_metres
@@ -321,8 +364,8 @@ export const ListingService = {
     )
   },
 
-  /** Maps a raw DB row to a typed ListingRow */
-  _mapRow(row: Record<string, unknown>): ListingRow {
+  /** Maps a raw DB row to a typed ListingRow. Photos must be passed separately for list queries. */
+  _mapRow(row: Record<string, unknown>, photos: ListingRow['photos'] = []): ListingRow {
     return {
       id: row['id'] as string,
       hostProfileId: row['host_profile_id'] as string,
@@ -348,9 +391,21 @@ export const ListingService = {
       pricePerSessionPence: row['price_per_session_cents'] != null ? Number(row['price_per_session_cents']) : null,
       idleFeePerMinPence: Number(row['idle_fee_per_min_cents']),
       instantBookEnabled: Boolean(row['instant_book_enabled']),
+      accessType: (row['access_type'] as string | null) ?? 'always_open',
+      accessInstructions: (row['access_instructions'] as string | null) ?? null,
+      wifiAvailable: Boolean(row['wifi_available']),
+      restroomAvailable: Boolean(row['restroom_available']),
+      shelterAvailable: Boolean(row['shelter_available']),
+      lightingAvailable: Boolean(row['lighting_available']),
+      wheelchairAccessible: Boolean(row['wheelchair_accessible']),
+      evParkingOnly: Boolean(row['ev_parking_only']),
+      minBookingHours: Number(row['min_booking_hours'] ?? 0.5),
+      maxBookingHours: Number(row['max_booking_hours'] ?? 8),
       averageRating: row['average_rating'] != null ? Number(row['average_rating']) : null,
       reviewCount: Number(row['review_count'] ?? 0),
       totalKwhDelivered: Number(row['total_kwh_delivered'] ?? 0),
+      ...(row['distance_metres'] != null ? { distanceMetres: Number(row['distance_metres']) } : {}),
+      photos,
       createdAt: new Date(row['created_at'] as string),
       updatedAt: new Date(row['updated_at'] as string),
     }

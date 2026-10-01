@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       `SELECT b.id, b.listing_id, b.status, cl.ocpp_charge_point_id, cl.price_per_kwh_cents
        FROM bookings b
        JOIN charger_listings cl ON cl.id = b.listing_id
-       WHERE b.id = $1 AND b.driver_id = (SELECT id FROM driver_profiles WHERE user_id = $2)
+       WHERE b.id = $1 AND b.driver_profile_id = (SELECT id FROM driver_profiles WHERE user_id = $2)
        LIMIT 1`,
       [parsed.data.bookingId, userId],
     )
@@ -104,30 +104,95 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/** GET /api/v1/sessions — session history for current user */
+/** GET /api/v1/sessions — session history for current user (driver or host) */
 export async function GET(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
+
+  const { searchParams } = request.nextUrl
+  const role      = searchParams.get('role') ?? 'driver'  // 'driver' | 'host'
+  const pageSize  = Math.min(100, parseInt(searchParams.get('pageSize') ?? '50', 10))
+  const page      = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
+  const offset    = (page - 1) * pageSize
+  const statusRaw = searchParams.get('status') ?? ''      // comma-separated
 
   try {
     const { getDb } = await import('@/lib/db')
     const db = await getDb()
 
-    const result = await db.execute(
-      `SELECT cs.id, cs.status, cs.energy_consumed_wh, cs.total_cost_pence,
-              cs.started_at, cs.ended_at, cs.charge_point_id,
-              cl.title AS listing_title, cl.city
-       FROM charging_sessions cs
-       JOIN bookings b ON b.id = cs.booking_id
-       JOIN charger_listings cl ON cl.id = b.listing_id
-       JOIN driver_profiles dp ON dp.id = b.driver_id
-       WHERE dp.user_id = $1
-       ORDER BY cs.created_at DESC
-       LIMIT 50`,
-      [userId],
-    )
+    // Build optional status filter (comma-separated → ANY($n) with array)
+    const params: unknown[] = [userId]
+    let statusClause = ''
+    if (statusRaw) {
+      const statusList = statusRaw.split(',').map((s) => s.trim()).filter(Boolean)
+      if (statusList.length > 0) {
+        params.push(statusList)
+        statusClause = `AND cs.status = ANY($${params.length}::text[])`
+      }
+    }
 
-    return apiResponse(result.rows)
+    // Build query — driver path vs host path
+    const ownerJoin = role === 'host'
+      ? `JOIN charger_listings cl ON cl.id = b.listing_id
+         JOIN host_profiles hp   ON hp.id  = cl.host_profile_id
+         WHERE hp.user_id = $1 ${statusClause}`
+      : `JOIN driver_profiles dp ON dp.id = b.driver_profile_id
+         WHERE dp.user_id = $1 ${statusClause}`
+
+    const [countRes, rowsRes] = await Promise.all([
+      db.execute(
+        `SELECT COUNT(*)::INT AS total
+         FROM charging_sessions cs
+         JOIN bookings b ON b.id = cs.booking_id
+         ${ownerJoin}`,
+        params,
+      ),
+      db.execute(
+        `SELECT cs.id, cs.status, cs.energy_consumed_wh, cs.total_cost_pence,
+                cs.started_at, cs.ended_at, cs.duration_minutes,
+                cs.charge_point_id, cs.power_w, cs.soc_percent,
+                b.listing_id,
+                cl2.title AS listing_title, cl2.city AS listing_city,
+                u_driver.full_name AS driver_name
+         FROM charging_sessions cs
+         JOIN bookings b ON b.id = cs.booking_id
+         JOIN charger_listings cl2 ON cl2.id = b.listing_id
+         JOIN driver_profiles dp2 ON dp2.id = b.driver_profile_id
+         JOIN users u_driver ON u_driver.id = dp2.user_id
+         ${ownerJoin}
+         ORDER BY cs.created_at DESC
+         LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, pageSize, offset],
+      ),
+    ])
+
+    const total = (countRes.rows[0] as { total: number }).total
+
+    return apiResponse(
+      {
+        sessions: rowsRes.rows.map((r) => {
+          const row = r as Record<string, unknown>
+          return {
+            id:                row['id'],
+            status:            row['status'],
+            energyConsumedWh:  Number(row['energy_consumed_wh'] ?? 0),
+            totalCostPence:    Number(row['total_cost_pence'] ?? 0),
+            startedAt:         row['started_at'],
+            endedAt:           row['ended_at'],
+            durationMinutes:   row['duration_minutes'] != null ? Number(row['duration_minutes']) : null,
+            chargePointId:     row['charge_point_id'],
+            powerW:            row['power_w'] != null ? Number(row['power_w']) : null,
+            socPercent:        row['soc_percent'] != null ? Number(row['soc_percent']) : null,
+            listingId:         row['listing_id'],
+            listingTitle:      row['listing_title'],
+            listingCity:       row['listing_city'],
+            driverName:        row['driver_name'],
+          }
+        }),
+        total,
+      },
+      { page, pageSize, total },
+    )
   } catch (err) {
     if (err instanceof AppError) return apiError(err.code, err.message, err.statusCode)
     return apiError('INTERNAL_ERROR', 'An unexpected error occurred', 500)

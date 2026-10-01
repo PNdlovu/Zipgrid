@@ -73,12 +73,12 @@ const PUBLIC_PATHS: string[] = [
 
 /** Auth pages — redirect to dashboard if already logged in */
 const AUTH_PATHS: string[] = [
-  '/auth/login',
-  '/auth/register',
-  '/auth/forgot-password',
-  '/auth/reset-password',
-  '/auth/verify-email',
-  '/auth/verify-phone',
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+  '/verify-email',
+  '/verify-phone',
 ]
 
 /** Auth API endpoints subject to stricter rate limiting */
@@ -159,6 +159,15 @@ function checkRateLimit(key: string, limit: number, windowMs: number): boolean {
   return true // allowed
 }
 
+/* ── Role-based home route ──────────────────────────────────── */
+
+function getRoleHome(roles: string[]): string {
+  if (roles.includes('admin'))     return '/admin/dashboard'
+  if (roles.includes('host'))      return '/dashboard'
+  if (roles.includes('installer')) return '/marketplace'
+  return '/map'
+}
+
 /* ── Middleware ─────────────────────────────────────────────── */
 
 /**
@@ -193,16 +202,30 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   if (isAuthPath(pathname)) {
     if (payload) {
       const dashboardUrl = request.nextUrl.clone()
-      dashboardUrl.pathname = '/dashboard'
+      dashboardUrl.pathname = getRoleHome(payload.roles)
       return NextResponse.redirect(dashboardUrl)
     }
     return NextResponse.next()
   }
 
+  /* ── 4b. /dashboard — role-aware redirect hub ────────────── */
+  // Login page redirects here; middleware resolves to the correct home.
+  if (pathname === '/dashboard') {
+    if (payload) {
+      const homeUrl = request.nextUrl.clone()
+      homeUrl.pathname = getRoleHome(payload.roles)
+      return NextResponse.redirect(homeUrl)
+    }
+    // No token — send to login
+    const loginUrl = request.nextUrl.clone()
+    loginUrl.pathname = '/login'
+    return NextResponse.redirect(loginUrl)
+  }
+
   /* ── 5. Protected routes — require valid token ───────────── */
   if (!payload) {
     const loginUrl = request.nextUrl.clone()
-    loginUrl.pathname = '/auth/login'
+    loginUrl.pathname = '/login'
     loginUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(loginUrl)
   }

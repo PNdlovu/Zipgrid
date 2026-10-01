@@ -23,11 +23,18 @@ psql -U postgres -d zipgrid_dev -f db/seeds/001_seed.sql
 
 | File | Contents |
 |------|----------|
-| `001_extensions.sql` | `postgis`, `pgcrypto`, `citext` |
+| `001_extensions.sql` | `postgis`, `pgcrypto`, `citext`, `uuid-ossp` |
 | `002_core_users.sql` | `users`, `driver_profiles`, `driver_vehicles`, `host_profiles` |
 | `003_charger_listings.sql` | `charger_listings`, `listing_availability_schedules`, `listing_blackout_dates`, `listing_photos` |
 | `004_bookings_sessions_payments.sql` | `bookings`, `charging_sessions`, `session_meter_values`, `transactions`, `payouts`, `payout_line_items` |
 | `005_reviews_notifications_insurance.sql` | `reviews`, `notifications`, `notification_preferences`, `incident_reports`, `insurance_claims`, `disputes`, `audit_log` |
+| `006_auth_otp_sessions.sql` | `otp_codes`, `auth_sessions` — OTP verification + refresh token sessions |
+| `007_charger_devices_ocpp_log.sql` | `charger_devices`, `ocpp_event_log` — OCPP device registry + telemetry log |
+| `008_booking_flow_payments.sql` | `stripe_webhook_events` idempotency table + booking flow payment columns |
+| `009_ai_sessions_agent_tasks.sql` | `ai_conversation_sessions`, `agent_tasks` — AI agent memory and task history |
+| `010_marketplace.sql` | `marketplace_products`, `installer_profiles`, `installer_jobs`, `cart_items` |
+| `011_wallet_rewards_emergency_safety_webhooks.sql` | `wallet_balances`, `wallet_transactions`, `reward_balances`, `reward_points`, `reward_badges`, `emergency_sessions`, `safety_scores`, `webhook_subscriptions`, `webhook_deliveries` — plus all related enums |
+| `012_payout_gdpr_support_charger_connectors.sql` | `payout_batches`, `gdpr_deletion_requests`, `consent_records`, `support_conversations`, `support_messages`, `charger_connectors`, `notification_preferences` upsert — plus `ALTER TABLE` additions for `users`, `driver_profiles`, `host_profiles`, `charger_devices` |
 
 ---
 
@@ -70,6 +77,36 @@ incident_reports           (booking/session 1:N)
  └── insurance_claims      (incident 1:N)
 disputes                   (booking 1:N)
 audit_log                  (append-only, no FK to keep it lean)
+```
+
+### Auth & Devices (`006`, `007`)
+```
+otp_codes          (user 1:N — email/phone verification)
+auth_sessions      (user 1:N — refresh token sessions)
+charger_devices    (host_profile 1:N — OCPP device registry)
+ └── ocpp_event_log (charge_point 1:N — telemetry append-only log)
+ └── charger_connectors (charge_point 1:N — per-connector status)
+```
+
+### Wallet & Rewards (`011`)
+```
+wallet_balances       (user 1:1 — denormalised current balance)
+wallet_transactions   (user 1:N — append-only ledger)
+reward_balances       (user 1:1)
+reward_points         (user 1:N — earn/redeem ledger)
+reward_badges         (user 1:N — unlocked badges)
+safety_scores         (listing 1:N — calculated safety scores)
+webhook_subscriptions (user 1:N — outbound webhook endpoints)
+webhook_deliveries    (subscription 1:N — delivery log with retry)
+```
+
+### Payouts & Compliance (`012`)
+```
+payout_batches          (host_user 1:N — weekly Stripe Connect batches)
+gdpr_deletion_requests  (user 1:1 — Art. 17 erasure queue)
+consent_records         (user 1:N per purpose — Art. 7 consent log)
+support_conversations   (user 1:N — AI support chat threads)
+ └── support_messages   (conversation 1:N)
 ```
 
 ---
@@ -130,7 +167,28 @@ REVOKE UPDATE, DELETE ON audit_log FROM app_role;
 
 ---
 
-## Environment Variables
+## Seed Files
+
+Run in order for a full investor-demo dataset:
+
+| File | Contents | Depends on |
+|------|----------|-----------|
+| `001_seed.sql` | Base dataset: 3 users, 2 vehicles, 3 listings, 1 booking, 1 session, 1 review, sample notifications | — |
+| `002_demo_extended.sql` | SMB host, installer, 10 listings, wallet history, rewards, emergency session, dispute, safety scores, webhook | 001 |
+| `003_demo_personas.sql` | 5 full investor-demo personas: Sarah (host), Dev (SMB), Marcus (frequent driver), Andy (new driver), Claire (installer) | 001, 002 |
+| `004_demo_listings.sql` | 5 real UK listings with PostGIS coordinates (London, Manchester, Edinburgh, Bristol, Birmingham) | 003 |
+| `005_demo_bookings.sql` | 3 bookings across all statuses (confirmed/completed/pending) + Stripe transaction | 003, 004 |
+| `006_demo_sessions.sql` | Completed session with 6 timed meter value snapshots + live kWh progression | 005 |
+| `007_demo_reviews.sql` | Dual-sided published reviews + listing average_rating / review_count update | 005, 006 |
+
+```bash
+# Load the full investor demo dataset (run from workspace root)
+for seed in 001 002 003 004 005 006 007; do
+  psql -U postgres -d zipgrid_dev -f "db/seeds/${seed}_*.sql"
+done
+```
+
+
 
 ```env
 DATABASE_URL=postgresql://postgres:password@localhost:5432/zipgrid_dev

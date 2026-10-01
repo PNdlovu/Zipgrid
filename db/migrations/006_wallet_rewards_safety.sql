@@ -1,0 +1,27 @@
+-- =============================================================================
+-- Migration 006 — Wallet, Rewards & Safety (INDEX reference alias)
+-- =============================================================================
+-- NOTE: The content of this migration has been consolidated into:
+--   db/migrations/011_wallet_rewards_emergency_safety_webhooks.sql
+--
+-- This file exists to satisfy the reference in docs/00-INDEX.md which lists
+-- "006_wallet_rewards_safety.sql" as the schema file for Wallet, Rewards,
+-- Safety Score, Referrals, and Agent Mode tables.
+--
+-- When running migrations sequentially, skip this file — 011 already
+-- contains the full implementation. This file is documentation only.
+--
+-- Tables covered in migration 011:
+--   wallet_balances           — per-user wallet balance and auto-topup config
+--   wallet_transactions       — wallet credit/debit ledger entries
+--   reward_balances           — per-user points balance, tier, lifetime total
+--   reward_points             — points ledger (earn + redemption entries)
+--   reward_badges             — earned badge registry per user
+--   safety_scores             — per-listing safety score components and history
+--   emergency_sessions        — emergency charging mode requests
+--   webhooks                  — registered webhook endpoints for event delivery
+--   webhook_deliveries        — delivery attempts and response log
+--   referrals                 — referral code issuance and redemption tracking
+--   agent_mode_preferences    — per-user AI mode (standard/hybrid/agentic)
+-- =============================================================================
+-- No SQL to execute — see migration 011 for schema.
