@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file page.tsx
  * @description /driver/session/[sessionId] — Active charging session screen.
  * Real-time kWh counter, live cost, power graph, Stop button.
@@ -130,7 +130,7 @@ export default function SessionPage({ params }: { params: Promise<{ sessionId: s
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 text-center p-8">
         <AlertTriangle className="h-8 w-8 text-[hsl(var(--muted-foreground))]" aria-hidden="true" />
         <p className="text-sm text-[hsl(var(--muted-foreground))]">Session not found.</p>
-        <Link href="/driver/bookings" className="text-sm font-medium text-[hsl(var(--primary))] hover:opacity-80">
+        <Link href="/bookings" className="text-sm font-medium text-[hsl(var(--primary))] hover:opacity-80">
           View my bookings
         </Link>
       </div>
@@ -151,7 +151,7 @@ export default function SessionPage({ params }: { params: Promise<{ sessionId: s
       {/* Header */}
       <header className="flex items-center gap-3 border-b border-[hsl(var(--border))] px-4 py-4">
         <Link
-          href="/driver/bookings"
+          href="/bookings"
           className="flex h-8 w-8 items-center justify-center rounded-[6px] border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]"
           aria-label="Back to bookings"
         >
@@ -281,7 +281,7 @@ export default function SessionPage({ params }: { params: Promise<{ sessionId: s
               </p>
             )}
             <Link
-              href="/driver/bookings"
+              href="/bookings"
               className={cn(
                 'flex h-11 w-full items-center justify-center rounded-[6px] bg-[hsl(var(--primary))]',
                 'text-sm font-semibold text-[hsl(var(--primary-foreground))] transition-opacity hover:opacity-90',

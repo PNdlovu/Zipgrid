@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file page.tsx
  * @description /driver/profile/carbon — ESG / Carbon Impact tracker.
  * Shows the driver's lifetime CO₂ avoided vs. equivalent ICE journey,
@@ -137,7 +137,7 @@ export default function CarbonPage() {
   if (error || !data) return (
     <div className="mx-auto max-w-lg px-4 py-12 text-center">
       <p className="text-sm text-[hsl(var(--muted-foreground))]">{error ?? 'No carbon data available.'}</p>
-      <Link href="/driver/profile" className="mt-4 block text-sm font-medium text-[hsl(var(--primary))]">← Back to profile</Link>
+      <Link href="/profile" className="mt-4 block text-sm font-medium text-[hsl(var(--primary))]">← Back to profile</Link>
     </div>
   )
 
@@ -151,7 +151,7 @@ export default function CarbonPage() {
       {/* Header */}
       <div className="mb-6 flex items-center gap-3">
         <Link
-          href="/driver/profile"
+          href="/profile"
           className="flex h-8 w-8 items-center justify-center rounded-[6px] border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"
           aria-label="Back to profile"
         >

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file page.tsx
  * @description /driver/trip/plan — Multi-stop AI trip planner.
  * Driver enters destination, battery %, vehicle range, and departure time.
@@ -276,7 +276,7 @@ export default function TripPlannerPage() {
       {/* Header */}
       <header className="flex items-center gap-3 border-b border-[hsl(var(--border))] px-4 py-4">
         <Link
-          href="/driver/map"
+          href="/map"
           className="flex h-8 w-8 items-center justify-center rounded-[6px] border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]"
           aria-label="Back to map"
         >

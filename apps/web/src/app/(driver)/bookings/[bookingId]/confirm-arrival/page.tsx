@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file page.tsx
  * @description /driver/bookings/[bookingId]/confirm-arrival
  * Non-smart charger manual session confirmation flow.
@@ -202,7 +202,7 @@ export default function ConfirmArrivalPage() {
         <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-red-400" />
         <h1 className="text-xl font-bold text-gray-900">Something went wrong</h1>
         <p className="mt-2 text-sm text-gray-500">{error}</p>
-        <Link href="/driver/bookings" className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-green-600 hover:underline">
+        <Link href="/bookings" className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-green-600 hover:underline">
           <ArrowLeft className="h-4 w-4" /> Back to bookings
         </Link>
       </div>

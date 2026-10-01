@@ -168,7 +168,7 @@ export default function HostBookingDetailPage({
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-8 text-center">
         <AlertTriangle className="h-8 w-8 text-[hsl(var(--muted-foreground))]" aria-hidden="true" />
         <p className="text-sm text-[hsl(var(--muted-foreground))]">{fetchError ?? 'Booking not found.'}</p>
-        <Link href="/bookings" className="text-sm font-medium text-[hsl(var(--primary))]">
+        <Link href="/host/bookings" className="text-sm font-medium text-[hsl(var(--primary))]">
           ← Back to bookings
         </Link>
       </div>
@@ -186,7 +186,7 @@ export default function HostBookingDetailPage({
 
       {/* Back */}
       <Link
-        href="/bookings"
+        href="/host/bookings"
         className="mb-5 flex items-center gap-1.5 text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />

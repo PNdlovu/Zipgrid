@@ -130,7 +130,7 @@ export default function HostInsuranceHubPage() {
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link
-          href="/settings"
+          href="/host/settings"
           className="flex h-8 w-8 items-center justify-center rounded-[6px] border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"
           aria-label="Back to settings"
         >

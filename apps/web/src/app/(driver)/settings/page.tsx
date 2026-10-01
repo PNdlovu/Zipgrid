@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file page.tsx
  * @description /driver/settings — Driver account settings.
  * Tabs: AI Mode, Notifications, Privacy & GDPR, Account / Danger Zone.
@@ -300,7 +300,7 @@ export default function DriverSettingsPage() {
         <div className="space-y-5">
           {/* Profile link */}
           <Link
-            href="/driver/profile"
+            href="/profile"
             className="flex items-center justify-between rounded-[6px] border border-[hsl(var(--border))] p-4 transition-colors hover:bg-[hsl(var(--muted))]"
           >
             <div>

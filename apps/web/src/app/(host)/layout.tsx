@@ -31,13 +31,13 @@ import {
 import { cn } from '@/lib/utils'
 
 const NAV_ITEMS = [
-  { href: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/chargers',   icon: PlugZap,         label: 'My Chargers' },
-  { href: '/listings',   icon: MapPin,          label: 'Listings' },
-  { href: '/bookings',   icon: BookOpen,        label: 'Bookings' },
-  { href: '/sessions',   icon: CalendarDays,    label: 'Sessions' },
-  { href: '/earnings',   icon: BarChart3,       label: 'Earnings' },
-  { href: '/settings',   icon: Settings,        label: 'Settings' },
+  { href: '/dashboard',       icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/chargers',        icon: PlugZap,         label: 'My Chargers' },
+  { href: '/listings',        icon: MapPin,          label: 'Listings' },
+  { href: '/host/bookings',   icon: BookOpen,        label: 'Bookings' },
+  { href: '/sessions',        icon: CalendarDays,    label: 'Sessions' },
+  { href: '/earnings',        icon: BarChart3,       label: 'Earnings' },
+  { href: '/host/settings',   icon: Settings,        label: 'Settings' },
 ] as const
 
 /**

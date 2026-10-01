@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file page.tsx
  * @description /driver/bookings/[bookingId] — Booking detail.
  * Shows: status, schedule, host info, QR/PIN codes (confirmed only),
@@ -366,7 +366,7 @@ export default function BookingDetailPage({
           {fetchError ?? 'Booking not found.'}
         </p>
         <Link
-          href="/driver/bookings"
+          href="/bookings"
           className="text-sm font-medium text-[hsl(var(--primary))] hover:opacity-80"
         >
           Back to bookings
@@ -396,7 +396,7 @@ export default function BookingDetailPage({
         {/* Header */}
         <header className="flex items-center gap-3 border-b border-[hsl(var(--border))] px-4 py-4">
           <Link
-            href="/driver/bookings"
+            href="/bookings"
             className="flex h-8 w-8 items-center justify-center rounded-[6px] border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]"
             aria-label="Back to bookings"
           >
@@ -577,7 +577,7 @@ export default function BookingDetailPage({
             {/* Go to active session */}
             {isActive && (
               <Link
-                href="/driver/session"
+                href="/session"
                 className={cn(
                   'flex h-13 items-center justify-center gap-2 rounded-[6px]',
                   'bg-[hsl(var(--primary))] text-base font-semibold text-[hsl(var(--primary-foreground))]',

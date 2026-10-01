@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file page.tsx
  * @description /driver/help/insurance — Driver-facing Insurance Hub.
  * Plain-English summary of what drivers are covered for on Zipgrid,
@@ -210,7 +210,7 @@ export default function InsuranceHubPage() {
         </ol>
 
         <Link
-          href="/driver/help/resolution"
+          href="/help/resolution"
           className={cn(
             'mt-5 flex h-11 items-center justify-center gap-2 rounded-[6px]',
             'bg-[hsl(var(--primary))] text-sm font-semibold text-white transition-opacity hover:opacity-90',

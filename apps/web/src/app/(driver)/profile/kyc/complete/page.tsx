@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file page.tsx
  * @description /driver/profile/kyc/complete
  * Return URL after Stripe Identity verification flow.
@@ -100,7 +100,7 @@ export default function KycCompletePage() {
         You can try again — make sure your ID is well-lit and not blurry.
       </p>
       <Link
-        href="/driver/profile/kyc"
+        href="/profile/kyc"
         className="mt-6 inline-flex items-center gap-2 rounded-xl bg-green-600 px-6 py-3 text-sm font-semibold text-white hover:bg-green-700"
       >
         Try again
