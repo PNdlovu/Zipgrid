@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
         'Once approved, use your SDK key to authenticate API calls',
         'Attend our onboarding call (link in your confirmation email)',
       ],
-    }, 201)
+    }, undefined, 201)
   } catch (err) {
     console.error('[developer/sdk]', err)
     return apiError('INTERNAL_ERROR', 'Registration failed', 500)
