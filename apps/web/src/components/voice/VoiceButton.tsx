@@ -79,7 +79,7 @@ export function VoiceButton({ role = 'driver', context, className }: Props) {
 
   // Feature-detect on mount
   useEffect(() => {
-    const w = window as typeof window & { SpeechRecognition?: new () => SpeechRecognition; webkitSpeechRecognition?: new () => SpeechRecognition }
+    const w = window as typeof window & { SpeechRecognition?: new () => unknown; webkitSpeechRecognition?: new () => unknown }
     setSupported(!!(w.SpeechRecognition ?? w.webkitSpeechRecognition))
   }, [])
 
@@ -116,7 +116,7 @@ export function VoiceButton({ role = 'driver', context, className }: Props) {
   }, [router])
 
   const startListening = useCallback(() => {
-    const w = window as typeof window & { SpeechRecognition?: new () => SpeechRecognition; webkitSpeechRecognition?: new () => SpeechRecognition }
+    const w = window as typeof window & { SpeechRecognition?: new () => unknown; webkitSpeechRecognition?: new () => unknown }
     const SR = w.SpeechRecognition ?? w.webkitSpeechRecognition
     if (!SR) { setStatus('error'); return }
 
