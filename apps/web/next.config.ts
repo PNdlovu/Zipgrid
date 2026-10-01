@@ -10,6 +10,7 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  output: 'standalone',   // required for Railway Docker deployment
   transpilePackages: [
     '@zipgrid/types',
     '@zipgrid/api-client',
