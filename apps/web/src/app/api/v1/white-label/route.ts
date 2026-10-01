@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file route.ts
  * @description GET/POST /api/v1/white-label — White-label platform licensing API.
  * Allows property developers, councils, and utilities to licence the Zipgrid
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
       ],
     )
 
-    return apiResponse({ tenantSlug: body.tenantSlug, tenantUrl, status: 'active' }, 201)
+    return apiResponse({ tenantSlug: body.tenantSlug, tenantUrl, status: 'active' }, undefined, 201)
   } catch (err) {
     console.error('[white-label POST]', err)
     return apiError('INTERNAL_ERROR', 'Could not create white-label tenant', 500)

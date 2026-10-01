@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file route.ts
  * @description POST /api/v1/sessions/manual-start
  * Creates a charging session for a non-smart (non-OCPP) charger.
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
       [booking.id],
     )
 
-    return apiResponse({ sessionId, alreadyStarted: false }, 201)
+    return apiResponse({ sessionId, alreadyStarted: false }, undefined, 201)
   } catch (err) {
     if (err instanceof AppError) {
       return apiError(err.code ?? 'APP_ERROR', err.message, err.statusCode ?? 400)

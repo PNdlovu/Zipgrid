@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file route.ts
  * @description KYC API routes.
  *
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
   try {
     const { KycService } = await import('@/domains/identity/KycService')
     const result = await KycService.initiateVerification(userId)
-    return apiResponse(result, 201)
+    return apiResponse(result, undefined, 201)
   } catch (err) {
     if (err instanceof AppError) {
       return apiError(err.code ?? 'APP_ERROR', err.message, err.statusCode ?? 400)

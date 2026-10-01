@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file route.ts
  * @description GET/POST/DELETE /api/v1/listings/saved — driver saved/favourite listings.
  *
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       [crypto.randomUUID(), userId, body.listingId],
     )
 
-    return apiResponse({ saved: true, listingId: body.listingId }, 201)
+    return apiResponse({ saved: true, listingId: body.listingId }, undefined, 201)
   } catch (err) {
     if (err instanceof AppError) return apiError(err.code ?? 'APP_ERROR', err.message, err.statusCode ?? 400)
     return apiError('INTERNAL_ERROR', 'Could not save listing', 500)

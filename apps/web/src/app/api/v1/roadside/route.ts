@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file route.ts
  * @description GET /api/v1/roadside — EV roadside assistance integration.
  * Connects drivers to specialist EV roadside assistance partners (RAC, AA, Green Flag).
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       ],
     )
 
-    return apiResponse({ logged: true, message: 'Incident logged. Stay safe.' }, 201)
+    return apiResponse({ logged: true, message: 'Incident logged. Stay safe.' }, undefined, 201)
   } catch (err) {
     console.error('[roadside POST]', err)
     return apiError('INTERNAL_ERROR', 'Could not log incident', 500)

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file route.ts
  * @description GET/POST/DELETE /api/v1/host/access-control
  * SMB customer access control — white-list drivers for free or discounted charging.
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
       ? `${appUrl}/charge?token=${qrToken}&listing=${body.listingId}`
       : null
 
-    return apiResponse({ ruleId, qrToken, qrUrl: qrData }, 201)
+    return apiResponse({ ruleId, qrToken, qrUrl: qrData }, undefined, 201)
   } catch (err) {
     if (err instanceof AppError) return apiError(err.code ?? 'APP_ERROR', err.message, err.statusCode ?? 400)
     return apiError('INTERNAL_ERROR', 'Could not create access rule', 500)

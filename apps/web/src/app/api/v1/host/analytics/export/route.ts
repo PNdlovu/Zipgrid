@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file route.ts
  * @description POST /api/v1/host/analytics/export
  * Creates an async export job for sessions, earnings, customers, or VAT invoices.
@@ -193,7 +193,7 @@ export async function POST(request: NextRequest) {
       expiresAt:   new Date(Date.now() + 30 * 60_000).toISOString(), // 30 min
     }
 
-    return apiResponse({ job }, 201)
+    return apiResponse({ job }, undefined, 201)
   } catch (err) {
     if (err instanceof AppError) return apiError(err.code ?? 'APP_ERROR', err.message, err.statusCode ?? 400)
     console.error('[host/analytics/export]', err)

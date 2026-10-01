@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file route.ts
  * @description GET/POST /api/v1/bookings/recurring
  * Driver can set up a recurring weekly booking for the same slot.
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return apiResponse({ bookingIds: createdIds, count: createdIds.length }, 201)
+    return apiResponse({ bookingIds: createdIds, count: createdIds.length }, undefined, 201)
   } catch (err) {
     if (err instanceof AppError) return apiError(err.code ?? 'APP_ERROR', err.message, err.statusCode ?? 400)
     console.error('[bookings/recurring]', err)

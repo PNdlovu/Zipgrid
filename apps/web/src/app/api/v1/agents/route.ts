@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
       slug:    body.slug,
       status:  'pending_review',
       message: 'Agent submitted for review. Our team will review within 5 business days.',
-    }, 201)
+    }, undefined, 201)
   } catch (err) {
     console.error('[agents POST]', err)
     return apiError('INTERNAL_ERROR', 'Could not publish agent', 500)

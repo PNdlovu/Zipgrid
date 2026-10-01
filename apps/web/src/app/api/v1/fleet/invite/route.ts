@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file route.ts
  * @description POST /api/v1/fleet/invite — Fleet admin invites a driver by email.
  * Creates a fleet_members row with status 'invited' and sends an invite email.
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       }).catch(() => { /* non-fatal */ })
     }
 
-    return apiResponse({ invited: true, email: body.email }, 201)
+    return apiResponse({ invited: true, email: body.email }, undefined, 201)
   } catch (err) {
     if (err instanceof AppError) return apiError(err.code ?? 'APP_ERROR', err.message, err.statusCode ?? 400)
     console.error('[fleet/invite]', err)
