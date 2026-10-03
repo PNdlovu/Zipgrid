@@ -12,6 +12,7 @@
  * @author Zipgrid Engineering
  */
 
+import Stripe from 'stripe'
 import { type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { apiResponse, apiError } from '@/lib/api/response'
@@ -79,7 +80,6 @@ export async function GET(request: NextRequest) {
     let stripePortalUrl: string | null = null
     if (host.stripe_customer_id) {
       try {
-        const Stripe = (await import('stripe')).default
         const stripe = new Stripe(process.env['STRIPE_SECRET_KEY'] ?? '', { apiVersion: '2024-06-20' })
         const portal = await stripe.billingPortal.sessions.create({
           customer: host.stripe_customer_id,

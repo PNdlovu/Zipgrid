@@ -6,12 +6,16 @@ on:
     paths:
       - 'apps/web/**'
       - 'packages/**'
+      - 'db/**'
+      - 'scripts/**'
       - '.github/workflows/web-ci.yml'
   pull_request:
     branches: [main, develop]
     paths:
       - 'apps/web/**'
       - 'packages/**'
+      - 'db/**'
+      - 'scripts/**'
 
 defaults:
   run:
@@ -32,13 +36,20 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: apps/web/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
       - name: Typecheck
         run: npx tsc --noEmit
+
+      - name: Integration tests (in-memory Postgres, all migrations + seeds)
+        run: npx vitest run
+
+      - name: SQL drift check (every SQL statement in the code vs the schema)
+        run: node scripts/check-sql.mjs
+        working-directory: .
 
       - name: Lint
         run: npx eslint src --ext .ts,.tsx --max-warnings 0
@@ -61,7 +72,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: apps/web/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci

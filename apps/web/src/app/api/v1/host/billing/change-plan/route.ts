@@ -6,6 +6,7 @@
  * @module apps/web/api/v1/host/billing/change-plan
  */
 
+import Stripe from 'stripe'
 import { type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { apiResponse, apiError } from '@/lib/api/response'
@@ -75,8 +76,6 @@ export async function POST(request: NextRequest) {
         checkoutUrl: `${appUrl}/smb/billing?plan=${body.tier}&success=1&stripe_not_configured=1`,
       })
     }
-
-    const Stripe = (await import('stripe')).default
     const stripe  = new Stripe(process.env['STRIPE_SECRET_KEY'] ?? '', { apiVersion: '2024-06-20' })
 
     // Ensure customer exists

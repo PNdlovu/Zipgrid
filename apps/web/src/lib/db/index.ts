@@ -2,7 +2,7 @@
  * @file index.ts
  * @description PostgreSQL access — lazily initialised postgres.js pool exposing a
  * minimal parameterised `execute` API plus `transaction` for atomic work.
- * Lazy init avoids a build-time DATABASE_URL requirement.
+ * The pool is created on first use, so builds need no DATABASE_URL.
  *
  * Connection options come from the URL (e.g. `?sslmode=require` for Railway's
  * public proxy; the private network needs no TLS). Pool size: DATABASE_POOL_MAX.
@@ -10,7 +10,7 @@
  * @module lib/db
  */
 
-import type postgres from 'postgres'
+import postgres from 'postgres'
 
 export type QueryResult = { rows: Record<string, unknown>[] }
 
@@ -26,8 +26,7 @@ async function getClient(): Promise<postgres.Sql> {
   const url = process.env['DATABASE_URL']
   if (!url) throw new Error('DATABASE_URL environment variable is required')
 
-  const { default: createClient } = await import('postgres')
-  client = createClient(url, {
+  client = postgres(url, {
     max: Number(process.env['DATABASE_POOL_MAX'] ?? 10),
     idle_timeout: 30,
     connect_timeout: 15,
@@ -65,9 +64,13 @@ export async function transaction<T>(fn: (tx: Db) => Promise<T>): Promise<T> {
 /** Lightweight connectivity probe used by the health endpoint. */
 export async function pingDb(): Promise<boolean> {
   try {
-    await (await getClient())`SELECT 1`
+    // Two statements on purpose: the compiled form of await-plus-tagged-template
+    // (await (await getClient())`SELECT 1`) called the promise, not the client.
+    const sql = await getClient()
+    await sql.unsafe('SELECT 1')
     return true
-  } catch {
+  } catch (err) {
+    console.error('[db] connectivity check failed:', err instanceof Error ? `${err.name}: ${err.message}` : err)
     return false
   }
 }
