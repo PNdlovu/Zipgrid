@@ -305,6 +305,58 @@ export const StripeService = {
     await stripe.paymentMethods.detach(paymentMethodId)
   },
 
+  // ── Stripe Billing (host plan subscriptions) ───────────────
+
+  /** Checkout Session that starts a subscription; metadata is copied onto the subscription. */
+  async createSubscriptionCheckout(input: {
+    stripeCustomerId: string
+    priceId: string
+    successUrl: string
+    cancelUrl: string
+    metadata: Record<string, string>
+  }): Promise<string> {
+    const stripe = getStripe()
+    const session = await stripe.checkout.sessions.create({
+      customer: input.stripeCustomerId,
+      mode: 'subscription',
+      line_items: [{ price: input.priceId, quantity: 1 }],
+      success_url: input.successUrl,
+      cancel_url: input.cancelUrl,
+      metadata: input.metadata,
+      subscription_data: { metadata: input.metadata },
+    })
+    if (!session.url) throw new Error('Stripe did not return a Checkout URL')
+    return session.url
+  },
+
+  async retrieveSubscription(subscriptionId: string): Promise<Stripe.Subscription> {
+    return getStripe().subscriptions.retrieve(subscriptionId)
+  },
+
+  /** Switches a subscription's single price (prorated) and clears any scheduled cancellation. */
+  async changeSubscriptionPrice(subscriptionId: string, priceId: string): Promise<Stripe.Subscription> {
+    const stripe = getStripe()
+    const sub = await stripe.subscriptions.retrieve(subscriptionId)
+    const item = sub.items.data[0]
+    if (!item) throw new Error(`Subscription ${subscriptionId} has no items`)
+    return stripe.subscriptions.update(subscriptionId, {
+      items: [{ id: item.id, price: priceId }],
+      proration_behavior: 'create_prorations',
+      cancel_at_period_end: false,
+    })
+  },
+
+  /** Schedules (true) or withdraws (false) cancellation at the end of the paid period. */
+  async setCancelAtPeriodEnd(subscriptionId: string, cancel: boolean): Promise<Stripe.Subscription> {
+    return getStripe().subscriptions.update(subscriptionId, { cancel_at_period_end: cancel })
+  },
+
+  /** Customer portal link for invoices and payment details. */
+  async createBillingPortalUrl(stripeCustomerId: string, returnUrl: string): Promise<string> {
+    const session = await getStripe().billingPortal.sessions.create({ customer: stripeCustomerId, return_url: returnUrl })
+    return session.url
+  },
+
   // ── Stripe Connect (Host payouts) ──────────────────────────
 
   /**

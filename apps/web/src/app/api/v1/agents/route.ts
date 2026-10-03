@@ -77,34 +77,7 @@ export async function GET(request: NextRequest) {
     return apiResponse({ agents: res.rows, total: res.rows.length })
   } catch (err) {
     console.error('[agents GET]', err)
-    // Return stub data if table doesn't exist yet
-    return apiResponse({
-      agents: [
-        {
-          id: 'stub-cost-opt', name: 'Cost Optimiser', slug: 'cost-optimiser',
-          description: 'Automatically schedules your charging to the cheapest tariff window overnight.',
-          category: 'optimisation', targetRoles: ['driver'], iconUrl: null,
-          developerName: 'Zipgrid Labs', pricingModel: 'free', monthlyPricePence: 0,
-          installCount: 1247, averageRating: 4.7, reviewCount: 89,
-        },
-        {
-          id: 'stub-solar', name: 'Solar Sync', slug: 'solar-sync',
-          description: 'Charges your EV from solar surplus — integrates with Octopus Flux and GivEnergy.',
-          category: 'energy', targetRoles: ['driver', 'host'], iconUrl: null,
-          developerName: 'SolarCharge Ltd', pricingModel: 'freemium', monthlyPricePence: 299,
-          installCount: 433, averageRating: 4.5, reviewCount: 41,
-        },
-        {
-          id: 'stub-green-routes', name: 'Green Routes', slug: 'green-routes',
-          description: 'Plan road trips via Zipgrid chargers only — lowest carbon routing engine.',
-          category: 'routing', targetRoles: ['driver'], iconUrl: null,
-          developerName: 'EcoNav', pricingModel: 'free', monthlyPricePence: 0,
-          installCount: 672, averageRating: 4.3, reviewCount: 57,
-        },
-      ],
-      total: 3,
-      note: 'Marketplace in beta — more agents coming soon.',
-    })
+    return apiError('INTERNAL_ERROR', 'Could not load agents', 500)
   }
 }
 

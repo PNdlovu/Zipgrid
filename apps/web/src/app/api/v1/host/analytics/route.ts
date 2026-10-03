@@ -17,6 +17,7 @@
 import { type NextRequest } from 'next/server'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
+import { planGate } from '@/lib/api/plan-gate'
 
 const PERIOD_DAYS: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90, '365d': 365 }
 
@@ -24,6 +25,8 @@ const PERIOD_DAYS: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90, '36
 export async function GET(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
+  const blocked = await planGate(userId, 'analytics')
+  if (blocked) return blocked
 
   const { searchParams } = request.nextUrl
   const periodKey = searchParams.get('period') ?? '30d'

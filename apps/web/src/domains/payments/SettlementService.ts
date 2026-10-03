@@ -11,6 +11,8 @@
  *
  * Rules:
  *   - capture = min(final cost, authorised hold)
+ *   - revenue is split at the commission rate snapshotted on the transaction
+ *     (the host's plan rate when payment was secured)
  *   - the host is paid for the full session: earnings are split from the final
  *     cost, and any excess over the hold opens a payment_shortfalls row that
  *     ShortfallService collects from the driver (wallet, then card) after commit
@@ -64,6 +66,7 @@ export const SettlementService = {
     return transaction(async (tx) => {
       const res = await tx.execute(
         `SELECT t.id AS transaction_id, t.status AS txn_status, t.stripe_payment_intent_id, t.payment_source,
+                COALESCE(t.commission_rate_pct, 15) AS commission_rate_pct,
                 COALESCE(t.authorized_cents, t.subtotal_cents, 0) AS authorized_cents,
                 cs.id AS session_id, cs.status AS session_status, cs.booking_id,
                 COALESCE(cs.total_session_cost_cents, 0) AS final_cents,
@@ -84,6 +87,7 @@ export const SettlementService = {
         txn_status: string
         stripe_payment_intent_id: string | null
         payment_source: 'card' | 'wallet'
+        commission_rate_pct: number
         authorized_cents: number
         session_status: string
         booking_id: string
@@ -149,7 +153,7 @@ export const SettlementService = {
       }
 
       // Host is paid for the whole session; the shortfall is the platform's to recover.
-      const { platformFeePence, hostEarningsPence } = splitRevenue(finalCents)
+      const { platformFeePence, hostEarningsPence } = splitRevenue(finalCents, Number(row.commission_rate_pct) / 100)
       await tx.execute(
         `UPDATE transactions
          SET status = 'captured', session_id = $2,

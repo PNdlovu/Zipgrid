@@ -132,7 +132,7 @@ INSERT INTO host_profiles (
     '00000000-0000-0000-0000-000000000002',   -- Sarah
     'residential', NULL,
     TRUE, 'weekly',
-    'standard', 15.00,
+    'starter', 15.00,
     2, FALSE, TRUE
 );
 

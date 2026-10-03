@@ -40,7 +40,10 @@ export async function GET(request: NextRequest) {
 
   const apiKey = process.env['COMPANIES_HOUSE_API_KEY']
   if (!apiKey) {
-    // Return mock data in dev when API key not set
+    if (process.env.NODE_ENV === 'production') {
+      return apiError('LOOKUP_UNAVAILABLE', 'Company lookup is unavailable — please enter your company details manually.', 503)
+    }
+    // Local development only: a recognisable fake result.
     return apiResponse({
       results: [
         {

@@ -14,6 +14,7 @@ import { type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
+import { planGate } from '@/lib/api/plan-gate'
 
 const ExportSchema = z.object({
   type:           z.enum(['sessions', 'earnings', 'customers', 'vat_invoices']),
@@ -42,6 +43,8 @@ function buildCsv(headers: string[], rows: unknown[][]): string {
 export async function POST(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
+  const blocked = await planGate(userId, 'data_export')
+  if (blocked) return blocked
 
   let body: z.infer<typeof ExportSchema>
   try { body = ExportSchema.parse(await request.json()) }

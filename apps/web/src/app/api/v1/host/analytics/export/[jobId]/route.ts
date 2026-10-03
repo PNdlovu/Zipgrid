@@ -11,6 +11,7 @@
 import { type NextRequest } from 'next/server'
 import { apiError } from '@/lib/api/response'
 import { NextResponse } from 'next/server'
+import { planGate } from '@/lib/api/plan-gate'
 
 /** GET /api/v1/host/analytics/export/[jobId] — Polls the status of an async export job. */
 export async function GET(
@@ -19,6 +20,8 @@ export async function GET(
 ) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
+  const blocked = await planGate(userId, 'data_export')
+  if (blocked) return blocked
 
   // jobId is validated but jobs are always synchronous in v1
   const { jobId } = await params

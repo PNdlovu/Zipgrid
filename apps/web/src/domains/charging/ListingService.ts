@@ -16,6 +16,7 @@ import { getDb } from '@/lib/db'
 import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/errors/AppError'
 import { eventBus } from '@/lib/events/event-bus'
 import { distanceMetresSql, withinRadiusSql } from '@/lib/db/geo'
+import { HostPlanService } from '@/domains/billing/HostPlanService'
 
 /* ── Types ──────────────────────────────────────────────────── */
 
@@ -113,8 +114,10 @@ export const ListingService = {
   /**
    * Creates a new listing in draft status.
    * @throws {ValidationError} if host profile does not exist
+   * @throws {PlanUpgradeRequiredError} at the host plan's listing limit
    */
   async create(input: CreateListingInput): Promise<ListingRow> {
+    await HostPlanService.assertCanAddListing(input.hostProfileId)
     const db = await getDb()
     const id = uuidv4()
 

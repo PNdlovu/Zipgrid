@@ -15,6 +15,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
+import { planGate } from '@/lib/api/plan-gate'
 
 const VAT_RATE = 0.20   // UK standard rate
 
@@ -22,6 +23,8 @@ const VAT_RATE = 0.20   // UK standard rate
 export async function GET(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
+  const blocked = await planGate(userId, 'vat_invoices')
+  if (blocked) return blocked
 
   const period = request.nextUrl.searchParams.get('period') // e.g. 2026-09
   const format = (request.nextUrl.searchParams.get('format') ?? 'csv') as 'csv' | 'html'

@@ -164,7 +164,10 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     let fileUrl: string
     if (!blobToken) {
-      // Dev: use placeholder URL
+      if (process.env.NODE_ENV === 'production') {
+        return apiError('STORAGE_UNAVAILABLE', 'Evidence uploads are not available right now. Please try again later.', 503)
+      }
+      // Local development only: record a placeholder URL so the flow can be exercised.
       fileUrl = `https://dev-placeholder.zipgrid.internal/${pathname}`
     } else {
       const blobRes = await fetch(`https://blob.vercel-storage.com/${pathname}`, {

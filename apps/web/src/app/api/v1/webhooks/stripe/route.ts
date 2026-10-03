@@ -14,6 +14,8 @@
  *   payout.paid                              — Stripe payout landed in host bank
  *   payout.failed                            — Stripe payout failed
  *   account.updated                          — Stripe Connect account state changed
+ *   checkout.session.completed               — host plan subscription started
+ *   customer.subscription.created/updated/deleted — host plan changes (HostPlanService)
  *
  * Security: raw body required for signature verification.
  * Next.js does not parse the body before this handler receives it.
@@ -32,6 +34,7 @@ import { transaction } from '@/lib/db'
 import { EarningsAllocator } from '@/domains/payments/EarningsAllocator'
 import { PayoutAccountService } from '@/domains/payments/PayoutAccountService'
 import { ShortfallService } from '@/domains/payments/ShortfallService'
+import { HostPlanService } from '@/domains/billing/HostPlanService'
 
 /* ── Helpers ────────────────────────────────────────────────── */
 
@@ -255,6 +258,20 @@ async function handleAccountUpdated(account: Stripe.Account) {
   await PayoutAccountService.onAccountUpdated(account.id, Boolean(account.payouts_enabled && account.details_submitted))
 }
 
+/** checkout.session.completed — a host plan subscription was paid for */
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+  if (session.mode !== 'subscription' || !session.subscription) return
+  const subId = typeof session.subscription === 'string' ? session.subscription : session.subscription.id
+  await HostPlanService.syncSubscription(await StripeService.retrieveSubscription(subId))
+}
+
+/** customer.subscription.* — plan state changed (renewal, upgrade, payment failure, cancellation) */
+async function handleSubscriptionChanged(sub: Stripe.Subscription) {
+  if (!(await HostPlanService.syncSubscription(sub))) {
+    console.warn('[stripe-webhook] subscription not linked to a host:', sub.id)
+  }
+}
+
 /** identity.verification_session.* — KYC status update */
 async function handleIdentityEvent(event: Stripe.Event) {
   const { KycService } = await import('@/domains/identity/KycService')
@@ -326,6 +343,14 @@ export async function POST(request: NextRequest) {
         break
       case 'account.updated':
         await handleAccountUpdated(event.data.object as Stripe.Account)
+        break
+      case 'checkout.session.completed':
+        await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session)
+        break
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted':
+        await handleSubscriptionChanged(event.data.object as Stripe.Subscription)
         break
       // ── Stripe Identity (KYC) ──────────────────────────────────────
       case 'identity.verification_session.verified':

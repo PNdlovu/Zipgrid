@@ -19,6 +19,7 @@ import { v4 as uuidv4 } from 'uuid'
 import crypto from 'crypto'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
+import { planGate } from '@/lib/api/plan-gate'
 
 const VALID_EVENTS = [
   'session.started', 'session.completed', 'booking.confirmed', 'booking.cancelled',
@@ -56,6 +57,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
+  const blocked = await planGate(userId, 'webhooks')
+  if (blocked) return blocked
 
   let body: unknown
   try { body = await request.json() } catch { return apiError('INVALID_JSON', 'Invalid JSON', 400) }

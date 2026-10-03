@@ -27,6 +27,8 @@
  * transaction, then re-checks availability before inserting.
  *
  * Money rule: all amounts are integer pence (DB columns say "_cents").
+ * Commission: the host's plan rate is snapshotted onto the transaction when
+ * payment is secured; settlement splits revenue at that rate.
  *
  * @module domains/booking
  */
@@ -278,7 +280,8 @@ export const BookingService = {
          booking_id, payment_source, status,
          subtotal_cents, authorized_cents, platform_fee_cents, total_charged_cents,
          host_earnings_cents, commission_rate_pct, currency, hold_placed_at
-       ) VALUES ($1, 'wallet', 'hold_placed', $2, $2, 0, 0, 0, 15.00, 'GBP', NOW())`,
+       ) VALUES ($1, 'wallet', 'hold_placed', $2, $2, 0, 0, 0,
+                 (SELECT hp.commission_rate_pct FROM bookings bk JOIN charger_listings cl ON cl.id = bk.listing_id JOIN host_profiles hp ON hp.id = cl.host_profile_id WHERE bk.id = $1), 'GBP', NOW())`,
       [bookingId, amountPence],
     )
   },
@@ -371,7 +374,8 @@ export const BookingService = {
          booking_id, stripe_payment_intent_id, status,
          subtotal_cents, authorized_cents, platform_fee_cents, total_charged_cents,
          host_earnings_cents, commission_rate_pct, currency, hold_placed_at
-       ) VALUES ($1, $2, 'hold_placed', $3, $3, 0, 0, 0, 15.00, 'GBP', NOW())
+       ) VALUES ($1, $2, 'hold_placed', $3, $3, 0, 0, 0,
+                 (SELECT hp.commission_rate_pct FROM bookings bk JOIN charger_listings cl ON cl.id = bk.listing_id JOIN host_profiles hp ON hp.id = cl.host_profile_id WHERE bk.id = $1), 'GBP', NOW())
        ON CONFLICT (booking_id) DO NOTHING`,
       [bookingId, hold.paymentIntentId, amount],
     )

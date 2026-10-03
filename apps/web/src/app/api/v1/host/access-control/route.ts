@@ -21,6 +21,7 @@ import { z } from 'zod'
 import crypto from 'crypto'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError, ForbiddenError } from '@/lib/errors/AppError'
+import { planGate } from '@/lib/api/plan-gate'
 
 const CreateRuleSchema = z.object({
   listingId:        z.string().uuid(),
@@ -81,6 +82,9 @@ export async function POST(request: NextRequest) {
   let body: z.infer<typeof CreateRuleSchema>
   try { body = CreateRuleSchema.parse(await request.json()) }
   catch (err) { return apiError('VALIDATION_ERROR', err instanceof Error ? err.message : 'Invalid input', 400) }
+
+  const blocked = await planGate(userId, body.ruleType === 'qr_token' ? 'qr_access' : 'access_control')
+  if (blocked) return blocked
 
   try {
     const { getDb } = await import('@/lib/db')
