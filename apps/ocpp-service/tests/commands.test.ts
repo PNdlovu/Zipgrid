@@ -5,7 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ConnectionManager } from '../src/connection/ConnectionManager'
-import { pendingRequests } from '../src/http/OcppCommandDispatcher'
+import { OcppCommandDispatcher, pendingRequests } from '../src/http/OcppCommandDispatcher'
 import { sendRemoteStart } from '../src/commands/RemoteStartTransaction'
 import { sendRemoteStop } from '../src/commands/RemoteStopTransaction'
 import { sendChangeAvailability } from '../src/commands/ChangeAvailability'
@@ -21,7 +21,6 @@ function makeMockWs(): WebSocket {
 
 /** Simulate a CallResult for the most recently sent message. */
 function simulateAccepted(ws: WebSocket): void {
-  const { OcppCommandDispatcher } = require('../src/http/OcppCommandDispatcher')
   const call = (ws.send as ReturnType<typeof vi.fn>).mock.calls.at(-1)
   if (!call) return
   const [, uniqueId] = JSON.parse(call[0] as string) as [number, string]

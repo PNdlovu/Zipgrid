@@ -12,6 +12,7 @@ function makeMockWs(): WebSocket {
     on: vi.fn(),
     send: vi.fn(),
     close: vi.fn(),
+    terminate: vi.fn(),
   } as unknown as WebSocket
 }
 
@@ -73,5 +74,7 @@ describe('ConnectionManager', () => {
     manager.register('CP-001', ws2)
     expect(manager.get('CP-001')).toBe(ws2)
     expect(manager.count).toBe(1)
+    expect(ws1.terminate).toHaveBeenCalledOnce() // the stale connection is dropped
+    expect(ws2.terminate).not.toHaveBeenCalled()
   })
 })
