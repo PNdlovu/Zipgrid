@@ -27,6 +27,7 @@ import {
   X,
   ChevronRight,
   BookOpen,
+  Building2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -35,6 +36,7 @@ const NAV_ITEMS = [
   { href: '/chargers',          icon: PlugZap,         label: 'My Chargers' },
   { href: '/host/listings',     icon: MapPin,          label: 'Listings' },
   { href: '/host/bookings',     icon: BookOpen,        label: 'Bookings' },
+  { href: '/host/properties',   icon: Building2,       label: 'Properties' },
   { href: '/sessions',          icon: CalendarDays,    label: 'Sessions' },
   { href: '/earnings',          icon: BarChart3,       label: 'Earnings' },
   { href: '/host/settings',     icon: Settings,        label: 'Settings' },

@@ -15,7 +15,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   User, Shield, Bell, Zap, ChevronRight,
-  CheckCircle, Clock, AlertCircle, Camera,
+  CheckCircle, Clock, AlertCircle, Camera, Building2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -415,8 +415,8 @@ export default function ProfilePage() {
       <section className="mt-8 space-y-2" aria-label="Account links">
         {[
           { label: 'My vehicles', href: '/vehicles', icon: Zap },
-          { label: 'Manage vehicles →', href: '/vehicles', icon: ChevronRight },
-        ].slice(0, 1).map(({ label, href, icon: Icon }) => (
+          { label: 'My building', href: '/property', icon: Building2 },
+        ].map(({ label, href, icon: Icon }) => (
           <a
             key={href}
             href={href}

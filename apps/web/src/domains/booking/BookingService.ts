@@ -20,6 +20,10 @@
  *   - The transaction row has payment_source 'wallet' and no PaymentIntent;
  *     settlement and cancellation branch on it.
  *
+ * Property bays: residents_only / residents_priority access and the resident
+ * discount are applied here (PropertyService.bookingRulesFor); the discount is
+ * baked into the quoted tariff, so the session is billed at the resident price.
+ *
  * Outstanding balances: a driver with an unpaid session shortfall cannot make
  * new bookings until it is collected (ShortfallService).
  *
@@ -51,6 +55,7 @@ import { InsufficientWalletBalanceError, WalletService } from '@/domains/payment
 import { AutoTopupService } from '@/domains/payments/AutoTopupService'
 import { StripeCustomer } from '@/domains/payments/StripeCustomer'
 import { ShortfallService } from '@/domains/payments/ShortfallService'
+import { PropertyService, PUBLIC_PRIORITY_WINDOW_HOURS } from '@/domains/property/PropertyService'
 import { eventBus } from '@/lib/events/event-bus'
 
 /* ── Types ──────────────────────────────────────────────────── */
@@ -190,6 +195,26 @@ export const BookingService = {
         throw new ValidationError(`This charger can be booked up to ${advanceDays} days ahead.`)
       }
 
+      const bay = await PropertyService.bookingRulesFor(tx, input.listingId, input.userId)
+      if (bay && !bay.isResident) {
+        if (bay.accessMode === 'residents_only') {
+          throw new ValidationError(`This bay is reserved for residents of ${bay.propertyName}.`, 'RESIDENTS_ONLY')
+        }
+        if (bay.accessMode === 'residents_priority'
+            && input.scheduledStart.getTime() > Date.now() + PUBLIC_PRIORITY_WINDOW_HOURS * 3_600_000) {
+          throw new ValidationError(
+            `Residents of ${bay.propertyName} get priority on this bay. You can book it up to ${PUBLIC_PRIORITY_WINDOW_HOURS} hours ahead.`,
+            'RESIDENT_PRIORITY_WINDOW',
+          )
+        }
+      }
+      const discountPct = bay?.isResident ? bay.residentDiscountPct : 0
+      const quote = (pence: unknown): number | null =>
+        pence == null ? null : Math.round((Number(pence) * (100 - discountPct)) / 100)
+      const perKwh = quote(l['price_per_kwh_cents'])
+      const perHour = quote(l['price_per_hour_cents'])
+      const perSession = quote(l['price_per_session_cents'])
+
       // Serialise bookings on this listing, then re-check availability.
       await tx.execute(`SELECT lock_listing_for_booking($1)`, [input.listingId])
       const available = await AvailabilityService.isAvailable(input.listingId, input.scheduledStart, input.scheduledEnd, tx)
@@ -200,9 +225,9 @@ export const BookingService = {
       const estimatedPence = estimateBookingHold({
         tariff: {
           pricingModel: l['pricing_model'] as PricingModel,
-          pricePerKwhPence: l['price_per_kwh_cents'] as number | null,
-          pricePerHourPence: l['price_per_hour_cents'] as number | null,
-          pricePerSessionPence: l['price_per_session_cents'] as number | null,
+          pricePerKwhPence: perKwh,
+          pricePerHourPence: perHour,
+          pricePerSessionPence: perSession,
           idleFeePerMinPence: 0,
         },
         maxPowerKw: Number(l['max_power_kw']),
@@ -226,7 +251,7 @@ export const BookingService = {
           bookingId, input.listingId, driverProfileId, input.vehicleId,
           input.scheduledStart.toISOString(), input.scheduledEnd.toISOString(),
           l['pricing_model'],
-          l['price_per_kwh_cents'], l['price_per_hour_cents'], l['price_per_session_cents'],
+          perKwh, perHour, perSession,
           l['idle_fee_per_min_cents'] ?? 0, l['peak_surcharge_pct'] ?? 0, estimatedPence,
           l['access_type'], l['access_instructions'], Boolean(l['instant_book_enabled']),
           randomDigits(8), randomDigits(6), input.paymentMethodId, input.recurringSeriesId ?? null, payWithWallet,
