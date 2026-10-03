@@ -1,91 +1,68 @@
 /**
  * @file page.tsx
- * @description /host/settings/insurance — Host-facing Insurance Hub.
- * Shows the Host Protection Guarantee summary, active coverage status,
- * claim history, and the insurer notification letter template.
+ * @description /host/settings/insurance — what hosts need to be covered and
+ * what Zipgrid does to protect them. Zipgrid does not insure hosts: hosts keep
+ * their own home / public liability cover that includes sharing their charger.
  *
  * @module apps/web/app/(host)/settings/insurance
- * @version 0.1.0
- * @since 2026-09-26
- * @author Zipgrid Engineering
  */
 
-'use client'
-
-import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import {
-  ArrowLeft, ShieldCheck, ShieldX, FileText,
-  CheckCircle2, Clock, ExternalLink, ChevronRight,
-  HelpCircle, AlertTriangle,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { AlertTriangle, ArrowLeft, CheckCircle2, ChevronRight, FileText, HelpCircle, ShieldCheck } from 'lucide-react'
 
-/* ── Types ──────────────────────────────────────────────────── */
+/* ── Content ────────────────────────────────────────────────── */
 
-type ListingStatus = {
-  id: string
-  title: string
-  isActive: boolean
-  isVerified: boolean
-}
-
-/* ── Coverage items ─────────────────────────────────────────── */
-
-const COVERED_ITEMS = [
+const YOUR_COVER = [
   {
-    title: 'Third-party injury during a session',
-    detail: 'If a driver or visitor is injured while accessing your charger during a confirmed booking, Zipgrid\'s £1M CGL umbrella covers legal liability.',
+    title: 'Home or buildings insurance that allows charger sharing',
+    detail: 'Tell your insurer you let drivers use your charger through Zipgrid. Some policies need an amendment; not telling them could affect a claim.',
   },
   {
-    title: 'Charger-caused property damage',
-    detail: 'Damage to a driver\'s vehicle caused by a fault in your charger during a session is covered under the Host Protection Guarantee.',
+    title: 'Public liability cover',
+    detail: 'Covers you if a driver or visitor is injured, or their property is damaged, while using your charger. Many home policies include it; check the limit.',
   },
   {
-    title: 'Driver-caused property damage to your property',
-    detail: 'If a driver damages your property during a session (e.g. gate damage), Zipgrid\'s guarantee covers repair costs after a £250 excess.',
-  },
-  {
-    title: 'Session revenue loss from platform error',
-    detail: 'If a confirmed booking fails to complete due to a Zipgrid platform error (not a charger hardware fault), we\'ll compensate the estimated session value.',
+    title: 'A safe, certified installation',
+    detail: 'Your charger should be installed by a qualified electrician (NICEIC, NAPIT or ECA) with RCD protection, and kept in good repair.',
   },
 ]
 
-const EXCLUDED_ITEMS = [
-  {
-    title: 'Damage before or after the booking window',
-    detail: 'The guarantee only applies during confirmed booking windows. Damage outside these times is not covered.',
-  },
-  {
-    title: 'Pre-existing charger faults',
-    detail: 'If your charger had a known fault before you listed it, claims arising from that fault are excluded.',
-  },
-  {
-    title: 'Deliberate damage or fraud',
-    detail: 'Claims that arise from intentional damage, misrepresentation, or fraud are excluded and may result in account suspension.',
-  },
-  {
-    title: 'Sessions on unverified listings',
-    detail: 'Your listing must have completed the safety checklist and been verified. Sessions on listings with a safety score below 50 may not be covered.',
-  },
+const ZIPGRID_DOES = [
+  { title: 'ID-verified drivers', detail: 'Every driver verifies their ID before they can book.' },
+  { title: 'Payment secured before arrival', detail: 'A card hold or wallet reservation is in place before a session, and the session is charged at the price you set.' },
+  { title: 'A record of every booking', detail: 'Who booked, when, the arrival code used and the session data, ready if you need to make a claim.' },
+  { title: 'Reviews both ways', detail: 'Drivers and hosts review each other after every booking.' },
+  { title: 'Incident reporting and the Resolution Centre', detail: 'Report damage or a problem with a driver and we review it with the booking record.' },
 ]
 
 const FAQ_ITEMS = [
   {
-    q: 'Does Zipgrid notify my home insurer?',
-    a: 'Zipgrid does not notify your insurer — but you should. Most home insurance policies require you to declare commercial use. Download the template letter below to notify your insurer. Failure to declare could invalidate your home policy.',
+    q: 'Does Zipgrid insure me?',
+    a: 'No. Zipgrid is the booking and payment platform; it does not provide insurance. Keep your own home and public liability cover, and tell your insurer that you share your charger.',
   },
   {
-    q: 'What does "£1M CGL umbrella" mean?',
-    a: 'Zipgrid holds a Commercial General Liability insurance policy with a £1 million per-occurrence limit. This covers claims made against you as a result of injuries or property damage during a session on your listing.',
+    q: 'A driver damaged my property. What should I do?',
+    a: 'Take photos straight away, then report it in the Resolution Centre. We review it with the booking record and the driver\'s verified identity, which you can also use with your insurer.',
   },
   {
-    q: 'How do I make a claim?',
-    a: 'Report the incident immediately via the admin dispute queue (or contact support). Preserve all evidence — photos, communication, receipts. Our claims team will guide you through the process.',
+    q: 'Is the driver responsible for damage they cause?',
+    a: 'Yes. Drivers agree to use chargers with care and are responsible for damage they cause. The booking record identifies who was there and when.',
   },
 ]
 
-/* ── Accordion ──────────────────────────────────────────────── */
+const LETTER = `Dear [Insurer Name],
+
+I am writing to let you know that I share the electric vehicle charger at [Your Address] with other drivers through the Zipgrid booking platform. Drivers book a time slot in advance, verify their identity with Zipgrid and pay through the platform.
+
+The charger is a [Brand and Model], installed by a qualified electrician in [Year], with RCD protection.
+
+Please confirm whether my current policy covers this use, including public liability for people using the charger, or whether it needs to be amended.
+
+Yours faithfully,
+[Your Name]
+[Policy Number]`
+
+/* ── Page ───────────────────────────────────────────────────── */
 
 function FaqItem({ q, a }: { q: string; a: string }) {
   return (
@@ -99,36 +76,23 @@ function FaqItem({ q, a }: { q: string; a: string }) {
   )
 }
 
-/* ── Page ───────────────────────────────────────────────────── */
+function ItemList({ items }: { items: { title: string; detail: string }[] }) {
+  return (
+    <ul className="flex flex-col gap-2">
+      {items.map((item) => (
+        <li key={item.title} className="rounded-[6px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
+          <p className="text-sm font-medium text-[hsl(var(--foreground))]">{item.title}</p>
+          <p className="mt-1 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">{item.detail}</p>
+        </li>
+      ))}
+    </ul>
+  )
+}
 
-/** Page at /host/settings/insurance — Host-facing Insurance Hub. */
-export default function HostInsuranceHubPage() {
-  const [listings, setListings] = useState<ListingStatus[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    fetch('/api/v1/host/listings')
-      .then((r) => r.json())
-      .then((d: { data: Array<{ id: string; title: string; status: string; isSmartCharger: boolean }> }) => {
-        setListings(
-          (d.data ?? []).map((l) => ({
-            id: l.id,
-            title: l.title,
-            isActive: l.status === 'active',
-            isVerified: true, // simplified — full verification is in the safety score
-          })),
-        )
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
-
-  const hasActiveListings = listings.some((l) => l.isActive)
-
+/** Page at /host/settings/insurance — insurance and protection for hosts. */
+export default function HostInsurancePage() {
   return (
     <div className="flex flex-col gap-6 p-6 lg:p-8">
-
-      {/* Header */}
       <div className="flex items-center gap-3">
         <Link
           href="/host/settings"
@@ -138,82 +102,36 @@ export default function HostInsuranceHubPage() {
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         </Link>
         <div>
-          <h1 className="text-xl font-semibold text-[hsl(var(--foreground))]">Host Protection Guarantee</h1>
-          <p className="text-sm text-[hsl(var(--muted-foreground))]">Your coverage while hosting on Zipgrid</p>
+          <h1 className="text-xl font-semibold text-[hsl(var(--foreground))]">Insurance and protection</h1>
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">What you need, and what Zipgrid does to protect you</p>
         </div>
+      </div>
+
+      <div className="flex items-start gap-3 rounded-[8px] border border-amber-500/30 bg-amber-500/10 p-4">
+        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
+        <p className="text-sm text-[hsl(var(--foreground))]">
+          Zipgrid does not provide insurance. Before you take bookings, check that your own insurance covers other people using your charger.
+        </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="flex flex-col gap-6 lg:col-span-2">
+          <section aria-labelledby="cover-heading">
+            <h2 id="cover-heading" className="mb-3 flex items-center gap-2 text-sm font-semibold text-[hsl(var(--foreground))]">
+              <ShieldCheck className="h-4 w-4 text-[hsl(var(--primary))]" aria-hidden="true" />
+              Cover you need
+            </h2>
+            <ItemList items={YOUR_COVER} />
+          </section>
 
-          {/* Coverage status */}
-          <div className={cn(
-            'flex items-start gap-4 rounded-[8px] border p-4',
-            hasActiveListings
-              ? 'border-[hsl(var(--primary)/0.3)] bg-[hsl(var(--primary)/0.06)]'
-              : 'border-[hsl(var(--border))] bg-[hsl(var(--secondary))]',
-          )}>
-            <ShieldCheck className={cn(
-              'h-6 w-6 mt-0.5 shrink-0',
-              hasActiveListings ? 'text-[hsl(var(--primary))]' : 'text-[hsl(var(--muted-foreground))]',
-            )} aria-hidden="true" />
-            <div>
-              <p className={cn('font-semibold', hasActiveListings ? 'text-[hsl(var(--primary))]' : 'text-[hsl(var(--foreground))]')}>
-                {loading ? 'Checking coverage…'
-                  : hasActiveListings ? 'Your coverage is active'
-                  : 'No active listings — coverage paused'}
-              </p>
-              <p className="mt-0.5 text-sm text-[hsl(var(--muted-foreground))]">
-                {hasActiveListings
-                  ? 'All active listings are covered under Zipgrid\'s £1M CGL umbrella policy while sessions are in progress.'
-                  : 'Publish a listing to activate host coverage.'}
-              </p>
-              {hasActiveListings && (
-                <ul className="mt-2 flex flex-col gap-1">
-                  {listings.filter((l) => l.isActive).map((l) => (
-                    <li key={l.id} className="flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]">
-                      <CheckCircle2 className="h-3 w-3 text-[hsl(var(--primary))]" aria-hidden="true" />
-                      {l.title}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-
-          {/* What's covered */}
-          <section aria-labelledby="covered-heading">
-            <h2 id="covered-heading" className="mb-3 flex items-center gap-2 text-sm font-semibold text-[hsl(var(--foreground))]">
+          <section aria-labelledby="zipgrid-heading">
+            <h2 id="zipgrid-heading" className="mb-3 flex items-center gap-2 text-sm font-semibold text-[hsl(var(--foreground))]">
               <CheckCircle2 className="h-4 w-4 text-[hsl(var(--primary))]" aria-hidden="true" />
-              What the guarantee covers
+              What Zipgrid does
             </h2>
-            <ul className="flex flex-col gap-2">
-              {COVERED_ITEMS.map((item) => (
-                <li key={item.title} className="rounded-[6px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
-                  <p className="text-sm font-medium text-[hsl(var(--foreground))]">{item.title}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">{item.detail}</p>
-                </li>
-              ))}
-            </ul>
+            <ItemList items={ZIPGRID_DOES} />
           </section>
 
-          {/* What's NOT covered */}
-          <section aria-labelledby="excluded-heading">
-            <h2 id="excluded-heading" className="mb-3 flex items-center gap-2 text-sm font-semibold text-[hsl(var(--foreground))]">
-              <ShieldX className="h-4 w-4 text-[hsl(var(--destructive))]" aria-hidden="true" />
-              What is not covered
-            </h2>
-            <ul className="flex flex-col gap-2">
-              {EXCLUDED_ITEMS.map((item) => (
-                <li key={item.title} className="rounded-[6px] border border-[hsl(var(--border)/0.5)] bg-[hsl(var(--card))] p-4">
-                  <p className="text-sm font-medium text-[hsl(var(--foreground))]">{item.title}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">{item.detail}</p>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          {/* FAQ */}
           <section aria-labelledby="faq-heading">
             <h2 id="faq-heading" className="mb-3 flex items-center gap-2 text-sm font-semibold text-[hsl(var(--foreground))]">
               <HelpCircle className="h-4 w-4 text-[hsl(var(--primary))]" aria-hidden="true" />
@@ -225,38 +143,24 @@ export default function HostInsuranceHubPage() {
           </section>
         </div>
 
-        {/* Right panel */}
         <aside className="flex flex-col gap-4">
-
-          {/* Insurer letter */}
           <div className="rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
             <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-[hsl(var(--foreground))]">
               <FileText className="h-4 w-4 text-[hsl(var(--primary))]" aria-hidden="true" />
-              Notify your home insurer
+              Tell your insurer
             </h3>
             <p className="mb-3 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">
-              If you have home contents or buildings insurance, you should declare that you\&apos;re using your property commercially. Use this template to notify your insurer.
+              Copy this into an email or letter to your insurer.
             </p>
-            <div className="rounded-[6px] border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3 text-xs">
-              <p className="mb-1 font-semibold text-[hsl(var(--foreground))]">Letter template (plain text)</p>
-              <div className="text-[hsl(var(--muted-foreground))] whitespace-pre-wrap leading-relaxed">{`Dear [Insurer Name],
-
-I am writing to notify you that I have begun using my property at [Your Address] for the commercial rental of an EV charging point via the Zipgrid platform.
-
-The charger is a [Brand + Model] installed by a qualified electrician. Sessions are conducted via Zipgrid's booking system and covered by Zipgrid's commercial general liability insurance (£1M per occurrence).
-
-Please confirm whether this use requires an amendment to my current policy.
-
-Yours faithfully,
-[Your Name]`}</div>
+            <div className="whitespace-pre-wrap rounded-[6px] border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">
+              {LETTER}
             </div>
           </div>
 
-          {/* Resolution Centre link */}
           <div className="rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
-            <h3 className="mb-2 text-sm font-semibold text-[hsl(var(--foreground))]">Report an incident</h3>
+            <h3 className="mb-2 text-sm font-semibold text-[hsl(var(--foreground))]">Report a problem</h3>
             <p className="mb-3 text-xs text-[hsl(var(--muted-foreground))]">
-              Use the Resolution Centre to report property damage, a driver complaint, or a billing issue.
+              Property damage, a driver complaint or a billing issue.
             </p>
             <Link
               href="/help/resolution"
@@ -267,42 +171,20 @@ Yours faithfully,
             </Link>
           </div>
 
-          {/* Support */}
           <div className="rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
             <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-[hsl(var(--foreground))]">
               <AlertTriangle className="h-4 w-4 text-amber-500" aria-hidden="true" />
-              Emergency incident?
+              Someone hurt or in danger?
             </h3>
             <p className="mb-3 text-xs text-[hsl(var(--muted-foreground))]">
-              If someone has been injured or there is an immediate safety risk, call 999 first. Then notify Zipgrid urgently.
+              Call 999 first. Then report it in the Resolution Centre as a Safety problem.
             </p>
             <Link
-              href="/help/chat"
+              href="/help/resolution"
               className="flex h-9 items-center justify-center gap-2 rounded-[6px] bg-[hsl(var(--destructive))] text-sm font-semibold text-white hover:opacity-90"
             >
-              Contact support now
-              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+              Report a safety problem
             </Link>
-          </div>
-
-          {/* Timeline */}
-          <div className="rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
-            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[hsl(var(--foreground))]">
-              <Clock className="h-4 w-4 text-[hsl(var(--primary))]" aria-hidden="true" />
-              Claim timelines
-            </h3>
-            <dl className="flex flex-col gap-2 text-xs">
-              {[
-                ['Billing disputes', '2 business days'],
-                ['Property damage', '5 business days'],
-                ['Complex cases', 'Up to 20 days'],
-              ].map(([t, d]) => (
-                <div key={t as string} className="flex items-center justify-between gap-2">
-                  <dt className="text-[hsl(var(--muted-foreground))]">{t}</dt>
-                  <dd className="font-semibold text-[hsl(var(--foreground))]">{d}</dd>
-                </div>
-              ))}
-            </dl>
           </div>
         </aside>
       </div>

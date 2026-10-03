@@ -1,8 +1,9 @@
 /**
  * @file page.tsx
  * @description Safety & Insurance page — /safety
- * Covers: driver verification, host protection, £1M guarantee,
- * AI safety score, incident process, and insurance model.
+ * Covers: ID verification, secured payments, safety scoring, reviews,
+ * incident reporting, and the insurance model (hosts keep their own cover).
+ * Every statement here must match what the platform actually does.
  *
  * @module apps/web/app/(marketing)/safety
  * @version 0.1.0
@@ -19,7 +20,6 @@ import {
   FileText,
   Users,
   Zap,
-  Clock,
   Lock,
 } from 'lucide-react'
 import { SectionHeader } from '@/components/marketing/SectionHeader'
@@ -30,7 +30,7 @@ import { cn } from '@/lib/utils'
 export const metadata: Metadata = {
   title: 'Safety & Insurance — How Zipgrid Protects Hosts and Drivers',
   description:
-    'Verified drivers, £1M Host Protection Guarantee, AI safety scoring, and 24/7 incident support. How Zipgrid keeps every session safe.',
+    'ID-verified drivers and hosts, payment secured before every session, daily safety scoring and a clear incident process. How Zipgrid keeps charging safe.',
   alternates: { canonical: 'https://zipgrid.co.uk/safety' },
 }
 
@@ -39,63 +39,61 @@ const SAFETY_PILLARS = [
     icon: Users,
     title: 'Verified identities',
     description:
-      'Every driver completes identity verification (Stripe Identity) before their first booking. Hosts verify before their first listing goes live.',
-  },
-  {
-    icon: Shield,
-    title: '£1M Host Protection',
-    description:
-      'Our Host Protection Guarantee covers physical damage to your property caused during a booking, up to £1 million per incident.',
-  },
-  {
-    icon: Zap,
-    title: 'AI safety scoring',
-    description:
-      'Every listing gets a real-time Safety Score (0–100) based on charger health, incident history, and session patterns. Listings below 50 are auto-paused.',
+      'Every driver verifies their ID (Stripe Identity) before their first booking, and every host before a listing goes live.',
   },
   {
     icon: Lock,
-    title: 'Secure access',
+    title: 'Payment secured upfront',
     description:
-      'Access codes are AES-256-GCM encrypted at rest and unique per booking. The driver\'s PIN expires 30 minutes after the session ends.',
+      'A card hold or wallet reservation is in place before each session. Drivers pay for what they use; unused holds are released in full.',
+  },
+  {
+    icon: Zap,
+    title: 'Safety scoring',
+    description:
+      'Every live charger is scored daily (0–100) on installation, RCD protection, fault history and driver complaints. Chargers below 50 are paused for review.',
+  },
+  {
+    icon: Shield,
+    title: 'Unique arrival codes',
+    description:
+      'Each booking gets its own arrival code and session PIN, so only the driver who booked can use the slot.',
+  },
+  {
+    icon: CheckCircle2,
+    title: 'Reviews both ways',
+    description:
+      'Drivers review chargers and hosts review drivers after every booking. Reviews are published together, so neither side can retaliate.',
   },
   {
     icon: AlertTriangle,
-    title: 'Incident response',
+    title: 'Incident reporting',
     description:
-      'Our safety team responds to P1 incidents (safety risk) within 15 minutes, 24/7. Affected sessions can be remotely terminated from the platform.',
-  },
-  {
-    icon: Clock,
-    title: '24/7 AI support',
-    description:
-      'AI support handles 80% of queries instantly. Safety-critical issues are automatically escalated to the human safety team regardless of time.',
+      'Report a safety problem, damage or a dispute in the Resolution Centre. Safety reports go to the top of the review queue and are reviewed with the full booking record.',
   },
 ] as const
 
 const DRIVER_PROTECTIONS = [
-  'Identity-verified hosts only — all personal addresses obscured until booking confirmed',
-  'Transparent charger health score before every booking',
-  'Real-time session monitoring with automatic fault detection',
-  'Booking code protects your session from interruption',
-  'Insurance coverage for equipment malfunction during your session',
-  'Dispute resolution with 48-hour SLA — you always have recourse',
+  'Hosts verify their ID before their charger can be booked',
+  "See each charger's rating, reviews and safety score before you book",
+  'The price is agreed when you book, and you only pay for what you use',
+  'Cancel free of charge any time before charging starts',
+  "Raise a dispute in the Resolution Centre if something isn't right",
 ] as const
 
 const HOST_PROTECTIONS = [
-  'Identity-verified drivers — full KYC required before first booking',
-  'You approve every driver before instant booking is enabled',
-  'Property damage covered up to £1M per incident',
-  'No-show protection — you are paid 50% even if the driver doesn\'t arrive',
-  'Cancellation protection — hosts can cancel any booking with no penalty',
-  'AI monitors every session for anomalies and alerts you immediately',
+  'Drivers verify their ID before they can book',
+  'Payment is secured before the driver arrives',
+  'Choose instant booking, or approve each request yourself',
+  'Every booking has a record of who booked, when and the arrival code used',
+  'Report damage in the Resolution Centre; the driver is responsible for damage they cause',
 ] as const
 
 const INCIDENT_STEPS = [
-  { step: '01', title: 'Report immediately', description: 'Use the Report button in any active or recent session. Available in-app and via AI voice: "Report a problem."' },
-  { step: '02', title: 'Remote assessment', description: 'Our safety team reviews the session data, charger telemetry, and any photos or notes you provide — within 15 minutes for P1 incidents.' },
-  { step: '03', title: 'Session terminated if needed', description: 'We can remotely stop any active session, lock out the charger, and notify both parties within seconds.' },
-  { step: '04', title: 'Resolution and payout', description: 'Disputes are resolved within 48 hours. Insurance claims for qualifying damage are initiated within 5 business days.' },
+  { step: '01', title: 'Stay safe', description: 'If anyone is hurt or in danger, call 999 first.' },
+  { step: '02', title: 'Report it', description: 'In the Resolution Centre, choose Safety problem, Property damage, Billing or another type, and add photos and details.' },
+  { step: '03', title: 'We review it', description: 'We look at the booking record, the session data and what both sides tell us.' },
+  { step: '04', title: 'Resolution', description: 'We tell both sides the outcome. Refunds go back to the original payment method; damage claims can be taken to your insurer with the booking record.' },
 ] as const
 
 /**
@@ -130,9 +128,9 @@ export default function SafetyPage() {
         </div>
       </section>
 
-      {/* ── HOST PROTECTION GUARANTEE BANNER ────────────────────── */}
+      {/* ── INSURANCE MODEL ──────────────────────────────────────── */}
       <section
-        aria-label="£1M Host Protection Guarantee"
+        aria-label="Insurance"
         className="border-b border-[hsl(var(--border))] bg-[hsl(var(--primary)/0.04)]"
       >
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -142,12 +140,12 @@ export default function SafetyPage() {
             </div>
             <div>
               <h2 className="text-xl font-semibold text-[hsl(var(--foreground))]">
-                £1,000,000 Host Protection Guarantee
+                About insurance
               </h2>
               <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
-                Every completed booking on Zipgrid is covered. If a driver causes physical damage to
-                your property during a session, we cover it up to £1M — no additional insurance
-                policy required.
+                Zipgrid is the booking and payment platform; it doesn&apos;t provide insurance. Hosts keep their own
+                home and public liability cover that includes sharing their charger, and drivers keep their usual
+                motor insurance. We give everyone verified identities and a full booking record to rely on.
               </p>
             </div>
           </div>
@@ -163,7 +161,7 @@ export default function SafetyPage() {
           <SectionHeader
             eyebrow="How we keep you safe"
             headline="Six layers of protection."
-            subtext="Each layer is independent. Together they create a platform where every session is safe for everyone involved."
+            subtext="Each one is built into how booking and payment work on Zipgrid."
           />
           <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {SAFETY_PILLARS.map((p) => (
@@ -228,14 +226,14 @@ export default function SafetyPage() {
               <SectionHeader
                 align="left"
                 eyebrow="AI safety score"
-                headline="Every charger is monitored in real time."
-                subtext="Zipgrid's AI monitors every session and assigns each listing a Safety Score between 0 and 100."
+                headline="Every charger is rescored every day."
+                subtext="Each live listing gets a Safety Score between 0 and 100, recalculated daily from what we know about the charger and how its sessions go."
               />
               <div className="flex flex-col gap-3">
                 {[
                   { range: '80–100', label: 'Excellent', desc: 'No issues. Normal operations.', color: 'bg-[hsl(var(--primary)/0.15)] text-[hsl(var(--primary))]' },
-                  { range: '50–79', label: 'Good', desc: 'Minor anomalies. Monitoring increased.', color: 'bg-yellow-500/10 text-yellow-600' },
-                  { range: '0–49', label: 'Auto-paused', desc: 'Listing paused automatically. Host notified.', color: 'bg-[hsl(var(--destructive)/0.1)] text-[hsl(var(--destructive))]' },
+                  { range: '50–79', label: 'Good', desc: 'Some gaps, such as missing installation details.', color: 'bg-yellow-500/10 text-yellow-600' },
+                  { range: '0–49', label: 'Paused', desc: 'Listing paused for review until the issue is fixed.', color: 'bg-[hsl(var(--destructive)/0.1)] text-[hsl(var(--destructive))]' },
                 ].map(({ range, label, desc, color }) => (
                   <div key={range} className="flex items-center gap-4 rounded-[6px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
                     <span className={cn('rounded-[4px] px-2 py-1 font-mono text-xs font-semibold', color)}>
@@ -256,13 +254,12 @@ export default function SafetyPage() {
               </h3>
               <ul role="list" className="flex flex-col gap-3">
                 {[
-                  'Session energy anomaly rate (unexpected power drops)',
-                  'OCPP error code frequency (fault codes from charger)',
-                  'Driver complaint rate per 100 sessions',
-                  'Charger uptime over last 30 days',
-                  'Response time to host alerts',
-                  'Maintenance log recency',
-                  'Incident history (severity-weighted)',
+                  'Charger age',
+                  'RCD (residual current) protection',
+                  'Installed by a qualified electrician',
+                  'Fault codes reported by connected chargers',
+                  'Driver complaints',
+                  'Platform inspection result',
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-3">
                     <Zap className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--primary))]" aria-hidden="true" strokeWidth={1.5} />
@@ -284,7 +281,7 @@ export default function SafetyPage() {
           <SectionHeader
             eyebrow="If something goes wrong"
             headline="A clear process, not a runaround."
-            subtext="Every incident follows the same transparent four-step process with published SLAs."
+            subtext="Every incident follows the same four steps."
           />
           <ol
             aria-label="Incident resolution process"
@@ -312,16 +309,13 @@ export default function SafetyPage() {
           <div className="flex flex-col items-center gap-6 text-center">
             <FileText className="h-8 w-8 text-[hsl(var(--primary))]" aria-hidden="true" strokeWidth={1.5} />
             <h2 className="text-2xl font-semibold text-[hsl(var(--foreground))]">
-              Compliance and certifications
+              Data and payments
             </h2>
             <div className="flex flex-wrap justify-center gap-3">
               {[
-                'UK GDPR compliant',
-                'PCI-DSS (via Stripe)',
-                'Cyber Essentials (at launch)',
-                'SOC 2 Type I (Month 12)',
-                'ISO 27001 (Month 36)',
-                'BS EN 61851 (charging standards)',
+                'Payments by Stripe (PCI DSS Level 1)',
+                'ID checks by Stripe Identity',
+                'Export or delete your data any time',
               ].map((cert) => (
                 <span
                   key={cert}
@@ -332,8 +326,7 @@ export default function SafetyPage() {
               ))}
             </div>
             <p className="max-w-md text-sm text-[hsl(var(--muted-foreground))]">
-              All data is processed and stored in the EU (Amsterdam, Netherlands) — lawful under UK
-              GDPR adequacy decision.
+              Card details never touch Zipgrid&apos;s servers. Platform data is hosted in the EU (Amsterdam).
             </p>
           </div>
         </div>
@@ -341,11 +334,11 @@ export default function SafetyPage() {
 
       <CtaBanner
         headline="Safety built in from the start."
-        subtext="Every host and driver on Zipgrid is protected. Join a platform that takes your safety as seriously as you do."
+        subtext="Verified people, secured payments and a clear process if something goes wrong."
         primaryLabel="Get started"
         primaryHref="/register"
-        secondaryLabel="Read the Trust & Safety Policy"
-        secondaryHref="/legal/trust-safety"
+        secondaryLabel="Visit the Help Centre"
+        secondaryHref="/help"
       />
     </>
   )

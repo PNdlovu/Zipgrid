@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
          LEFT JOIN bookings b ON b.id = d.booking_id
          LEFT JOIN charger_listings cl ON cl.id = b.listing_id
          ${where}
-         ORDER BY d.created_at DESC
+         ORDER BY (d.dispute_type::text = 'safety_incident' AND d.status::text NOT LIKE 'resolved%' AND d.status::text <> 'closed') DESC, d.created_at DESC
          LIMIT $${i} OFFSET $${i + 1}`,
         [...values, pageSize, offset],
       ),

@@ -17,6 +17,7 @@ import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/errors/App
 import { eventBus } from '@/lib/events/event-bus'
 import { distanceMetresSql, withinRadiusSql } from '@/lib/db/geo'
 import { HostPlanService } from '@/domains/billing/HostPlanService'
+import { KycService } from '@/domains/identity/KycService'
 
 /* ── Types ──────────────────────────────────────────────────── */
 
@@ -335,6 +336,7 @@ export const ListingService = {
     if (hostCheck.rows.length === 0) throw new ForbiddenError()
 
     if (listing.status === 'active') return // already published
+    await KycService.assertVerified(requestingUserId, 'list')
     if (listing.status === 'deactivated' || listing.status === 'under_review') {
       throw new ValidationError('This listing is under review by Zipgrid and cannot be published yet.', 'LISTING_UNDER_REVIEW')
     }

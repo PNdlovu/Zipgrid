@@ -29,7 +29,6 @@ import {
   PoundSterling,
   CalendarCheck,
   TrendingUp,
-  Star,
   CheckCircle2,
   ArrowRight,
 } from 'lucide-react'
@@ -46,60 +45,61 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://zipgrid.co.uk' },
 }
 
+// Every line here must describe something the platform does today.
 const FEATURES = [
   {
-    icon: MapPin,
-    title: 'Find charging near you',
+    icon: Brain,
+    title: 'An AI concierge that books for you',
     description:
-      'Search hundreds of private and home chargers by location, plug type, and availability. Reserve your spot before you leave.',
+      'Say where you need to charge. It finds a charger you can trust, checks the price and books it once you say yes.',
+  },
+  {
+    icon: CalendarCheck,
+    title: 'Trips planned and booked ahead',
+    description:
+      '"I\'m driving to Manchester tomorrow." Get your charging stops, with a backup for each, booked before you set off.',
+  },
+  {
+    icon: Mic,
+    title: 'Hands-free by voice',
+    description:
+      'Speak to the concierge and hear the answer back. Useful when you\'re driving or have your hands full.',
+  },
+  {
+    icon: MapPin,
+    title: 'Private chargers near you',
+    description:
+      'Book home, business and building chargers by location, plug type and price. Your slot is reserved before you leave.',
   },
   {
     icon: PoundSterling,
     title: 'Earn from your charger',
     description:
-      'Your £1,200 charger earns up to £140/month when you\'re not using it. Set your hours, set your price — we handle the rest.',
-  },
-  {
-    icon: Brain,
-    title: 'AI that does the work',
-    description:
-      'Smart scheduling picks the cheapest rate window. Agentic mode books maintenance, adjusts pricing, and flags faults — automatically.',
-  },
-  {
-    icon: Mic,
-    title: 'Hands-free voice control',
-    description:
-      '"Charge to 80% before 7am." That\'s it. Voice commands work for bookings, navigation, session control, and account management.',
-  },
-  {
-    icon: CalendarCheck,
-    title: 'Real-time session monitoring',
-    description:
-      'Watch your kWh counter live. Get notified when your car is full. See your cost to the penny before the session ends.',
+      'Set your hours and your price. Keep 85–92% of every booking, paid weekly. A revenue advisor tells you how to earn more.',
   },
   {
     icon: Shield,
-    title: '£1M host protection',
+    title: 'Verified and secured',
     description:
-      'Every host listing is covered by our Host Protection Guarantee. Verified drivers, insured sessions, and 24/7 incident support.',
+      'Every driver and host verifies their ID, payment is secured before each session, and reviews go both ways.',
   },
 ] as const
 
 const HOW_IT_WORKS_DRIVER = [
   {
     step: '01',
-    title: 'Search near you',
-    description: 'Open the map, filter by plug type and price. See real-time availability.',
+    title: 'Say where you\'re going',
+    description: 'Ask the concierge, or search the map by plug type and price.',
   },
   {
     step: '02',
-    title: 'Book in seconds',
-    description: 'Instant book or send a request. Get your access PIN before you arrive.',
+    title: 'Confirm the booking',
+    description: 'Instant book or send a request. Get your arrival code before you arrive.',
   },
   {
     step: '03',
     title: 'Charge and go',
-    description: 'Plug in, watch the kWh counter, pay automatically when done.',
+    description: 'Plug in with your session PIN. You pay for what you use, automatically.',
   },
 ] as const
 
@@ -107,16 +107,16 @@ const AUDIENCE_CARDS = [
   {
     href: '/for-drivers',
     label: 'For Drivers',
-    headline: 'Guaranteed charging, every time.',
-    body: 'Book private home chargers near you. Cheaper than public networks, always available.',
+    headline: 'Charging that\'s booked, not hoped for.',
+    body: 'Reserve a private charger near you, or let the concierge plan and book your whole trip.',
     cta: 'Find charging →',
     accent: true,
   },
   {
     href: '/for-homeowners',
     label: 'For Homeowners',
-    headline: 'Your charger earns while you sleep.',
-    body: 'List your home charger, set your hours, and earn up to £140/month with zero effort.',
+    headline: 'Your charger can earn while you sleep.',
+    body: 'List your home charger, set your hours and price, and get paid weekly.',
     cta: 'Start earning →',
     accent: false,
   },
@@ -124,26 +124,27 @@ const AUDIENCE_CARDS = [
     href: '/for-businesses',
     label: 'For Businesses',
     headline: 'Turn parking bays into a revenue stream.',
-    body: 'Multi-charger dashboard, dynamic pricing, access control, and analytics for your whole fleet.',
+    body: 'Manage several chargers, separate access for residents, staff and the public, and see what each one earns.',
     cta: 'See the platform →',
     accent: false,
   },
 ] as const
 
+// Launch facts (no usage figures until there is real data to show).
 const STATS = [
-  { value: '500+', label: 'Active listings' },
-  { value: '20k+', label: 'Registered drivers' },
-  { value: '4.8★', label: 'Average host rating' },
-  { value: '£140', label: 'Avg monthly host earn' },
+  { value: '85–92%', label: 'Of each booking goes to the host' },
+  { value: 'Free', label: 'Cancellation before charging' },
+  { value: 'Weekly', label: 'Payouts to hosts' },
+  { value: '1 sentence', label: 'To book with the concierge' },
 ] as const
 
 const TRUST_POINTS = [
   'Verified ID on every driver and host',
-  'Real-time charger health monitoring',
-  '£1M Host Protection Guarantee',
-  'UK GDPR compliant — data stays in the EU',
-  'Available 24/7 AI support',
-  'No lock-in — cancel any time',
+  'Payment secured before every session',
+  'Chargers safety-scored every day',
+  'Platform data hosted in the EU',
+  'AI concierge, any time of day',
+  'Host plans: cancel any time',
 ] as const
 
 /**
@@ -335,7 +336,7 @@ export default function HomePage() {
           <SectionHeader
             eyebrow="The platform"
             headline="Everything in one place."
-            subtext="No other platform combines P2P charging, AI automation, voice control, and a hardware marketplace."
+            subtext="Private chargers, an AI concierge, trip planning and a host revenue advisor in one place."
           />
 
           <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -354,7 +355,7 @@ export default function HomePage() {
       {/* ── 6. HOST EARNINGS CTA ────────────────────────────────── */}
       <CtaBanner
         headline="Your charger is sitting idle right now."
-        subtext="The average Zipgrid host earns £140/month from a charger that cost £1,200 to install. That's an 11-month payback."
+        subtext="List it in minutes, set your hours and price, and keep 85–92% of every booking, paid weekly."
         primaryLabel="List your charger"
         primaryHref="/register?role=host"
         secondaryLabel="How hosting works"
@@ -372,8 +373,8 @@ export default function HomePage() {
               <SectionHeader
                 align="left"
                 eyebrow="Trust & safety"
-                headline="Built on trust, backed by cover."
-                subtext="Zipgrid handles money, property access, and people's cars. We take that seriously."
+                headline="Built on trust."
+                subtext="Zipgrid handles money, property access and people's cars. Here's what's in place."
               />
               <ul
                 aria-label="Trust and safety features"
@@ -399,46 +400,34 @@ export default function HomePage() {
               </Link>
             </div>
 
-            {/* Testimonial */}
+            {/* Example conversation (illustrative) */}
             <figure
               className={cn(
                 'rounded-[6px] border border-[hsl(var(--border))] bg-[hsl(var(--card))]',
-                'flex flex-col gap-4 p-8',
+                'flex flex-col gap-3 p-6',
               )}
             >
-              <div className="flex gap-0.5" aria-label="5 out of 5 stars">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star
-                    key={i}
-                    className="h-4 w-4 fill-[hsl(var(--primary))] text-[hsl(var(--primary))]"
-                    aria-hidden="true"
-                    strokeWidth={0}
-                  />
-                ))}
-              </div>
-              <blockquote>
-                <p className="text-base leading-relaxed text-[hsl(var(--foreground))]">
-                  &ldquo;I listed my Zappi charger in 10 minutes and earned £127 in the first
-                  month. The AI scheduling means it never clashes with my own overnight charging.
-                  Genuinely zero effort.&rdquo;
-                </p>
-              </blockquote>
-              <figcaption className="flex items-center gap-3">
-                <div
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[hsl(var(--secondary))] text-sm font-semibold text-[hsl(var(--foreground))]"
-                  aria-hidden="true"
-                >
-                  SC
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-[hsl(var(--foreground))]">
-                    Sarah C.
-                  </p>
-                  <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                    Homeowner host · Earlsfield, London
-                  </p>
-                </div>
+              <figcaption className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+                Example: booking with the concierge
               </figcaption>
+              {[
+                { who: 'You', text: 'Get me charged near Leeds station tomorrow at 9.' },
+                { who: 'Concierge', text: 'The best option is a 22 kW charger 0.4 km away, rated 4.8 with no host cancellations. 9–11am is about £6.40 from your wallet. Shall I book it?' },
+                { who: 'You', text: 'Yes please.' },
+                { who: 'Concierge', text: 'Booked. Your arrival code is in Bookings, and the host says to use the side gate.' },
+              ].map((m, i) => (
+                <p
+                  key={i}
+                  className={cn(
+                    'max-w-[90%] rounded-2xl px-3.5 py-2 text-sm',
+                    m.who === 'You'
+                      ? 'self-end bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]'
+                      : 'self-start bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))]',
+                  )}
+                >
+                  {m.text}
+                </p>
+              ))}
             </figure>
           </div>
         </div>
@@ -466,11 +455,11 @@ export default function HomePage() {
                 </span>
               </div>
               {[
-                '"Charge to 80% before 7am"',
-                '"Book the nearest CCS charger for tomorrow at 10am"',
-                '"How much did I earn this week?"',
-                '"Stop my charging session"',
-                '"Find a charger along my route to Manchester"',
+                '"Get me charged near here in the next hour"',
+                '"I\'m driving to Manchester tomorrow, book my stops"',
+                '"Cancel my booking on Friday"',
+                '"How are my chargers doing this month?"',
+                '"How do card holds work?"',
               ].map((cmd) => (
                 <div
                   key={cmd}
@@ -489,13 +478,13 @@ export default function HomePage() {
                 align="left"
                 eyebrow="AI + Voice"
                 headline="Just say what you need."
-                subtext="90+ voice commands. Hands-free in the car, at your desk, or walking to your charger. No app navigation required."
+                subtext="Talk to the concierge in your own words; there are no commands to learn. Hands-free in the car or walking to your charger."
               />
               <div className="flex flex-col gap-3">
                 {[
-                  { icon: Zap, text: 'Smart scheduling — cheapest rate, automatically' },
-                  { icon: Brain, text: 'Agentic mode — AI books and manages everything' },
-                  { icon: Mic, text: 'Works via Web Speech API — free, no extra hardware' },
+                  { icon: Zap, text: 'Plans and books whole trips, with a backup for every stop' },
+                  { icon: Brain, text: 'Books, cancels or changes only after you say yes' },
+                  { icon: Mic, text: 'Uses your browser\'s speech recognition, no extra hardware' },
                 ].map(({ icon: Icon, text }) => (
                   <div key={text} className="flex items-start gap-3">
                     <Icon
@@ -526,7 +515,7 @@ export default function HomePage() {
       {/* ── 9. FINAL DRIVER CTA ─────────────────────────────────── */}
       <CtaBanner
         headline="Ready to charge smarter?"
-        subtext="Join thousands of UK drivers already using Zipgrid. Free to sign up, no subscription required to search."
+        subtext="Free to sign up. Search and book with no subscription."
         primaryLabel="Find charging near me"
         primaryHref="/register"
         secondaryLabel="Learn how it works"
@@ -542,7 +531,7 @@ export default function HomePage() {
           <SectionHeader
             eyebrow="Marketplace"
             headline="Hardware, installers, and more."
-            subtext="Buy EV chargers, accessories, and book OZEV-certified installers — all in one platform."
+            subtext="Buy chargers and accessories, and find installers, in one place."
           />
 
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -551,19 +540,19 @@ export default function HomePage() {
                 icon: Zap,
                 title: 'Smart chargers',
                 description:
-                  'Browse EO, Rolec, Ohme, Zappi, and Andersen chargers with real specs, real prices.',
+                  'Compare home chargers and accessories from marketplace sellers, with specs and prices.',
               },
               {
                 icon: TrendingUp,
                 title: 'Certified installers',
                 description:
-                  'Book OZEV-certified installers near you. Quotes, reviews, and scheduling — handled.',
+                  'Find installers near you, request quotes and read reviews from other customers.',
               },
               {
                 icon: CheckCircle2,
-                title: 'Everything verified',
+                title: 'Installers checked',
                 description:
-                  'Every product tested. Every installer OZEV-certified. No unverified listings.',
+                  'Installers are checked by Zipgrid before they appear, with OZEV and NICEIC status shown on each profile.',
               },
             ].map((item) => (
               <FeatureCard

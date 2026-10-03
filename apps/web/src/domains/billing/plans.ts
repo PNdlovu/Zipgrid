@@ -47,7 +47,7 @@ export const PLANS: Record<PlanTier, Plan> = {
     commissionPct: 15,
     maxListings: 3,
     features: [],
-    highlights: ['Up to 3 charger listings', '15% platform commission', 'Earnings dashboard', 'Email support'],
+    highlights: ['Up to 3 charger listings', '15% platform commission', 'Earnings dashboard', 'AI revenue advisor'],
   },
   growth: {
     tier: 'growth',
@@ -64,7 +64,6 @@ export const PLANS: Record<PlanTier, Plan> = {
       'Revenue analytics + heatmap',
       'CSV / XLSX data export',
       'QR code customer access',
-      'Priority email support',
     ],
   },
   pro: {

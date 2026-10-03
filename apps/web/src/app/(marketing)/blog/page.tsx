@@ -141,7 +141,7 @@ export default async function BlogPage({ searchParams }: Props) {
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
           <SectionHeader align="left" headline={active ? active.label : 'Recent articles'} />
           {listed.length === 0 && (
-            <p className="mt-8 text-sm text-[hsl(var(--muted-foreground))]">No articles in this category yet.</p>
+            <p className="mt-8 text-sm text-[hsl(var(--muted-foreground))]">{active ? 'No articles in this category yet.' : 'Articles are on their way.'}</p>
           )}
           <ul
             role="list"

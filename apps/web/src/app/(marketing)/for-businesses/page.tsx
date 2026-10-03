@@ -31,63 +31,63 @@ import { cn } from '@/lib/utils'
 export const metadata: Metadata = {
   title: 'For Businesses — EV Charging Management for SMBs',
   description:
-    'Multi-charger dashboard, dynamic pricing, access control, and analytics for businesses. Turn your car park into a revenue stream.',
+    'List several chargers, set access for residents, staff and the public, and see what each one earns. Turn your car park into a revenue stream.',
   alternates: { canonical: 'https://zipgrid.co.uk/for-businesses' },
 }
 
 const SMB_FEATURES = [
   {
     icon: BarChart3,
-    title: 'Live analytics dashboard',
+    title: 'Revenue analytics',
     description:
-      'See revenue, sessions, utilisation, and peak hours in real time. Exportable reports for accounting.',
+      'Revenue, bookings and busy times for each charger, with CSV and Excel export for your accounts (Growth and Pro).',
   },
   {
     icon: Settings,
-    title: 'Dynamic pricing',
+    title: 'Pricing and the revenue advisor',
     description:
-      'AI suggests peak pricing automatically. Set different rates for weekdays, weekends, and bank holidays.',
+      'Set prices per charger. The AI revenue advisor compares each one with chargers nearby and suggests changes you approve.',
   },
   {
     icon: Users,
     title: 'Access control',
     description:
-      'Employee-only mode, whitelist/blacklist by driver, or open to all. RFID and PIN support.',
+      'Give customers QR code access (Growth and Pro), or allow-list staff and guests by email or domain for free or discounted charging (Pro).',
   },
   {
-    icon: Zap,
-    title: 'Multi-charger management',
+    icon: Building2,
+    title: 'Residential properties',
     description:
-      'Manage unlimited chargers from one dashboard. Health status, uptime, and fault alerts per device.',
+      'Group chargers into a building\'s bays, invite residents, choose residents-only or residents-first access, and share revenue with residents.',
   },
   {
     icon: PoundSterling,
-    title: 'Revenue centre tools',
+    title: 'VAT invoices and webhooks',
     description:
-      'Issue invoices, track VAT, and reconcile session payments. Integrates with Xero and QuickBooks.',
+      'Generate VAT invoices and send booking events to your own systems by webhook (Pro).',
   },
   {
     icon: Shield,
-    title: 'Predictive maintenance',
+    title: 'Safety scoring',
     description:
-      'AI monitors every session for fault patterns and automatically flags issues before they become downtime.',
+      'Every live charger is scored daily on its installation, faults and complaints, and paused for review if it drops below 50.',
   },
 ] as const
 
 const SMB_USE_CASES = [
-  { icon: Building2, title: 'Retail car parks', desc: 'Attract EV customers. Charge for charging time — a new revenue line from existing infrastructure.' },
-  { icon: Users, title: 'Office parking', desc: 'Employee benefit that drives EV adoption. Manage who can charge and when from one dashboard.' },
-  { icon: TrendingUp, title: 'Hotels & hospitality', desc: 'Guests expect EV charging. List your bays on Zipgrid and charge guests at market rates.' },
-  { icon: Zap, title: 'Fleet depots', desc: 'Smart scheduling ensures every vehicle is charged at the cheapest rate window, every night.' },
+  { icon: Building2, title: 'Residential buildings', desc: 'Share a block\'s chargers between residents, with resident discounts and revenue sharing, and open spare time to the public.' },
+  { icon: Users, title: 'Workplaces and care homes', desc: 'Free or discounted charging for staff and visitors, with the rest of the time open to paying drivers.' },
+  { icon: TrendingUp, title: 'Hotels and hospitality', desc: 'Offer guests bookable charging and earn from the bays when guests aren\'t using them.' },
+  { icon: Zap, title: 'Retail and car parks', desc: 'Let drivers book a bay while they shop, and earn from chargers that would otherwise sit idle.' },
 ] as const
 
 const SMB_GUARANTEES = [
-  'Unlimited chargers per account on Pro and Enterprise plans',
-  'Role-based access — assign managers without sharing admin credentials',
-  'Branded access page for your car park (custom URL)',
-  'SLA-backed support on Enterprise — 4-hour response',
-  'API access for integration with your existing systems',
-  'GDPR-compliant — all data processed in EU (Amsterdam)',
+  'Unlimited chargers on Pro',
+  'Residents, staff and public access rules',
+  'QR code customer access on Growth and Pro',
+  'Webhook API and VAT invoices on Pro',
+  'Cancel or change your plan any time',
+  'Platform data hosted in the EU (Amsterdam)',
 ] as const
 
 /**
@@ -111,8 +111,8 @@ export default function ForBusinessesPage() {
               <span className="text-[hsl(var(--primary))]">a revenue stream.</span>
             </h1>
             <p className="max-w-xl text-lg leading-relaxed text-[hsl(var(--muted-foreground))]">
-              Multi-charger dashboard, dynamic pricing, access control, and live analytics — all
-              in one platform. Built for SMBs that want to run EV charging like a proper business.
+              List several chargers, decide who can charge and when, and see what each one earns.
+              Built for businesses that want to earn from the chargers they already have.
             </p>
             <div className="flex flex-col items-center gap-3 sm:flex-row">
               <Link
@@ -191,8 +191,8 @@ export default function ForBusinessesPage() {
         <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <SectionHeader
             eyebrow="Built for business"
-            headline="Enterprise-grade. SMB-friendly."
-            subtext="No lock-in, transparent pricing, and the security controls your IT team will ask for."
+            headline="Built for business."
+            subtext="No lock-in and transparent pricing."
           />
           <ul role="list" className="mt-10 grid gap-3 sm:grid-cols-2">
             {SMB_GUARANTEES.map((g) => (
@@ -207,7 +207,7 @@ export default function ForBusinessesPage() {
 
       <CtaBanner
         headline="Ready to run EV charging as a business?"
-        subtext="Get started free. Upgrade to Pro or Enterprise when your volumes grow."
+        subtext="Start free on Starter. Move to Growth or Pro when you add more chargers."
         primaryLabel="Start your business account"
         primaryHref="/register?role=host&type=smb"
         secondaryLabel="See pricing"

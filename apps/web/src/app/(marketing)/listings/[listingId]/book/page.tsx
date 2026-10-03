@@ -138,6 +138,7 @@ export default function BookPage({
   // Submission
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [needsId, setNeedsId] = useState(false)
 
   // ── Load data ─────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -213,8 +214,9 @@ export default function BookPage({
           ...(payWithWallet ? { payWithWallet: true } : { paymentMethodId }),
         }),
       })
-      const json = (await res.json()) as { success: boolean; data?: { id: string }; error?: { message: string } }
+      const json = (await res.json()) as { success: boolean; data?: { id: string }; error?: { code?: string; message: string } }
       if (!res.ok || !json.success) {
+        setNeedsId(json.error?.code === 'ID_VERIFICATION_REQUIRED')
         setSubmitError(json.error?.message ?? 'Booking failed. Please try again.')
         return
       }
@@ -483,7 +485,10 @@ export default function BookPage({
         {submitError && (
           <div role="alert" className="flex items-start gap-2 rounded-[6px] border border-[hsl(var(--destructive)_/_30%)] bg-[hsl(var(--destructive)_/_8%)] px-4 py-3 text-sm text-[hsl(var(--destructive))]">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            {submitError}
+            <span>
+              {submitError}
+              {needsId && <> <Link href="/profile#kyc-heading" className="font-semibold underline">Verify my ID</Link></>}
+            </span>
           </div>
         )}
 

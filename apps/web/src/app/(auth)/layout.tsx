@@ -15,11 +15,11 @@ import Link from 'next/link'
 import { Zap, CheckCircle2 } from 'lucide-react'
 
 const BRAND_POINTS = [
-  'Find affordable EV charging near you',
-  'Earn from your idle home charger',
-  'AI scheduling — cheapest rate, automatically',
-  'Voice control, hands-free in your car',
-  '£1M Host Protection Guarantee',
+  'Book private chargers near you',
+  'An AI concierge that plans and books your charging',
+  'Earn from your home charger, paid weekly',
+  'Hands-free by voice',
+  'Verified ID on every driver and host',
 ] as const
 
 /**
@@ -53,8 +53,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               The smarter way to charge.
             </h2>
             <p className="max-w-sm text-base leading-relaxed text-[hsl(var(--muted-foreground))]">
-              Join thousands of UK drivers and homeowners already using Zipgrid to save money and
-              earn passively.
+              Tell us where you&apos;re going and we&apos;ll handle the charging. Or share your charger and
+              earn from it.
             </p>
           </div>
 
@@ -72,25 +72,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </ul>
         </div>
 
-        {/* Bottom testimonial */}
-        <figure className="flex flex-col gap-3 rounded-[6px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5">
-          <blockquote>
-            <p className="text-sm leading-relaxed text-[hsl(var(--foreground))]">
-              &ldquo;Listed my Zappi in 10 minutes. Earned £127 in the first month with zero effort.&rdquo;
-            </p>
-          </blockquote>
-          <figcaption className="flex items-center gap-2">
-            <div
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-[hsl(var(--muted))] text-xs font-semibold text-[hsl(var(--foreground))]"
-              aria-hidden="true"
-            >
-              SC
-            </div>
-            <span className="text-xs text-[hsl(var(--muted-foreground))]">
-              Sarah C. · Homeowner host · Earlsfield
-            </span>
-          </figcaption>
-        </figure>
+        {/* Promise */}
+        <p className="rounded-[6px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 text-sm leading-relaxed text-[hsl(var(--foreground))]">
+          Free to join. Drivers pay no booking fee, and nothing is booked or charged until you confirm.
+        </p>
       </div>
 
       {/* ── RIGHT PANEL — form content ────────────────────────── */}

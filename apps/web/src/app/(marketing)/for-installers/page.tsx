@@ -12,9 +12,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import {
-  Wrench,
   TrendingUp,
-  Star,
   CalendarCheck,
   ShieldCheck,
   Package,
@@ -36,56 +34,42 @@ export const metadata: Metadata = {
 const INSTALLER_FEATURES = [
   {
     icon: TrendingUp,
-    title: 'Inbound job leads',
+    title: 'Be found by customers',
     description:
-      'Customers searching for an installer on Zipgrid are ready to buy — not just browsing. You receive pre-qualified job requests.',
+      'Homeowners and businesses looking for an installer on Zipgrid can find you by area and service.',
   },
   {
     icon: CalendarCheck,
-    title: 'Booking management',
+    title: 'Job requests',
     description:
-      'Manage your calendar, quote jobs, confirm bookings, and invoice — all within the platform. No more WhatsApp threads.',
-  },
-  {
-    icon: Star,
-    title: 'Verified reviews',
-    description:
-      'Only customers who completed a job can review you. No fake ratings. Genuine reputation building over time.',
+      'Customers book jobs with you through the platform, so the details are in one place.',
   },
   {
     icon: ShieldCheck,
-    title: 'OZEV badge',
+    title: 'Accreditation badges',
     description:
-      'Verified OZEV-certified installers get a badge on their profile. Customers filter for certified installers by default.',
+      'OZEV and NICEIC status is shown on your profile, and customers can filter for OZEV-approved installers.',
   },
   {
     icon: Package,
-    title: 'Hardware sales',
+    title: 'Sell hardware',
     description:
-      'List EV chargers and accessories for sale alongside your installation service. One checkout, one review.',
-  },
-  {
-    icon: Wrench,
-    title: 'Agentic maintenance referrals',
-    description:
-      'Zipgrid\'s AI diagnoses charger faults and automatically recommends the nearest verified installer. You get the lead.',
+      'Marketplace vendors can list chargers and accessories for sale alongside their services.',
   },
 ] as const
 
 const INSTALLER_STEPS = [
-  { step: '01', title: 'Create your profile', description: 'Add your qualifications, service area, brands you install, and photos of completed jobs.' },
-  { step: '02', title: 'Get verified', description: 'Upload your OZEV certification. We verify within 48 hours. Verified profiles rank higher in search.' },
-  { step: '03', title: 'Receive job requests', description: 'Customers in your area send you job requests through the platform. You quote, they book.' },
-  { step: '04', title: 'Get paid', description: 'Payment clears automatically on job completion. No invoice chasing. No late payments.' },
+  { step: '01', title: 'Create your profile', description: 'Add your qualifications, service area, the brands you install and photos of completed jobs.' },
+  { step: '02', title: 'Get checked', description: 'We check your accreditation before your profile appears in search.' },
+  { step: '03', title: 'Receive job requests', description: 'Customers in your area book jobs with you through the platform.' },
+  { step: '04', title: 'Do the work', description: 'Agree the details with the customer and complete the installation.' },
 ] as const
 
 const INSTALLER_BENEFITS = [
-  'Free to list — no monthly subscription fee',
-  'Only pay a platform fee on completed jobs (not leads)',
-  'Customers are homeowners actively buying, not browsing',
-  'AI-referred maintenance jobs require no marketing spend',
-  'Appears in Zipgrid app search for all nearby customers',
-  'Rating system builds a portable, verifiable reputation',
+  'Free to list, with no monthly subscription',
+  'A platform fee applies only to jobs booked through Zipgrid',
+  'Customers come to you already looking for an installer',
+  'Your OZEV and NICEIC status is shown on your profile',
 ] as const
 
 /**
@@ -145,7 +129,7 @@ export default function ForInstallersPage() {
         className="border-b border-[hsl(var(--border))] bg-[hsl(var(--secondary))]"
       >
         <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-          <SectionHeader eyebrow="Getting started" headline="On the platform in 48 hours." />
+          <SectionHeader eyebrow="Getting started" headline="How to join." />
           <ol
             aria-label="Steps to list as an installer"
             className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4"

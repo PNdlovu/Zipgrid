@@ -228,6 +228,30 @@ export const SafetyScoreService = {
   },
 
   /**
+   * Recalculates every live listing's score (daily job), so new faults and
+   * complaints are picked up and listings below 50 are paused. One failing
+   * listing doesn't stop the rest.
+   */
+  async recalculateAll(): Promise<{ scored: number; paused: number; failed: number }> {
+    const db = await getDb()
+    const res = await db.execute(`SELECT id FROM charger_listings WHERE status = 'active' ORDER BY id`)
+    let scored = 0
+    let paused = 0
+    let failed = 0
+    for (const row of res.rows) {
+      try {
+        const s = await this.calculate(row['id'] as string)
+        scored++
+        if (s.autoPaused) paused++
+      } catch (err) {
+        failed++
+        console.error('[safety] score failed for listing', row['id'], err)
+      }
+    }
+    return { scored, paused, failed }
+  },
+
+  /**
    * Returns the cached safety score for a listing (fast read path).
    * Falls back to live calculation if no row exists yet.
    */

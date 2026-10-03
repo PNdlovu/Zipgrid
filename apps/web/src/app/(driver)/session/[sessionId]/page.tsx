@@ -300,7 +300,7 @@ export default function SessionPage({ params }: { params: Promise<{ sessionId: s
                 Our team has been notified. Please contact support if you need immediate assistance.
               </p>
             </div>
-            <Link href="/help/chat" className="text-sm font-medium text-[hsl(var(--primary))] hover:opacity-80">
+            <Link href="/concierge" className="text-sm font-medium text-[hsl(var(--primary))] hover:opacity-80">
               Contact support →
             </Link>
           </div>

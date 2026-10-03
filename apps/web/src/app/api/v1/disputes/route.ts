@@ -28,6 +28,7 @@ import { AuditLogger } from '@/domains/compliance/AuditLogger'
 /* ── Schema ────────────────────────────────────────────────── */
 
 const DisputeTypeValues = [
+  'safety_incident',
   'session_fault',
   'charger_unavailable',
   'billing',

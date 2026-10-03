@@ -416,10 +416,10 @@ export default async function ListingDetailPage({ params }: Props) {
               {/* Features */}
               <ul className="mt-5 space-y-2">
                 {[
-                  { icon: CalendarDays, text: 'Book up to 90 days in advance' },
-                  { icon: Shield,      text: 'Covered by Zipgrid Host Guarantee' },
-                  { icon: Clock,       text: 'Free cancellation up to 24 hours before' },
-                  { icon: PoundSterling, text: 'Pay securely via Stripe' },
+                  { icon: CalendarDays, text: 'Your slot is reserved when you book' },
+                  { icon: Shield,      text: 'ID-verified host' },
+                  { icon: Clock,       text: 'Free cancellation before charging starts' },
+                  { icon: PoundSterling, text: 'Pay by wallet or card, securely via Stripe' },
                 ].map(({ icon: Icon, text }) => (
                   <li key={text} className="flex items-start gap-2 text-xs text-[hsl(var(--muted-foreground))]">
                     <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[hsl(var(--primary))]" aria-hidden="true" />

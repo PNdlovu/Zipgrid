@@ -56,6 +56,7 @@ import { AutoTopupService } from '@/domains/payments/AutoTopupService'
 import { StripeCustomer } from '@/domains/payments/StripeCustomer'
 import { ShortfallService } from '@/domains/payments/ShortfallService'
 import { PropertyService, PUBLIC_PRIORITY_WINDOW_HOURS } from '@/domains/property/PropertyService'
+import { KycService } from '@/domains/identity/KycService'
 import { eventBus } from '@/lib/events/event-bus'
 
 /* ── Types ──────────────────────────────────────────────────── */
@@ -140,6 +141,7 @@ export const BookingService = {
       throw new ValidationError('Choose either a saved card or your wallet to pay.')
     }
     if (!payWithWallet && !StripeService.isConfigured()) throw new ServiceUnavailableError('Payments')
+    await KycService.assertVerified(input.userId, 'book')
 
     const durationHours = (input.scheduledEnd.getTime() - input.scheduledStart.getTime()) / 3_600_000
     if (!(durationHours > 0)) throw new ValidationError('The booking must end after it starts.')
@@ -237,6 +239,7 @@ export const BookingService = {
     const durationHours = (input.scheduledEnd.getTime() - input.scheduledStart.getTime()) / 3_600_000
     if (!(durationHours > 0)) throw new ValidationError('The booking must end after it starts.')
     if (input.scheduledStart.getTime() <= Date.now()) throw new ValidationError('Start time must be in the future.')
+    await KycService.assertVerified(input.userId, 'book')
     const db = await getDb()
     const p = await this._price(db, input)
     return { estimatedPence: p.estimatedPence, instantBook: Boolean(p.l['instant_book_enabled']), residentDiscountPct: p.discountPct }

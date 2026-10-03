@@ -20,7 +20,6 @@ import {
   Settings,
   ArrowRight,
   CheckCircle2,
-  Star,
   Clock,
 } from 'lucide-react'
 import { SectionHeader } from '@/components/marketing/SectionHeader'
@@ -31,7 +30,7 @@ import { cn } from '@/lib/utils'
 export const metadata: Metadata = {
   title: 'For Homeowners — Earn From Your Home EV Charger',
   description:
-    'List your home EV charger on Zipgrid and earn up to £140/month. Set your hours, set your price — AI handles the scheduling.',
+    'Share your home EV charger on Zipgrid. Set your hours and price, keep 85–92% of every booking, and get paid weekly.',
   alternates: { canonical: 'https://zipgrid.co.uk/for-homeowners' },
 }
 
@@ -40,60 +39,69 @@ const HOST_FEATURES = [
     icon: CalendarDays,
     title: 'Set your own hours',
     description:
-      'Open your listing only when it suits you. Block out your own charging time with one tap. Your schedule, not ours.',
+      'Open your charger only when it suits you, and block out the times you need it yourself.',
   },
   {
     icon: PoundSterling,
     title: 'You set the price',
     description:
-      'Charge by kWh, by hour, or per session. Our AI suggests the optimal price for your area — you approve every change.',
+      'Charge by the hour or per session, or by the kWh with a connected charger. Change it whenever you like.',
   },
   {
     icon: Brain,
-    title: 'Smart scheduling',
+    title: 'AI revenue advisor',
     description:
-      'Zipgrid automatically blocks your charger when you need it. Tariff-aware scheduling charges your own car at the cheapest rate window.',
+      'See how your charger is doing against others nearby, and get specific suggestions. Price changes only happen when you say yes.',
   },
   {
     icon: Zap,
-    title: 'Works with your charger',
+    title: 'Instant or approve',
     description:
-      'Compatible with EO, Rolec, Andersen, Ohme, Zappi, and Wallbox at launch. If your charger supports OCPP, it works.',
+      'Let drivers book instantly, or approve each request yourself. Either way, payment is secured before they arrive.',
   },
   {
     icon: Shield,
-    title: '£1M Host Protection',
+    title: 'Verified drivers',
     description:
-      'Every booking is covered by our Host Protection Guarantee. Verified drivers only. Insurance kicks in if anything goes wrong.',
+      'Every driver verifies their ID before they can book, and every booking records who came and when.',
   },
   {
     icon: Settings,
-    title: '10-minute setup',
+    title: 'Quick setup',
     description:
-      'Link your charger, drop a map pin, set your price. Our voice-guided setup walks you through it. Most hosts are live in under 10 minutes.',
+      'Add your charger\'s details, drop a map pin, set your hours and price, and verify your ID.',
   },
 ] as const
 
 const SETUP_STEPS = [
-  { step: '01', title: 'Link your charger', description: 'Scan the QR code on your device. Zipgrid connects via OCPP and runs a health check automatically.' },
-  { step: '02', title: 'Set your listing', description: 'Drop a map pin, add photos, set your price and availability. Our AI suggests a price based on your postcode.' },
-  { step: '03', title: 'Go live', description: 'Publish your listing. Drivers can find and book instantly. You get notified and can approve before any session starts.' },
-  { step: '04', title: 'Earn passively', description: 'Payouts land in your bank every two weeks. Live earnings dashboard shows exactly what you\'ve made.' },
+  { step: '01', title: 'Add your charger', description: 'Tell us about your charger and where it is. Connected (OCPP) chargers can be paired too.' },
+  { step: '02', title: 'Set your listing', description: 'Add photos, access instructions, your hours and your price.' },
+  { step: '03', title: 'Verify and go live', description: 'Verify your ID and publish. Drivers can book instantly, or you approve each request.' },
+  { step: '04', title: 'Get paid weekly', description: 'Earnings are paid to your bank every week once they reach £5.' },
 ] as const
 
-const EARNINGS_EXAMPLES = [
-  { scenario: 'Weekend only (Fri–Sun)', sessions: '6 sessions/week', perMonth: '£68–£90', perYear: '£816–£1,080' },
-  { scenario: 'Evenings only (Mon–Fri)', sessions: '5 sessions/week', perMonth: '£85–£110', perYear: '£1,020–£1,320' },
-  { scenario: 'Always open (24/7)', sessions: '14 sessions/week', perMonth: '£120–£160', perYear: '£1,440–£1,920' },
-] as const
+// A worked example from stated assumptions, not a promise.
+const EXAMPLE = { kw: 7, hours: 2, pricePence: 45, costPence: 25, keepPct: 85 }
+const SESSION_KWH = EXAMPLE.kw * EXAMPLE.hours
+const RECEIVE_PER_SESSION = (SESSION_KWH * EXAMPLE.pricePence * EXAMPLE.keepPct) / 100 / 100
+const COST_PER_SESSION = (SESSION_KWH * EXAMPLE.costPence) / 100
+const WEEKS_PER_MONTH = 52 / 12
+const EARNINGS_EXAMPLES = [2, 5, 10].map((perWeek) => {
+  const sessions = perWeek * WEEKS_PER_MONTH
+  return {
+    scenario: `${perWeek} bookings a week`,
+    receive: Math.round(sessions * RECEIVE_PER_SESSION),
+    cost: Math.round(sessions * COST_PER_SESSION),
+  }
+})
 
 const HOST_GUARANTEES = [
-  'Verified ID on every driver before their first booking',
-  'Instant cancellation controls — you can cancel any booking',
-  'Automatic dispute resolution with 24h response SLA',
-  'Damage covered by Host Protection Guarantee',
-  'No-show protection — you are paid even if the driver doesn\'t arrive',
-  'Safety score monitoring — problem hosts are auto-paused',
+  'Every driver verifies their ID before their first booking',
+  'Payment is secured before the driver arrives',
+  'Choose instant booking or approve each request',
+  'Cancel a booking if you need to',
+  'A record of every booking: who, when and the arrival code used',
+  'Report damage or a safety problem in the Resolution Centre',
 ] as const
 
 /**
@@ -113,12 +121,12 @@ export default function ForHomeownersPage() {
               For Homeowners
             </span>
             <h1 className="max-w-3xl text-5xl font-semibold tracking-tight text-[hsl(var(--foreground))] sm:text-6xl">
-              Your charger earns{' '}
+              Your charger can earn{' '}
               <span className="text-[hsl(var(--primary))]">while you sleep.</span>
             </h1>
             <p className="max-w-xl text-lg leading-relaxed text-[hsl(var(--muted-foreground))]">
-              Your home EV charger sits idle 20 hours a day. List it on Zipgrid, set your hours,
-              and earn up to £140/month — with zero effort after setup.
+              Share your home charger with nearby drivers when you&apos;re not using it. Set your hours
+              and price, keep 85–92% of every booking, and get paid weekly.
             </p>
             <div className="flex flex-col items-center gap-3 sm:flex-row">
               <Link
@@ -135,11 +143,11 @@ export default function ForHomeownersPage() {
                 href="#earnings"
                 className="flex min-h-[48px] items-center gap-2 px-7 py-3 text-base font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
               >
-                See earnings calculator <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                See an earnings example <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
             </div>
             <p className="text-xs text-[hsl(var(--muted-foreground))]">
-              Free to list · No monthly fee · 15% platform commission on earnings only
+              Free to list · No monthly fee on Starter · 15% commission only when you earn
             </p>
           </div>
         </div>
@@ -154,14 +162,14 @@ export default function ForHomeownersPage() {
         <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <SectionHeader
             eyebrow="How much can I earn?"
-            headline="Real numbers, not estimates."
-            subtext="Based on average booking rates for UK home chargers in 2026. Your earnings depend on location, price, and availability."
+            headline="A worked example."
+            subtext="What you earn depends on your price, how often drivers book and what your electricity costs. Here's the arithmetic for one example."
           />
           <div className="mt-10 overflow-x-auto">
             <table className="w-full text-sm" aria-label="Earnings by availability scenario">
               <thead>
                 <tr className="border-b border-[hsl(var(--border))]">
-                  {['Availability', 'Typical sessions', 'Monthly earnings', 'Annual earnings'].map((h) => (
+                  {['If you get', 'You receive / month', 'Your electricity / month', 'Profit / month'].map((h) => (
                     <th
                       key={h}
                       scope="col"
@@ -173,33 +181,20 @@ export default function ForHomeownersPage() {
                 </tr>
               </thead>
               <tbody>
-                {EARNINGS_EXAMPLES.map(({ scenario, sessions, perMonth, perYear }, i) => (
-                  <tr
-                    key={scenario}
-                    className={cn(
-                      'border-b border-[hsl(var(--border))]',
-                      i === 2 && 'bg-[hsl(var(--primary)/0.03)]',
-                    )}
-                  >
-                    <td className="py-4 pr-8 font-medium text-[hsl(var(--foreground))]">
-                      {i === 2 && (
-                        <span className="mr-2 rounded-[4px] bg-[hsl(var(--primary)/0.1)] px-1.5 py-0.5 text-[10px] font-semibold text-[hsl(var(--primary))]">
-                          MAX
-                        </span>
-                      )}
-                      {scenario}
-                    </td>
-                    <td className="py-4 pr-8 text-[hsl(var(--muted-foreground))]">{sessions}</td>
-                    <td className="py-4 pr-8 font-mono font-semibold text-[hsl(var(--foreground))]">{perMonth}</td>
-                    <td className="py-4 font-mono font-semibold text-[hsl(var(--foreground))]">{perYear}</td>
+                {EARNINGS_EXAMPLES.map(({ scenario, receive, cost }) => (
+                  <tr key={scenario} className="border-b border-[hsl(var(--border))]">
+                    <td className="py-4 pr-8 font-medium text-[hsl(var(--foreground))]">{scenario}</td>
+                    <td className="py-4 pr-8 font-mono text-[hsl(var(--foreground))]">£{receive}</td>
+                    <td className="py-4 pr-8 font-mono text-[hsl(var(--muted-foreground))]">£{cost}</td>
+                    <td className="py-4 font-mono font-semibold text-[hsl(var(--foreground))]">£{receive - cost}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           <p className="mt-4 text-xs text-[hsl(var(--muted-foreground))]">
-            * Based on average 7kW charger at £0.38/kWh, 2-hour sessions. Actual earnings vary by location and pricing.
-            Platform commission of 15% applies to all earnings.
+            Example only, not a forecast: a {EXAMPLE.kw} kW charger, {EXAMPLE.hours}-hour bookings ({SESSION_KWH} kWh), you charge {EXAMPLE.pricePence}p/kWh,
+            your electricity costs {EXAMPLE.costPence}p/kWh, Starter plan (you keep {EXAMPLE.keepPct}%). A cheaper off-peak tariff or a higher price increases your profit.
           </p>
         </div>
       </section>
@@ -212,7 +207,7 @@ export default function ForHomeownersPage() {
         <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <SectionHeader
             eyebrow="Getting started"
-            headline="Live in under 10 minutes."
+            headline="How to get started."
           />
           <ol
             aria-label="Steps to list your charger"
@@ -261,7 +256,7 @@ export default function ForHomeownersPage() {
                 align="left"
                 eyebrow="Your property is protected"
                 headline="List with confidence."
-                subtext="We've built in every protection a careful homeowner would want before opening their property to strangers."
+                subtext="What's in place before a driver comes to your home."
               />
               <ul role="list" className="flex flex-col gap-3">
                 {HOST_GUARANTEES.map((g) => (
@@ -272,58 +267,34 @@ export default function ForHomeownersPage() {
                 ))}
               </ul>
               <Link href="/safety" className="self-start text-sm font-medium text-[hsl(var(--primary))] hover:opacity-80">
-                Read the full Host Protection policy →
+                How safety works on Zipgrid →
               </Link>
             </div>
-            <figure className="flex flex-col gap-4 rounded-[6px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-8">
-              <div className="flex gap-0.5" aria-label="5 out of 5 stars">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star key={i} className="h-4 w-4 fill-[hsl(var(--primary))] text-[hsl(var(--primary))]" aria-hidden="true" strokeWidth={0} />
-                ))}
-              </div>
-              <blockquote>
-                <p className="text-base leading-relaxed text-[hsl(var(--foreground))]">
-                  &ldquo;I was nervous about strangers using my driveway at first. But the driver
-                  verification and booking system means I know exactly who is coming and when. In
-                  6 months, not a single problem.&rdquo;
-                </p>
-              </blockquote>
-              <figcaption className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[hsl(var(--secondary))] text-sm font-semibold text-[hsl(var(--foreground))]" aria-hidden="true">
-                  AC
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-[hsl(var(--foreground))]">Andy C.</p>
-                  <p className="text-xs text-[hsl(var(--muted-foreground))]">Homeowner host · Chiswick, London</p>
-                </div>
-              </figcaption>
-            </figure>
+            <div className="flex flex-col gap-3 rounded-[6px] border border-amber-500/30 bg-amber-500/10 p-8">
+              <p className="text-base font-semibold text-[hsl(var(--foreground))]">Before you list: check your insurance</p>
+              <p className="text-sm leading-relaxed text-[hsl(var(--foreground))]">
+                Zipgrid doesn&apos;t provide insurance. Tell your home insurer that you share your charger and check
+                you have public liability cover for people using it. Hosts get a ready-to-send letter in
+                Settings → Insurance.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ── COMPATIBLE CHARGERS ──────────────────────────────────── */}
+      {/* ── CHARGERS ─────────────────────────────────────────────── */}
       <section
-        aria-label="Compatible charger brands"
+        aria-label="Which chargers can be listed"
         className="border-b border-[hsl(var(--border))] bg-[hsl(var(--secondary))]"
       >
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-center gap-6 text-center">
+          <div className="flex flex-col items-center gap-3 text-center">
             <p className="text-sm font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
               Works with your charger
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              {['EO Charging', 'Rolec EV', 'Andersen EV', 'Ohme', 'Zappi (myenergi)', 'Wallbox'].map((brand) => (
-                <span
-                  key={brand}
-                  className="rounded-[6px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-4 py-2 text-sm font-medium text-[hsl(var(--foreground))]"
-                >
-                  {brand}
-                </span>
-              ))}
-            </div>
-            <p className="text-xs text-[hsl(var(--muted-foreground))]">
-              + any OCPP 1.6J compatible charger · Non-smart charger support available
+            <p className="max-w-xl text-sm text-[hsl(var(--foreground))]">
+              Any safely installed home charger can be listed and priced by the hour or per session.
+              Chargers that support OCPP 1.6J can be connected to price by the kWh.
             </p>
           </div>
         </div>
@@ -338,8 +309,8 @@ export default function ForHomeownersPage() {
               Free to list. We only earn when you do.
             </h2>
             <p className="max-w-md text-base text-[hsl(var(--muted-foreground))]">
-              No monthly fees, no setup costs. Zipgrid takes a 15% platform commission on each
-              completed session. If your charger earns nothing, you pay nothing.
+              No setup costs. On Starter there&apos;s no monthly fee: Zipgrid takes 15% of each completed
+              booking. Growth and Pro plans lower the commission to 12% or 8%.
             </p>
             <Link href="/pricing" className="text-sm font-medium text-[hsl(var(--primary))] hover:opacity-80">
               See full pricing breakdown →
@@ -350,7 +321,7 @@ export default function ForHomeownersPage() {
 
       <CtaBanner
         headline="Start earning from your charger today."
-        subtext="List your charger in under 10 minutes. Free to start — no monthly fee."
+        subtext="Free to list on Starter, with no monthly fee. You only pay commission when you earn."
         primaryLabel="List my charger"
         primaryHref="/register?role=host"
         secondaryLabel="Read about safety"

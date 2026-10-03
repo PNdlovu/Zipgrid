@@ -104,8 +104,8 @@ const FAQ: Array<{ q: string; a: string }> = [
     a: 'Raising a genuine dispute never affects your account. Zipgrid only takes action if evidence shows that a claim was fabricated.',
   },
   {
-    q: 'How does Zipgrid cover hosts?',
-    a: 'Hosts are covered by the Zipgrid Host Protection Guarantee — up to £1M of commercial general liability. This covers third-party claims arising from a session. See your host settings for full details.',
+    q: 'Is the host insured?',
+    a: 'Zipgrid does not provide insurance. Hosts are asked to keep their own home and public liability cover that includes sharing their charger. If something goes wrong during a booking, report it in the Resolution Centre so we can review it with the booking record.',
   },
 ]
 
@@ -257,7 +257,7 @@ export default function InsuranceHubPage() {
       <div className="mt-8 rounded-[6px] border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-4 text-center">
         <p className="text-sm text-[hsl(var(--muted-foreground))]">
           Can&apos;t find what you&apos;re looking for?{' '}
-          <Link href="/help/chat" className="font-medium text-[hsl(var(--primary))] hover:underline">
+          <Link href="/concierge" className="font-medium text-[hsl(var(--primary))] hover:underline">
             Chat with support
           </Link>
         </p>

@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils'
 
 /* ── Types ──────────────────────────────────────────────────── */
 
-type DisputeCategory = 'session_fault' | 'property_damage' | 'billing' | 'driver_behaviour' | 'charger_unavailable' | 'other'
+type DisputeCategory = 'safety_incident' | 'session_fault' | 'property_damage' | 'billing' | 'driver_behaviour' | 'charger_unavailable' | 'other'
 
 type CaseStatus =
   | 'open'
@@ -60,6 +60,7 @@ type EvidenceFile = {
 /* ── Constants ──────────────────────────────────────────────── */
 
 const CATEGORY_OPTIONS: Array<{ value: DisputeCategory; label: string; description: string }> = [
+  { value: 'safety_incident',     label: 'Safety problem',         description: 'Injury, electrical fault, harassment or anything unsafe. If anyone is in danger, call 999 first' },
   { value: 'session_fault',       label: 'Charger fault',          description: 'The charger failed during my session' },
   { value: 'charger_unavailable', label: 'Charger unavailable',    description: 'The charger was inaccessible or broken on arrival' },
   { value: 'billing',             label: 'Billing issue',          description: 'I was charged the wrong amount' },

@@ -18,9 +18,9 @@
  */
 
 import Stripe from 'stripe'
-import { getDb } from '@/lib/db'
+import { getDb, type Db } from '@/lib/db'
 import { eventBus } from '@/lib/events/event-bus'
-import { NotFoundError, ValidationError } from '@/lib/errors/AppError'
+import { AppError, NotFoundError, ValidationError } from '@/lib/errors/AppError'
 import { AuditLogger } from '@/domains/compliance/AuditLogger'
 
 export type KycStatus = 'not_started' | 'pending' | 'verified' | 'rejected'
@@ -104,6 +104,28 @@ export const KycService = {
       verificationSessionId: session.id,
       clientSecret: session.client_secret ?? '',
     }
+  },
+
+  /**
+   * Requires a verified identity before a driver's booking or a host's listing
+   * going live (the site promises ID-verified drivers and hosts). On unless
+   * REQUIRE_ID_VERIFICATION=false (local development only).
+   *
+   * @throws {AppError} ID_VERIFICATION_REQUIRED (403)
+   */
+  async assertVerified(userId: string, action: 'book' | 'list', db?: Db): Promise<void> {
+    if (process.env['REQUIRE_ID_VERIFICATION'] === 'false') return
+    const conn = db ?? await getDb()
+    const res = await conn.execute(`SELECT kyc_status FROM users WHERE id = $1`, [userId])
+    const status = res.rows[0]?.['kyc_status'] as string | undefined
+    if (status === 'verified') return
+    const what = action === 'book' ? 'book a charger' : 'publish a listing'
+    const next = status === 'pending'
+      ? 'Your ID check is still being processed; this usually takes a few minutes.'
+      : status === 'failed' || status === 'rejected'
+        ? 'Your last ID check did not go through. Please try again in Profile → Identity verification.'
+        : 'Verify your ID in Profile → Identity verification. It takes about two minutes.'
+    throw new AppError(`To keep everyone safe, you need a verified ID to ${what}. ${next}`, 'ID_VERIFICATION_REQUIRED', 403)
   },
 
   /**

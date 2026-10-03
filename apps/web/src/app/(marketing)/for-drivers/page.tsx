@@ -13,7 +13,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import {
-  MapPin, Zap, CalendarCheck, Mic, CreditCard, ArrowRight, CheckCircle2, Star, Navigation, BatteryCharging, Clock,
+  MapPin, Zap, CalendarCheck, Mic, CreditCard, ArrowRight, CheckCircle2, Navigation, BatteryCharging, Clock,
 } from 'lucide-react'
 import { SectionHeader } from '@/components/marketing/SectionHeader'
 import { FeatureCard } from '@/components/marketing/FeatureCard'
@@ -23,83 +23,83 @@ import { cn } from '@/lib/utils'
 export const metadata: Metadata = {
   title: 'For Drivers — Find & Book EV Charging Near You',
   description:
-    'Find affordable home and business EV chargers near you. Book instantly, charge reliably, pay automatically. No subscription required.',
+    'Book private home and business EV chargers near you, or let the AI concierge plan and book your charging. No subscription, no booking fee.',
   alternates: { canonical: 'https://zipgrid.co.uk/for-drivers' },
 }
 
 const DRIVER_FEATURES = [
   {
-    icon: MapPin,
-    title: 'Map-based search',
-    description:
-      'Search hundreds of real listings on an interactive map. Filter by plug type, price, power rating, and real-time availability.',
-  },
-  {
-    icon: CalendarCheck,
-    title: 'Instant booking',
-    description:
-      'Reserve your slot before you leave. Get your 6-digit access PIN and QR code — no awkward waiting or calling ahead.',
-  },
-  {
-    icon: BatteryCharging,
-    title: 'Live session monitoring',
-    description:
-      'Watch your kWh counter update in real time. See your cost growing live. Get a push notification when your car is full.',
-  },
-  {
     icon: Mic,
-    title: 'Voice commands',
+    title: 'AI concierge',
     description:
-      '"Book the nearest CCS charger for tomorrow at 10am." Works in your car, hands-free, with CarPlay and Android Auto.',
+      'Say or type what you need: "get me charged near Leeds tomorrow at 9". It checks the reviews, quotes the price and books once you say yes.',
   },
   {
     icon: Navigation,
-    title: 'Along-route search',
+    title: 'Trips booked ahead',
     description:
-      'Planning a long drive? Find chargers along your route, not just nearby. Zipgrid searches your whole corridor.',
+      'Tell it where you\'re driving. You get charging stops that fit your car and are free when you arrive, each with a backup, booked before you set off.',
+  },
+  {
+    icon: MapPin,
+    title: 'Map search',
+    description:
+      'Search listings on the map and filter by plug type, power and price. Each one shows its rating, reviews and safety score.',
+  },
+  {
+    icon: CalendarCheck,
+    title: 'Your slot, reserved',
+    description:
+      'Book a time and the charger is yours for that slot. You get an arrival code and session PIN for the booking.',
   },
   {
     icon: CreditCard,
-    title: 'One-tap payment',
+    title: 'Wallet or card',
     description:
-      'Saved card, Zipgrid wallet, or Apple/Google Pay. Payment happens automatically when your session ends — no friction.',
+      'Pay from your Zipgrid wallet or a saved card. A hold is placed before the session and you\'re charged for what you use.',
+  },
+  {
+    icon: BatteryCharging,
+    title: 'Emergency charging',
+    description:
+      'Running low? Enter your battery level and see chargers you can still reach, ready to book.',
   },
 ] as const
 
 const HOW_IT_WORKS = [
   {
     step: '01',
-    title: 'Search near you',
+    title: 'Ask or search',
     description:
-      'Open the map and search by your location. Filter by plug type (Type 2, CCS, CHAdeMO), power rating, and instant book.',
+      'Tell the concierge where and when, or search the map by plug type, power and price.',
   },
   {
     step: '02',
     title: 'Book your slot',
     description:
-      'Pick a time, confirm your vehicle, and pay. You get an access PIN and a confirmation pushed to your phone instantly.',
+      'Check the price, choose your car and confirm. You get an arrival code for the booking.',
   },
   {
     step: '03',
     title: 'Arrive and plug in',
     description:
-      'Enter your PIN or scan the QR code. The session starts automatically — no app fiddling with your hands full of cables.',
+      'Follow the host\'s access instructions and start your session with your PIN.',
   },
   {
     step: '04',
-    title: 'Session ends, payment clears',
+    title: 'Pay for what you use',
     description:
-      'Unplug when done. Payment captures automatically. Your receipt is in the app and your history is always searchable.',
+      'When the session ends you\'re charged for what you used and the rest of the hold is released.',
   },
 ] as const
 
 const DRIVER_BENEFITS = [
-  'No subscription required to search and book',
-  'Average price 40–60% cheaper than public rapid chargers',
-  'Reserve your spot — no more arriving at a taken charger',
-  'Works with all plug types: Type 2, CCS, CHAdeMO, NACS',
-  'Emergency charging mode for low-battery situations',
-  'AI concierge plans multi-stop road trips automatically',
+  'No subscription and no booking fee',
+  'See the full price before you book',
+  'Reserve your slot, so the charger is free when you arrive',
+  'Free cancellation before charging starts',
+  'Every host has verified their ID',
+  'The AI concierge plans and books multi-stop trips',
 ] as const
 
 /**
@@ -119,12 +119,12 @@ export default function ForDriversPage() {
               For Drivers
             </span>
             <h1 className="max-w-3xl text-5xl font-semibold tracking-tight text-[hsl(var(--foreground))] sm:text-6xl">
-              Guaranteed charging,{' '}
-              <span className="text-[hsl(var(--primary))]">every time.</span>
+              Charging that&apos;s booked,{' '}
+              <span className="text-[hsl(var(--primary))]">not hoped for.</span>
             </h1>
             <p className="max-w-xl text-lg leading-relaxed text-[hsl(var(--muted-foreground))]">
-              Search and book private home chargers near you. 40–60% cheaper than public networks,
-              always reserved, always available when you arrive.
+              Book private home and business chargers near you, or tell the concierge where you&apos;re
+              going and it books your charging. Your slot is reserved before you set off.
             </p>
             <div className="flex flex-col items-center gap-3 sm:flex-row">
               <Link
@@ -151,45 +151,26 @@ export default function ForDriversPage() {
         </div>
       </section>
 
-      {/* ── PRICE COMPARISON ─────────────────────────────────────── */}
+      {/* ── PRICING PROMISE ──────────────────────────────────────── */}
       <section
-        aria-label="Price comparison with public charging networks"
+        aria-label="How pricing works for drivers"
         className="border-b border-[hsl(var(--border))] bg-[hsl(var(--secondary))]"
       >
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
           <SectionHeader
             eyebrow="Why Zipgrid"
-            headline="Stop paying £0.75/kWh at a public charger."
-            subtext="Private home chargers on Zipgrid average 30–45p/kWh — the same rate a host pays at home."
+            headline="Know the price before you go."
+            subtext="Hosts set their own prices. You see the full price for your slot before you book, and pay only for what you use."
           />
           <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
             {[
-              { label: 'BP Pulse / Pod Point', price: '£0.68–0.85', unit: '/kWh', highlight: false, desc: 'Public rapid charger' },
-              { label: 'Zipgrid host charger', price: '£0.30–0.45', unit: '/kWh', highlight: true, desc: 'Average private listing' },
-              { label: 'Home overnight (Octopus Go)', price: '£0.07–0.10', unit: '/kWh', highlight: false, desc: 'If you have the tariff' },
-            ].map(({ label, price, unit, highlight, desc }) => (
-              <div
-                key={label}
-                className={cn(
-                  'flex flex-col gap-2 rounded-[6px] border p-6',
-                  highlight
-                    ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.04)]'
-                    : 'border-[hsl(var(--border))] bg-[hsl(var(--card))]',
-                )}
-              >
-                {highlight && (
-                  <span className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--primary))]">
-                    Best value
-                  </span>
-                )}
-                <p className="text-sm font-medium text-[hsl(var(--foreground))]">{label}</p>
+              { title: 'No booking fee', desc: 'You pay the host\'s price and nothing on top.' },
+              { title: 'Hold, then charge', desc: 'A hold covers your booking; you\'re charged for what you use and the rest is released.' },
+              { title: 'Free to cancel', desc: 'Cancel any time before charging starts and the hold is released in full.' },
+            ].map(({ title, desc }) => (
+              <div key={title} className="flex flex-col gap-2 rounded-[6px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6">
+                <p className="text-base font-semibold text-[hsl(var(--foreground))]">{title}</p>
                 <p className="text-sm text-[hsl(var(--muted-foreground))]">{desc}</p>
-                <p className="font-mono text-2xl font-bold text-[hsl(var(--foreground))]">
-                  {price}
-                  <span className="text-base font-normal text-[hsl(var(--muted-foreground))]">
-                    {unit}
-                  </span>
-                </p>
               </div>
             ))}
           </div>
@@ -205,7 +186,7 @@ export default function ForDriversPage() {
         <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <SectionHeader
             eyebrow="How it works"
-            headline="From search to session in two minutes."
+            headline="From asking to charging."
           />
           <ol
             aria-label="Steps to find and book a charger"
@@ -275,39 +256,28 @@ export default function ForDriversPage() {
               </ul>
             </div>
 
-            {/* Testimonial */}
-            <figure className="flex flex-col gap-4 rounded-[6px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-8">
-              <div className="flex gap-0.5" aria-label="5 out of 5 stars">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star
-                    key={i}
-                    className="h-4 w-4 fill-[hsl(var(--primary))] text-[hsl(var(--primary))]"
-                    aria-hidden="true"
-                    strokeWidth={0}
-                  />
-                ))}
-              </div>
-              <blockquote>
-                <p className="text-base leading-relaxed text-[hsl(var(--foreground))]">
-                  &ldquo;I live in a flat — no home charger. Zipgrid completely changed how I
-                  charge. I found a host two streets away, booked it for every Tuesday evening,
-                  and it costs me half what I was paying at Osprey.&rdquo;
-                </p>
-              </blockquote>
-              <figcaption className="flex items-center gap-3">
-                <div
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[hsl(var(--secondary))] text-sm font-semibold text-[hsl(var(--foreground))]"
-                  aria-hidden="true"
-                >
-                  DM
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-[hsl(var(--foreground))]">Dev M.</p>
-                  <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                    Driver · Brixton, London
-                  </p>
-                </div>
+            {/* Example (illustrative) */}
+            <figure className="flex flex-col gap-3 rounded-[6px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6">
+              <figcaption className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+                Example: planning a trip
               </figcaption>
+              {[
+                { who: 'You', text: "I'm driving from London to Manchester on Friday at 8, about 70% battery." },
+                { who: 'Concierge', text: 'You need one stop. Best: a 50 kW charger near Stoke at 10:20, rated 4.9, about £9. Backup: 22 kW 3 km away. Book it?' },
+                { who: 'You', text: 'Yes, book it.' },
+              ].map((m, i) => (
+                <p
+                  key={i}
+                  className={cn(
+                    'max-w-[90%] rounded-2xl px-3.5 py-2 text-sm',
+                    m.who === 'You'
+                      ? 'self-end bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]'
+                      : 'self-start bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))]',
+                  )}
+                >
+                  {m.text}
+                </p>
+              ))}
             </figure>
           </div>
         </div>
@@ -328,9 +298,8 @@ export default function ForDriversPage() {
                 Emergency Charging Mode
               </h2>
               <p className="max-w-xl text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">
-                Running low? Emergency mode filters listings by how many miles you have left,
-                finds the closest available charger, and can voice-book it in one command. No
-                panic. Just a plan.
+                Running low? Enter your battery level and Emergency mode shows the chargers you can
+                still reach, ready to book. No panic. Just a plan.
               </p>
             </div>
             <Link
@@ -352,7 +321,7 @@ export default function ForDriversPage() {
       {/* ── CTA ──────────────────────────────────────────────────── */}
       <CtaBanner
         headline="Ready to find charging near you?"
-        subtext="Free to sign up. No subscription required to search and book. Pay only when you charge."
+        subtext="Free to sign up. No subscription and no booking fee. Pay only for what you use."
         primaryLabel="Create your free account"
         primaryHref="/register"
         secondaryLabel="View pricing"

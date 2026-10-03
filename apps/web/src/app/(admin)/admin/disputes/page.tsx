@@ -43,6 +43,8 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
 }
 
 const DISPUTE_TYPE_LABELS: Record<string, string> = {
+  safety_incident: 'SAFETY', session_fault: 'Charger fault', charger_unavailable: 'Charger unavailable',
+  billing: 'Billing', property_damage: 'Property damage', driver_behaviour: 'Behaviour',
   billing_overcharge: 'Billing overcharge', charger_not_working: 'Charger not working',
   host_no_access: 'Host: no access', driver_damage: 'Driver damage',
   driver_no_show: 'Driver no-show', host_cancelled: 'Host cancelled', other: 'Other',
