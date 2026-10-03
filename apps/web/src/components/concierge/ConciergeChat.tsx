@@ -60,13 +60,15 @@ async function api<T>(init?: { method: string; body: unknown }): Promise<T> {
 }
 
 /** Concierge chat. */
-export function ConciergeChat({ title, tagline, intro, suggestions, placeholder, footer, className }: {
+export function ConciergeChat({ title, tagline, intro, suggestions, placeholder, footer, className, initialMessage }: {
   title: string
   tagline: string
   intro: string
   suggestions: string[]
   placeholder: string
   footer?: React.ReactNode
+  /** Pre-filled into the message box (e.g. a request handed over from the trip planner). */
+  initialMessage?: string | undefined
   className?: string
 }) {
   const [lines, setLines] = useState<Line[]>([])
@@ -82,6 +84,7 @@ export function ConciergeChat({ title, tagline, intro, suggestions, placeholder,
   const recognition = useRef<Recognition | null>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const canListen = speechRecognition() !== null
+  const initialSent = useRef(false)
 
   useEffect(() => {
     api<{ conversationId: string | null; lines: Line[] }>()
@@ -120,6 +123,15 @@ export function ConciergeChat({ title, tagline, intro, suggestions, placeholder,
       setBusy(false)
     }
   }, [busy, conversationId, location, say])
+
+  // A handed-over request fills the box; the user sends it. Never auto-send:
+  // a crafted link could otherwise say "yes" to a pending booking for them.
+  useEffect(() => {
+    if (!initialMessage || initialSent.current) return
+    initialSent.current = true
+    setInput(initialMessage)
+    window.history.replaceState(null, '', window.location.pathname)
+  }, [initialMessage])
 
   const toggleMic = () => {
     if (listening) { recognition.current?.stop(); return }
@@ -223,6 +235,15 @@ export function ConciergeChat({ title, tagline, intro, suggestions, placeholder,
 
         {pending.length > 0 && !busy && (
           <div className="mt-3 flex flex-col gap-2">
+            {pending.length > 1 && (
+              <button
+                type="button"
+                onClick={() => void send(`Yes, go ahead with all ${pending.length}: ${pending.map((p) => p.summary).join(' ')}`)}
+                className="inline-flex items-center justify-center gap-1.5 self-start rounded-md bg-[hsl(var(--primary))] px-3 py-1.5 text-sm font-semibold text-[hsl(var(--primary-foreground))]"
+              >
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> Confirm all {pending.length}
+              </button>
+            )}
             {pending.map((p) => (
               <div key={p.actionId} className="flex flex-col gap-2 rounded-lg border border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--primary)/0.05)] p-3">
                 <p className="text-sm">{p.summary}</p>

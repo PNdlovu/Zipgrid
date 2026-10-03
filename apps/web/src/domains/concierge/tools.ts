@@ -23,6 +23,7 @@ import { WalletService } from '@/domains/payments/WalletService'
 import { StripeCustomer } from '@/domains/payments/StripeCustomer'
 import { ReviewService } from '@/domains/trust/ReviewService'
 import { withinRadiusSql } from '@/lib/db/geo'
+import { TripPlanner, normalisePlugTypes } from '@/domains/trip/TripPlanner'
 
 /** What a tool call runs with. */
 export type ToolContext = {
@@ -98,6 +99,13 @@ const schemas = {
     price_per_session_pence: z.number().int().min(1).max(100_000).optional(),
   }),
   propose_approve_booking: z.object({ booking_id: z.string().uuid() }),
+  plan_trip: z.object({
+    destination: z.string().min(2).max(120),
+    origin: z.string().min(2).max(120).optional(),
+    departure: z.string().datetime({ offset: true }),
+    battery_percent: z.number().int().min(1).max(100),
+    vehicle_id: z.string().uuid().optional(),
+  }),
 } as const
 
 export type ToolName = keyof typeof schemas
@@ -179,6 +187,17 @@ export const TOOL_DEFINITIONS: Anthropic.Beta.BetaTool[] = [
     description: "For hosts: prepare approving a booking request on their charger. Does NOT approve it. Returns an action_id to confirm.",
     input_schema: obj({ booking_id: { type: 'string' } }, ['booking_id']),
   },
+  {
+    name: 'plan_trip',
+    description: "Plan charging for a journey: where the car will need to stop, a best and a backup bookable charger at each stop that fits the car and is free on arrival, suggested booking times, estimated costs and arrival time. Does NOT book. To reserve the stops, quote_booking each chosen stop's best option using its suggested bookStart/bookEnd. Ask for the battery % if you don't know it.",
+    input_schema: obj({
+      destination: { type: 'string', description: 'UK town, city or postcode' },
+      origin: { type: 'string', description: "UK town, city or postcode; omit to start from the user's shared location" },
+      departure: { type: 'string', description: 'ISO 8601 with offset' },
+      battery_percent: { type: 'integer', description: 'Battery % at departure' },
+      vehicle_id: { type: 'string', description: "Defaults to the user's primary vehicle" },
+    }, ['destination', 'departure', 'battery_percent']),
+  },
 ]
 
 const whenText = (d: Date) =>
@@ -208,11 +227,13 @@ const handlers: { [K in ToolName]: (input: z.infer<(typeof schemas)[K]>, ctx: To
     } else {
       throw new ValidationError('No location: ask the user where they want to charge, or to share their location.')
     }
+    const plugTypes = input.plug_type ? normalisePlugTypes([input.plug_type]) : undefined
+    if (plugTypes?.length === 0) throw new ValidationError(`Unknown plug type "${input.plug_type}". Use Type2, CCS2, CHAdeMO or NACS.`)
     const { listings, total } = await ListingService.searchNearby({
       lat: origin.lat, lng: origin.lng,
       radiusMetres: (input.radius_km ?? 10) * 1000,
       minPowerKw: input.min_power_kw,
-      plugTypes: input.plug_type ? [input.plug_type.toLowerCase()] : undefined,
+      plugTypes,
       instantBookOnly: input.instant_book_only,
       pageSize: 8,
     })
@@ -502,6 +523,38 @@ const handlers: { [K in ToolName]: (input: z.infer<(typeof schemas)[K]>, ctx: To
     const summary = `Change ${l.title} from ${priceText(l)} to ${priceText(next)}. Existing bookings keep their price.`
     const actionId = await proposeAction(ctx, 'update_price', { listingId: input.listing_id, ...prices }, summary)
     return { actionId, summary, note: 'Not changed yet. Ask the host to confirm.' }
+  },
+
+  async plan_trip(input, ctx) {
+    if (!input.origin && !ctx.location) {
+      throw new ValidationError('No starting point: ask where they are setting off from, or to share their location.')
+    }
+    const plan = await TripPlanner.planForUser({
+      userId: ctx.userId,
+      origin: input.origin ?? { ...ctx.location!, label: 'your location' },
+      destination: input.destination,
+      departure: new Date(input.departure),
+      batteryPercent: input.battery_percent,
+      vehicleId: input.vehicle_id,
+    })
+    const option = (o: (typeof plan.stops)[number]['best']) => o && {
+      listingId: o.listingId, title: o.title, city: o.city, detourKm: o.detourKm, powerKw: o.powerKw,
+      rating: o.rating, reviews: o.reviewCount, instantBook: o.instantBook,
+      bookStart: o.bookStart, bookEnd: o.bookEnd, chargeMinutes: o.chargeMinutes, estimatedCost: pounds(o.estimatedCostPence),
+    }
+    return {
+      vehicleId: plan.vehicle.id, vehicle: plan.vehicle.name,
+      from: plan.origin.label, to: plan.destination.label,
+      distanceMiles: plan.distanceMiles, rangeMiles: plan.rangeMiles,
+      departure: plan.departure, arrival: plan.arrival, drivingMinutes: plan.drivingMinutes, chargingMinutes: plan.chargingMinutes,
+      estimatedChargingCost: pounds(plan.estimatedChargingCostPence),
+      stops: plan.stops.map((s) => ({
+        atMile: s.atMile, arriveAt: s.arriveAt, batteryOnArrivalPct: s.batteryOnArrivalPct, chargeTo: s.batteryOnDeparturePct,
+        best: option(s.best), backup: option(s.backup),
+      })),
+      warnings: plan.warnings,
+      note: plan.stops.length === 0 ? 'No charging needed on the way.' : 'Nothing is booked yet. Read the best options\' details if useful, then quote each stop for the user to confirm.',
+    }
   },
 
   async propose_approve_booking({ booking_id }, ctx) {

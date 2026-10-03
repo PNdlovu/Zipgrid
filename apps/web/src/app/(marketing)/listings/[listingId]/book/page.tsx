@@ -96,13 +96,16 @@ const BRAND_ICONS: Record<string, string> = {
 
 /* ── Page ─────────────────────────────────────────────────── */
 
-/** Page at /listings/[listingId]/book — Booking creation flow. */
+/** Page at /listings/[listingId]/book — Booking creation flow. ?start=&end= (ISO) preset the slot, e.g. from the trip planner. */
 export default function BookPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ listingId: string }>
+  searchParams: Promise<{ start?: string; end?: string }>
 }) {
   const { listingId } = use(params)
+  const preset = use(searchParams)
   const router = useRouter()
 
   // Data
@@ -118,11 +121,16 @@ export default function BookPage({
   const [paymentMethodId, setPaymentMethodId] = useState<string>('')
   const [payWithWallet,   setPayWithWallet]   = useState(false)
 
-  // Default start = tomorrow 09:00, end = +2h
-  const defaultStart = new Date()
-  defaultStart.setDate(defaultStart.getDate() + 1)
-  defaultStart.setHours(9, 0, 0, 0)
-  const defaultEnd = new Date(defaultStart.getTime() + 2 * 3_600_000)
+  // Default start = the preset slot, else tomorrow 09:00 for 2h
+  const presetStart = preset.start ? new Date(preset.start) : null
+  const presetEnd = preset.end ? new Date(preset.end) : null
+  const validPreset = presetStart && presetEnd && !isNaN(presetStart.getTime()) && presetEnd > presetStart
+  const defaultStart = validPreset ? presetStart : new Date()
+  if (!validPreset) {
+    defaultStart.setDate(defaultStart.getDate() + 1)
+    defaultStart.setHours(9, 0, 0, 0)
+  }
+  const defaultEnd = validPreset ? presetEnd : new Date(defaultStart.getTime() + 2 * 3_600_000)
 
   const [scheduledStart, setScheduledStart] = useState(toLocalDatetimeValue(defaultStart))
   const [scheduledEnd,   setScheduledEnd]   = useState(toLocalDatetimeValue(defaultEnd))
