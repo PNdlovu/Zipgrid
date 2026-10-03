@@ -1,13 +1,13 @@
 /**
  * @file route.ts
  * @description POST /api/v1/account/delete — GDPR Art. 17 right to erasure.
- * Submits a deletion request with a 30-day cooling-off period.
+ * Submits a deletion request with a 14-day cooling-off period.
  *
  * GET  — returns current deletion request status (if any).
  * POST — submits a new deletion request.
  * DELETE — cancels a pending deletion request (within the cooling-off window).
  *
- * Deletion anonymises PII after 30 days while retaining transaction records
+ * Deletion anonymises PII after 14 days while retaining transaction records
  * for legal/tax compliance (7-year HMRC retention requirement).
  *
  * @module apps/web/api/v1/account/delete

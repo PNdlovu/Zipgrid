@@ -360,7 +360,7 @@ export default function DriverSettingsPage() {
               <CheckCircle className="mx-auto h-8 w-8 text-[hsl(var(--primary))]" aria-hidden="true" />
               <p className="mt-2 text-sm font-medium">Deletion request submitted</p>
               <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
-                Your account will be deleted on {deletionDate ? new Date(deletionDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'the end of the 30-day cooling-off period'}.
+                Your account will be deleted on {deletionDate ? new Date(deletionDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'the end of the 14-day cooling-off period'}.
                 You can cancel until then.
               </p>
               <button
@@ -376,7 +376,7 @@ export default function DriverSettingsPage() {
             <div className="rounded-[6px] border border-[hsl(var(--destructive)_/_30%)] bg-[hsl(var(--destructive)_/_5%)] p-5">
               <h2 className="text-sm font-semibold text-[hsl(var(--destructive))]">Delete account</h2>
               <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
-                Permanently deletes your account after a 30-day cooling-off period. Financial records are kept for HMRC compliance (7 years).
+                Permanently deletes your account after a 14-day cooling-off period. Financial records are kept for HMRC compliance (7 years).
                 Money you topped up into your wallet is refunded to your card; promotional and reward credit is forfeited.
                 Upcoming bookings and any outstanding balance must be settled first.
               </p>

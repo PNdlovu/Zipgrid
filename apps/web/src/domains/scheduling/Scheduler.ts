@@ -12,6 +12,7 @@
  *     reveal_reviews         — publish one-sided reviews after 14 days
  *     superhost              — promote/demote Superhosts
  *     safety_scores          — rescore live listings; pause any below 50
+ *     process_deletions      — complete account deletions whose cooling-off has ended
  *
  * Jobs are isolated: one failing never stops the others. Every job is
  * idempotent, so overlapping ticks are safe. Daily jobs claim a
@@ -30,6 +31,7 @@ import { BookingService } from '@/domains/booking/BookingService'
 import { ReviewService } from '@/domains/trust/ReviewService'
 import { SuperhostService } from '@/domains/trust/SuperhostService'
 import { SafetyScoreService } from '@/domains/safety/SafetyScoreService'
+import { GdprService } from '@/domains/compliance/GdprService'
 
 type Frequency = 'every_tick' | 'daily'
 
@@ -52,6 +54,7 @@ export const JOBS: Job[] = [
   { name: 'reveal_reviews', frequency: 'daily', run: () => ReviewService.revealStale() },
   { name: 'superhost', frequency: 'daily', run: () => SuperhostService.evaluateAll() },
   { name: 'safety_scores', frequency: 'daily', run: () => SafetyScoreService.recalculateAll() },
+  { name: 'process_deletions', frequency: 'daily', run: () => GdprService.processDue() },
 ]
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err)).slice(0, 1000)

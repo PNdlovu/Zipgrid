@@ -29,6 +29,7 @@ import { getDb } from '@/lib/db'
 import { NotFoundError, ValidationError } from '@/lib/errors/AppError'
 import { AuditLogger } from './AuditLogger'
 import { WalletClosureService } from '@/domains/payments/WalletClosureService'
+import { ConciergeService } from '@/domains/concierge/ConciergeService'
 
 /* ── Types ─────────────────────────────────────────────────── */
 
@@ -70,7 +71,14 @@ export type DataExport = {
   notifications: unknown[]
   reviews: unknown[]
   consentHistory: unknown[]
+  vehicles: unknown[]
+  residencies: unknown[]
+  /** Concierge conversations: what you asked and what it replied. */
+  conciergeConversations: unknown[]
 }
+
+/** Days between a deletion request and its processing; the user can cancel meanwhile. */
+export const DELETION_COOLING_OFF_DAYS = 14
 
 /* ── Service ────────────────────────────────────────────────── */
 
@@ -236,6 +244,20 @@ export const GdprService = {
 
     if (profileRes.rows.length === 0) throw new NotFoundError('User', userId)
 
+    const [vehicleRes, residencyRes, conciergeRes] = await Promise.all([
+      db.execute(
+        `SELECT v.make, v.model, v.year, v.color, v.license_plate, v.plug_types, v.battery_capacity_kwh, v.created_at
+         FROM driver_vehicles v JOIN driver_profiles dp ON dp.id = v.driver_profile_id WHERE dp.user_id = $1`,
+        [userId],
+      ),
+      db.execute(
+        `SELECT p.name AS property, r.unit_number, r.status, r.accepted_at, r.removed_at
+         FROM property_residents r JOIN properties p ON p.id = r.property_id WHERE r.user_id = $1`,
+        [userId],
+      ),
+      ConciergeService.history(userId),
+    ])
+
     await AuditLogger.logAsync({
       eventType: 'gdpr.data_export',
       actorId: userId,
@@ -254,6 +276,9 @@ export const GdprService = {
       notifications:     notifRes.rows,
       reviews:           reviewRes.rows,
       consentHistory:    consentRes.rows,
+      vehicles:          vehicleRes.rows,
+      residencies:       residencyRes.rows,
+      conciergeConversations: conciergeRes,
     }
   },
 
@@ -261,7 +286,7 @@ export const GdprService = {
 
   /**
    * Submits a deletion request for a user account.
-   * The actual deletion is processed asynchronously after a 30-day
+   * The actual deletion is processed by the daily process_deletions job after a 14-day
    * cooling-off period (allows chargebacks, disputes to settle).
    *
    * @throws {ValidationError} if the user has open bookings, wallet
@@ -303,8 +328,8 @@ export const GdprService = {
     }
 
     const requestId   = uuidv4()
-    // 30-day cooling-off period
-    const scheduledFor = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    // 14-day cooling-off period (erasure must complete within a month)
+    const scheduledFor = new Date(Date.now() + DELETION_COOLING_OFF_DAYS * 24 * 60 * 60 * 1000)
 
     await db.execute(
       `INSERT INTO gdpr_deletion_requests
@@ -333,7 +358,31 @@ export const GdprService = {
   },
 
   /**
-   * Admin: processes a deletion request — anonymises PII while preserving
+   * Processes every pending deletion request whose cooling-off has ended
+   * (daily job). A failure (e.g. a card refund) leaves that request pending
+   * for the next run; the others still go ahead.
+   */
+  async processDue(): Promise<{ processed: number; failed: number }> {
+    const db = await getDb()
+    const due = await db.execute(
+      `SELECT id FROM gdpr_deletion_requests WHERE status = 'pending' AND scheduled_for <= NOW() ORDER BY scheduled_for`,
+    )
+    let processed = 0
+    let failed = 0
+    for (const row of due.rows) {
+      try {
+        await this.processDeletion(row['id'] as string)
+        processed++
+      } catch (err) {
+        failed++
+        console.error('[gdpr] deletion failed for request', row['id'], err)
+      }
+    }
+    return { processed, failed }
+  },
+
+  /**
+   * Processes a deletion request (see processDue) — anonymises PII while preserving
    * financial records required for legal/tax retention.
    *
    * PII removed:
@@ -402,6 +451,34 @@ export const GdprService = {
       [userId],
     )
 
+    // Concierge chats can hold locations and plans: delete them (actions cascade).
+    await db.execute(`DELETE FROM concierge_conversations WHERE user_id = $1`, [userId])
+    await db.execute(
+      `DELETE FROM support_messages WHERE conversation_id IN (SELECT id FROM support_conversations WHERE user_id = $1)`,
+      [userId],
+    )
+
+    // Building memberships end; the invite email is anonymised; bays are unassigned.
+    await db.execute(
+      `UPDATE property_bays SET assigned_resident_id = NULL
+       WHERE assigned_resident_id IN (SELECT id FROM property_residents WHERE user_id = $1)`,
+      [userId],
+    )
+    await db.execute(
+      `UPDATE property_residents
+       SET email = $2, status = 'removed', removed_at = COALESCE(removed_at, NOW()),
+           invite_token_hash = NULL, invite_expires_at = NULL
+       WHERE user_id = $1`,
+      [userId, `${anonymId}@deleted.zipgrid.internal`],
+    )
+
+    // Number plates identify a person; the vehicle row stays for booking history.
+    await db.execute(
+      `UPDATE driver_vehicles SET license_plate = NULL, color = NULL, updated_at = NOW()
+       WHERE driver_profile_id IN (SELECT id FROM driver_profiles WHERE user_id = $1)`,
+      [userId],
+    )
+
     // Mark request completed
     await db.execute(
       `UPDATE gdpr_deletion_requests
@@ -412,10 +489,10 @@ export const GdprService = {
 
     await AuditLogger.logAsync({
       eventType: 'gdpr.deletion_completed',
-      actorId: 'system',
+      // No actor: the scheduled job processed it (actor_user_id is a user UUID).
       targetId: userId,
       targetType: 'user',
-      metadata: { requestId, anonymisedAs: anonymId, walletRefundedPence: wallet.refundedPence, walletForfeitedPence: wallet.forfeitedPence },
+      metadata: { requestId, processedBy: 'process_deletions', anonymisedAs: anonymId, walletRefundedPence: wallet.refundedPence, walletForfeitedPence: wallet.forfeitedPence },
     })
   },
 

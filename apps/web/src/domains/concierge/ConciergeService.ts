@@ -111,6 +111,21 @@ async function loadConversation(userId: string, conversationId: string | null) {
   return { id: res.rows[0]!['id'] as string, messages: [] as Msg[], turn: 0 }
 }
 
+/** Stored messages as plain chat lines (tool calls and results left out). */
+function chatLines(stored: unknown, opts: { keepContext?: boolean } = {}): ChatLine[] {
+  const messages = (typeof stored === 'string' ? JSON.parse(stored) : stored) as Msg[]
+  const lines: ChatLine[] = []
+  for (const m of messages) {
+    if (m.role !== 'user' && m.role !== 'assistant') continue
+    const blocks = typeof m.content === 'string' ? [{ type: 'text', text: m.content }] : m.content
+    let text = (blocks as { type: string; text?: string }[])
+      .filter((b) => b.type === 'text').map((b) => b.text ?? '').join('\n').trim()
+    if (!opts.keepContext) text = text.replace(/^\[Context:[^\]]*\]\s*/, '').trim()
+    if (text) lines.push({ role: m.role, text })
+  }
+  return lines
+}
+
 /** Calls Claude once with the conversation so far. */
 async function callClaude(api: Anthropic, messages: Msg[], allowTools: boolean): Promise<Anthropic.Beta.BetaMessage> {
   try {
@@ -224,16 +239,19 @@ export const ConciergeService = {
     )
     const row = res.rows[0]
     if (!row || Number(row['turn']) >= MAX_TURNS) return { conversationId: null, lines: [] }
-    const messages = (typeof row['messages'] === 'string' ? JSON.parse(row['messages']) : row['messages']) as Msg[]
-    const lines: ChatLine[] = []
-    for (const m of messages) {
-      if (m.role !== 'user' && m.role !== 'assistant') continue
-      const blocks = typeof m.content === 'string' ? [{ type: 'text', text: m.content }] : m.content
-      const text = (blocks as { type: string; text?: string }[])
-        .filter((b) => b.type === 'text').map((b) => b.text ?? '').join('\n')
-        .replace(/^\[Context:[^\]]*\]\s*/, '').trim()
-      if (text) lines.push({ role: m.role, text })
-    }
-    return { conversationId: row['id'] as string, lines }
+    return { conversationId: row['id'] as string, lines: chatLines(row['messages']) }
+  },
+
+  /** Every conversation with its full context notes (shared locations included), for a data export. */
+  async history(userId: string): Promise<{ startedAt: string; messages: ChatLine[] }[]> {
+    const db = await getDb()
+    const res = await db.execute(
+      `SELECT messages, created_at FROM concierge_conversations WHERE user_id = $1 ORDER BY created_at`,
+      [userId],
+    )
+    return res.rows.map((r) => ({
+      startedAt: new Date(r['created_at'] as string).toISOString(),
+      messages: chatLines(r['messages'], { keepContext: true }),
+    }))
   },
 }
