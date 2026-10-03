@@ -39,6 +39,7 @@ import { runTool } from '@/domains/concierge/tools'
 let driver: { userId: string; vehicleId: string }
 let otherDriverId: string
 let listingId: string
+let hostUserId: string
 
 const msg = (content: object[], stop_reason: string) => ({
   id: `msg_${Math.random()}`, type: 'message', role: 'assistant', model: 'claude-opus-5-5',
@@ -69,6 +70,7 @@ beforeAll(async () => {
      WHERE cl.status = 'active' ORDER BY cl.id LIMIT 1`,
   )
   listingId = l.rows[0]!.id
+  hostUserId = l.rows[0]!.hu
   await pg.query(
     `UPDATE charger_listings SET instant_book_enabled = TRUE, min_booking_hours = 0, max_booking_hours = 24,
             advance_booking_days = 365, pricing_model = 'per_hour', price_per_hour_cents = 500
@@ -196,5 +198,79 @@ describe('concierge conversation', () => {
     await ConciergeService.send({ userId: otherDriverId, conversationId: null, message: 'charge me', location: { lat: 51.5, lng: -0.12 } })
     const first = JSON.stringify(calls[0]!.messages[0])
     expect(first).toMatch(/\[Context: it is .* UK time\. The user shared their location: 51\.5000, -0\.1200\.\]/)
+  })
+})
+
+describe('host revenue advisor', () => {
+  it("reports each charger's performance with a nearby-market comparison", async () => {
+    const r = await runTool('host_performance', { days: 90 }, ctxFor(hostUserId))
+    expect(r.isError).toBe(false)
+    const out = JSON.parse(r.content) as { periodDays: number; chargers: Record<string, unknown>[] }
+    expect(out.periodDays).toBe(90)
+    const mine = out.chargers.find((c) => c['listingId'] === listingId)
+    expect(mine).toMatchObject({
+      price: '£5.00/hour',
+      bookings: expect.any(Number),
+      hoursBookedPerWeek: expect.any(Number),
+      earned: expect.stringMatching(/^£/),
+      nearby: { otherChargersWithin5km: expect.any(Number) },
+    })
+    expect(Array.isArray(mine!['quietDays'])).toBe(true)
+
+    const nonHost = await pg.query<{ id: string }>(`SELECT u.id FROM users u WHERE NOT EXISTS (SELECT 1 FROM host_profiles hp JOIN charger_listings cl ON cl.host_profile_id = hp.id WHERE hp.user_id = u.id) LIMIT 1`)
+    const notHost = await runTool('host_performance', {}, ctxFor(nonHost.rows[0]!.id))
+    expect(notHost).toMatchObject({ isError: true, content: expect.stringMatching(/no charger listings/) })
+  })
+
+  it('changes a price only after the host confirms in a later turn', async () => {
+    script.push(use('propose_price_change', { listing_id: listingId, price_per_hour_pence: 450 }), say('Lower it to £4.50/hour?'))
+    const t1 = await ConciergeService.send({ userId: hostUserId, conversationId: null, message: 'Should I lower my price?', location: null, isHost: true })
+    expect(t1.pendingActions[0]!.summary).toBe(
+      `Change ${(await pg.query<{ title: string }>(`SELECT title FROM charger_listings WHERE id = $1`, [listingId])).rows[0]!.title} from £5.00/hour to £4.50/hour. Existing bookings keep their price.`,
+    )
+    expect(JSON.stringify(calls[0]!.messages[0])).toContain('The user is a host with chargers on Zipgrid.')
+    const before = await pg.query<{ p: number }>(`SELECT price_per_hour_cents AS p FROM charger_listings WHERE id = $1`, [listingId])
+    expect(before.rows[0]!.p).toBe(500)
+
+    script.push(use('confirm_action', { action_id: t1.pendingActions[0]!.actionId }), say('Done.'))
+    const t2 = await ConciergeService.send({ userId: hostUserId, conversationId: t1.conversationId, message: 'Yes', location: null, isHost: true })
+    expect(t2.completedActions).toEqual([{ kind: 'price_changed', summary: expect.stringMatching(/^New price for/) }])
+    const after = await pg.query<{ p: number }>(`SELECT price_per_hour_cents AS p FROM charger_listings WHERE id = $1`, [listingId])
+    expect(after.rows[0]!.p).toBe(450)
+    await pg.query(`UPDATE charger_listings SET price_per_hour_cents = 500 WHERE id = $1`, [listingId])
+  })
+
+  it("refuses prices on someone else's charger or that the pricing model doesn't use", async () => {
+    const notMine = await runTool('propose_price_change', { listing_id: listingId, price_per_hour_pence: 100 }, ctxFor(driver.userId))
+    expect(notMine).toMatchObject({ isError: true, content: expect.stringMatching(/not one of yours/) })
+    const { ListingService } = await import('@/domains/charging/ListingService')
+    await expect(ListingService.updatePricing(listingId, hostUserId, { pricePerSessionPence: 300 })).rejects.toThrow(/doesn't apply/)
+    await expect(ListingService.updatePricing(listingId, driver.userId, { pricePerHourPence: 300 })).rejects.toThrow(/your own listings/)
+  })
+
+  it('approves a booking request after confirmation', async () => {
+    await pg.query(`UPDATE charger_listings SET instant_book_enabled = FALSE WHERE id = $1`, [listingId])
+    try {
+      const { BookingService } = await import('@/domains/booking/BookingService')
+      const s = slot(200)
+      const b = await BookingService.create({
+        userId: driver.userId, listingId, vehicleId: driver.vehicleId,
+        scheduledStart: new Date(s.start), scheduledEnd: new Date(s.end), paymentMethodId: null, payWithWallet: true,
+      })
+      expect(b.status).toBe('pending')
+
+      const pendingList = JSON.parse((await runTool('host_bookings', { pending_only: true }, ctxFor(hostUserId))).content) as { bookings: { bookingId: string; needsYourApproval: boolean }[] }
+      expect(pendingList.bookings).toContainEqual(expect.objectContaining({ bookingId: b.id, needsYourApproval: true }))
+
+      script.push(use('propose_approve_booking', { booking_id: b.id }), say('Approve it?'))
+      const t1 = await ConciergeService.send({ userId: hostUserId, conversationId: null, message: 'Any requests?', location: null, isHost: true })
+      script.push(use('confirm_action', { action_id: t1.pendingActions[0]!.actionId }), say('Approved.'))
+      const t2 = await ConciergeService.send({ userId: hostUserId, conversationId: t1.conversationId, message: 'Yes approve', location: null, isHost: true })
+      expect(t2.completedActions[0]!.kind).toBe('approved')
+      const row = await pg.query<{ status: string }>(`SELECT status FROM bookings WHERE id = $1`, [b.id])
+      expect(row.rows[0]!.status).toBe('confirmed')
+    } finally {
+      await pg.query(`UPDATE charger_listings SET instant_book_enabled = TRUE WHERE id = $1`, [listingId])
+    }
   })
 })

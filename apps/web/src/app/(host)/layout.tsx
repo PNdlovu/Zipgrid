@@ -28,11 +28,13 @@ import {
   ChevronRight,
   BookOpen,
   Building2,
+  Sparkles,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const NAV_ITEMS = [
   { href: '/dashboard',         icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/host/advisor',      icon: Sparkles,        label: 'Revenue advisor' },
   { href: '/chargers',          icon: PlugZap,         label: 'My Chargers' },
   { href: '/host/listings',     icon: MapPin,          label: 'Listings' },
   { href: '/host/bookings',     icon: BookOpen,        label: 'Bookings' },

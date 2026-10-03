@@ -29,6 +29,7 @@ export function setupDatabase(): Promise<void> {
   return ready
 }
 
+/** Adapts a PGlite connection or transaction to the app's `execute` shape. */
 export function wrap(q: PGlite | Transaction): Execute {
   return async (query, params = []) => ({ rows: (await q.query<Record<string, unknown>>(query, params)).rows })
 }

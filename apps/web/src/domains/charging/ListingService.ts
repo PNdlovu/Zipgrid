@@ -364,6 +364,48 @@ export const ListingService = {
   },
 
   /**
+   * Changes a listing's prices (not its pricing model). Only the prices the
+   * model uses can be set; new bookings are quoted at the new prices, existing
+   * bookings keep the price they were quoted.
+   * @throws {ForbiddenError}  if user is not the host
+   * @throws {ValidationError} for a price the model doesn't use, or out of range
+   */
+  async updatePricing(
+    listingId: string,
+    requestingUserId: string,
+    prices: { pricePerKwhPence?: number | undefined; pricePerHourPence?: number | undefined; pricePerSessionPence?: number | undefined },
+  ): Promise<ListingRow> {
+    const db = await getDb()
+    const res = await db.execute(
+      `SELECT cl.pricing_model FROM charger_listings cl JOIN host_profiles hp ON hp.id = cl.host_profile_id
+       WHERE cl.id = $1 AND hp.user_id = $2`,
+      [listingId, requestingUserId],
+    )
+    const model = res.rows[0]?.['pricing_model'] as string | undefined
+    if (!model) throw new ForbiddenError('You can only change prices on your own listings.')
+
+    const uses = {
+      pricePerKwhPence: model === 'per_kwh' || model === 'hybrid',
+      pricePerHourPence: model === 'per_hour',
+      pricePerSessionPence: model === 'per_session' || model === 'hybrid',
+    }
+    const cols = { pricePerKwhPence: 'price_per_kwh_cents', pricePerHourPence: 'price_per_hour_cents', pricePerSessionPence: 'price_per_session_cents' }
+    const sets: string[] = []
+    const vals: unknown[] = [listingId]
+    for (const key of Object.keys(cols) as (keyof typeof cols)[]) {
+      const v = prices[key]
+      if (v === undefined) continue
+      if (!uses[key]) throw new ValidationError(`This listing is priced ${model.replace('_', ' ')}, so that price doesn't apply.`)
+      if (!Number.isInteger(v) || v < 1 || v > 100_000) throw new ValidationError('Prices must be between 1p and £1,000.')
+      vals.push(v)
+      sets.push(`${cols[key]} = $${vals.length}`)
+    }
+    if (sets.length === 0) throw new ValidationError('No price to change.')
+    await db.execute(`UPDATE charger_listings SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $1`, vals)
+    return this.getById(listingId)
+  },
+
+  /**
    * Pauses an active listing.
    * @throws {ForbiddenError} if user is not the host
    */

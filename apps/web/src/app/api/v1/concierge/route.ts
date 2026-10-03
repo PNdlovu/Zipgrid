@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 /** POST /api/v1/concierge — send a message, get the concierge's reply. */
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = requireUser(request)
+    const { userId, roles } = requireUser(request)
     const parsed = MessageSchema.safeParse(await request.json().catch(() => null))
     if (!parsed.success) return apiError('VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid request', 422)
 
@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
       conversationId: parsed.data.conversationId ?? null,
       message: parsed.data.message,
       location: parsed.data.location ?? null,
+      isHost: roles.includes('host'),
     }))
   } catch (err) {
     return errorResponse(err, 'POST /api/v1/concierge')

@@ -41,7 +41,7 @@ export type VoiceCommandResponse = {
 /** POST /api/v1/voice/command */
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = requireUser(request)
+    const { userId, roles } = requireUser(request)
     const parsed = VoiceCommandSchema.safeParse(await request.json().catch(() => null))
     if (!parsed.success) return apiError('VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid input', 422)
 
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     const { conversationId } = await ConciergeService.latest(userId)
     const r = await ConciergeService.send({
-      userId, conversationId, message: parsed.data.transcript, location: parsed.data.location ?? null,
+      userId, conversationId, message: parsed.data.transcript, location: parsed.data.location ?? null, isHost: roles.includes('host'),
     })
     const booked = r.completedActions.some((a) => a.kind === 'booked' || a.kind === 'cancelled')
     return apiResponse<VoiceCommandResponse>({

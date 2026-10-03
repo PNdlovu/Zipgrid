@@ -51,7 +51,20 @@ How to work:
 - If a tool returns an error, explain it plainly and offer the next step (another time, another charger, topping up the wallet).
 - Times are UK local time. Write ISO times with the correct offset (+01:00 in British Summer Time, +00:00 otherwise).
 
-Style: the driver may be listening by voice or glancing at a watch, so be brief and conversational. Lead with the answer. Plain English, no jargon, no markdown tables. Prices in pounds. You only help with EV charging on Zipgrid; politely decline anything else.`
+Hosts (the context note says when the user is one): you are also their revenue advisor. When they ask how they're doing or how to earn more, call host_performance and give specific, numbers-backed advice: price against the nearby median, quiet days that could take a lower price, turning on instant booking, host cancellations that hurt their ranking, missing reviews. Suggest at most three changes, biggest impact first. You can prepare a price change (propose_price_change) or a booking approval (propose_approve_booking); both need the host's yes, like bookings. Never invent figures you didn't get from a tool.
+
+Support: answer questions about using Zipgrid from these facts, and check the user's own bookings, wallet or charging with your tools when relevant.
+- Paying: by wallet or saved card. A card hold is placed when booking within 6 days of the start, otherwise 24 hours before it; wallet bookings reserve funds the same way. After the session the actual cost is charged and the rest released. If a session costs more than the hold, the difference is an outstanding balance taken from the wallet or card; until it's paid, new bookings are blocked (topping up clears it).
+- Auto top-up (optional, in Wallet): tops up from the saved card when the balance runs low or a wallet booking is short; at most 3 times a day; two declines in a row turn it off.
+- Cancelling: drivers and hosts can cancel any booking before charging starts; the hold or wallet reservation is released in full. Frequent host cancellations count against a host.
+- Idle fees: some chargers charge per minute if the car stays plugged in more than 10 minutes after charging finishes; the listing shows the rate.
+- Hosts: paid weekly by bank transfer through Stripe once earnings reach £5, after setting up a payout account in Settings. Plans: Starter (free, up to 3 chargers, 15% commission), Growth (£29/month, 12%), Pro (£79/month, 8%).
+- Buildings: residents invited by their property manager get resident access and any resident discount, and may earn from their assigned bay.
+- Deleting an account refunds wallet top-ups to the original cards; promotional credit is forfeited. It can't be done while bookings or balances are open.
+- Problems you can't fix: disputes about a completed booking go to the Resolution Centre (/help/resolution); damage or safety issues to Emergency & incidents (/emergency), and anyone in danger should call 999.
+Don't make up policies beyond these; if unsure, say so and point to the Resolution Centre.
+
+Style: the user may be listening by voice or glancing at a watch, so be brief and conversational. Lead with the answer. Plain English, no jargon, no markdown tables. Prices in pounds. You only help with EV charging and Zipgrid; politely decline anything else.`
 
 let client: Anthropic | null = null
 function anthropic(): Anthropic {
@@ -65,11 +78,12 @@ export function conciergeConfigured(): boolean {
   return Boolean(process.env['ANTHROPIC_API_KEY'])
 }
 
-function contextNote(location: ToolContext['location']): string {
+function contextNote(location: ToolContext['location'], isHost: boolean): string {
   const now = new Date().toLocaleString('en-GB', {
     timeZone: 'Europe/London', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
   })
-  return `[Context: it is ${now} UK time.${location ? ` The user shared their location: ${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}.` : ''}]`
+  return `[Context: it is ${now} UK time.${isHost ? ' The user is a host with chargers on Zipgrid.' : ''}`
+    + `${location ? ` The user shared their location: ${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}.` : ''}]`
 }
 
 function textOf(content: Anthropic.Beta.BetaContentBlock[]): string {
@@ -125,6 +139,8 @@ export const ConciergeService = {
     conversationId: string | null
     message: string
     location: { lat: number; lng: number } | null
+    /** Hosts also get revenue advice and host actions. */
+    isHost?: boolean
   }): Promise<ConciergeReply> {
     const api = anthropic()
     const convo = await loadConversation(input.userId, input.conversationId)
@@ -134,7 +150,7 @@ export const ConciergeService = {
     // This turn's messages, appended to the stored history once it ends.
     const added: Msg[] = [{
       role: 'user',
-      content: [{ type: 'text', text: `${contextNote(input.location)}\n\n${input.message}` }],
+      content: [{ type: 'text', text: `${contextNote(input.location, Boolean(input.isHost))}\n\n${input.message}` }],
     }]
     const pendingActions: ConciergeReply['pendingActions'] = []
     const completedActions: ConciergeReply['completedActions'] = []
@@ -172,9 +188,11 @@ export const ConciergeService = {
           if (!r.isError && t.name === 'confirm_action') {
             const out = JSON.parse(r.content) as Record<string, unknown>
             completedActions.push(
-              out['booked'] ? { kind: 'booked', summary: `Booked ${String(out['charger'] ?? '')}`.trim() }
+              out['priceChanged'] ? { kind: 'price_changed', summary: `New price for ${String(out['charger'] ?? '')}` }
+                : out['approved'] ? { kind: 'approved', summary: 'Booking approved' }
+                : out['booked'] ? { kind: 'booked', summary: `Booked ${String(out['charger'] ?? '')}`.trim() }
                 : out['cancelled'] ? { kind: 'cancelled', summary: 'Booking cancelled' }
-                  : { kind: 'stopping', summary: 'Stopping charging' },
+                : { kind: 'stopping', summary: 'Stopping charging' },
             )
           }
           return { type: 'tool_result' as const, tool_use_id: t.id, content: r.content, ...(r.isError ? { is_error: true } : {}) }

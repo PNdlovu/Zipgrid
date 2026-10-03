@@ -22,6 +22,7 @@ import { SessionService } from '@/domains/sessions/SessionService'
 import { WalletService } from '@/domains/payments/WalletService'
 import { StripeCustomer } from '@/domains/payments/StripeCustomer'
 import { ReviewService } from '@/domains/trust/ReviewService'
+import { withinRadiusSql } from '@/lib/db/geo'
 
 /** What a tool call runs with. */
 export type ToolContext = {
@@ -32,16 +33,21 @@ export type ToolContext = {
   location: { lat: number; lng: number } | null
 }
 
-export type ActionKind = 'book' | 'cancel_booking' | 'stop_session'
+export type ActionKind = 'book' | 'cancel_booking' | 'stop_session' | 'update_price' | 'approve_booking'
+
+/** Bookings that went ahead (for host performance). */
+const LIVE_BOOKING = `('confirmed', 'active', 'completed')`
 
 const pounds = (p: number | null | undefined) => (p == null ? null : `£${(p / 100).toFixed(2)}`)
 const iso = (d: Date | null) => (d ? d.toISOString() : null)
 
+/** The listing's price as drivers pay it: only the prices its pricing model uses. */
 function priceText(l: { pricingModel: string; pricePerKwhPence: number | null; pricePerHourPence: number | null; pricePerSessionPence: number | null }): string {
+  const m = l.pricingModel
   const parts = [
-    l.pricePerKwhPence != null ? `${pounds(l.pricePerKwhPence)}/kWh` : null,
-    l.pricePerHourPence != null ? `${pounds(l.pricePerHourPence)}/hour` : null,
-    l.pricePerSessionPence != null ? `${pounds(l.pricePerSessionPence)}/session` : null,
+    (m === 'per_kwh' || m === 'hybrid') && l.pricePerKwhPence != null ? `${pounds(l.pricePerKwhPence)}/kWh` : null,
+    m === 'per_hour' && l.pricePerHourPence != null ? `${pounds(l.pricePerHourPence)}/hour` : null,
+    (m === 'per_session' || m === 'hybrid') && l.pricePerSessionPence != null ? `${pounds(l.pricePerSessionPence)}/session` : null,
   ].filter(Boolean)
   return parts.join(' + ') || 'price on request'
 }
@@ -83,6 +89,15 @@ const schemas = {
   charging_status: z.object({}),
   propose_stop_charging: z.object({ session_id: z.string().uuid() }),
   confirm_action: z.object({ action_id: z.string().uuid() }),
+  host_performance: z.object({ days: z.union([z.literal(30), z.literal(90)]).optional() }),
+  host_bookings: z.object({ pending_only: z.boolean().optional() }),
+  propose_price_change: z.object({
+    listing_id: z.string().uuid(),
+    price_per_kwh_pence: z.number().int().min(1).max(100_000).optional(),
+    price_per_hour_pence: z.number().int().min(1).max(100_000).optional(),
+    price_per_session_pence: z.number().int().min(1).max(100_000).optional(),
+  }),
+  propose_approve_booking: z.object({ booking_id: z.string().uuid() }),
 } as const
 
 export type ToolName = keyof typeof schemas
@@ -138,10 +153,45 @@ export const TOOL_DEFINITIONS: Anthropic.Beta.BetaTool[] = [
   },
   {
     name: 'confirm_action',
-    description: 'Carry out a prepared booking, cancellation or stop. Only call this after the user has clearly said yes to that exact action in their latest message.',
+    description: 'Carry out a prepared action (booking, cancellation, stop, price change, approval). Only call this after the user has clearly said yes to that exact action in their latest message.',
     input_schema: obj({ action_id: { type: 'string' } }, ['action_id']),
   },
+  {
+    name: 'host_performance',
+    description: "For hosts: how each of their chargers is doing over the last 30 or 90 days (bookings, hours booked per week, earnings, cancellations, rating, busiest and quietest days) and how its price and demand compare with other chargers within 5 km. Use it to advise on pricing and availability.",
+    input_schema: obj({ days: { type: 'integer', enum: [30, 90] } }),
+  },
+  {
+    name: 'host_bookings',
+    description: "For hosts: upcoming bookings on their chargers, including requests waiting for their approval.",
+    input_schema: obj({ pending_only: { type: 'boolean' } }),
+  },
+  {
+    name: 'propose_price_change',
+    description: "For hosts: prepare a new price for one of their chargers (only the prices its pricing model uses). Does NOT change it. Returns an action_id to confirm. Existing bookings keep their price.",
+    input_schema: obj({
+      listing_id: { type: 'string' },
+      price_per_kwh_pence: { type: 'integer' }, price_per_hour_pence: { type: 'integer' }, price_per_session_pence: { type: 'integer' },
+    }, ['listing_id']),
+  },
+  {
+    name: 'propose_approve_booking',
+    description: "For hosts: prepare approving a booking request on their charger. Does NOT approve it. Returns an action_id to confirm.",
+    input_schema: obj({ booking_id: { type: 'string' } }, ['booking_id']),
+  },
 ]
+
+const whenText = (d: Date) =>
+  d.toLocaleString('en-GB', { timeZone: 'Europe/London', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+
+const DAY_NAMES = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+function median(values: number[]): number | null {
+  if (values.length === 0) return null
+  const s = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(s.length / 2)
+  return s.length % 2 ? s[mid]! : Math.round((s[mid - 1]! + s[mid]!) / 2)
+}
 
 /* ── Implementations ────────────────────────────────────────── */
 
@@ -306,7 +356,7 @@ const handlers: { [K in ToolName]: (input: z.infer<(typeof schemas)[K]>, ctx: To
   },
 
   async charging_status(_input, ctx) {
-    const { sessions } = await SessionService.list(ctx.userId, { role: 'driver', pageSize: 5, statuses: ['preparing', 'charging', 'paused', 'finishing'] })
+    const { sessions } = await SessionService.list(ctx.userId, { role: 'driver', pageSize: 5, statuses: ['preparing', 'charging', 'paused', 'suspended_ev', 'suspended_evse', 'finishing'] })
     return {
       sessions: sessions.map((s) => ({
         sessionId: s.id, charger: s.listingTitle, status: s.status,
@@ -325,6 +375,141 @@ const handlers: { [K in ToolName]: (input: z.infer<(typeof schemas)[K]>, ctx: To
 
   async confirm_action({ action_id }, ctx) {
     return executeAction(action_id, ctx)
+  },
+
+  async host_performance(input, ctx) {
+    const days = input.days ?? 30
+    const db = await getDb()
+    const listings = await db.execute(
+      `SELECT cl.id, cl.title, cl.status, cl.pricing_model, cl.price_per_kwh_cents, cl.price_per_hour_cents,
+              cl.price_per_session_cents, cl.latitude, cl.longitude, cl.average_rating, cl.review_count,
+              cl.instant_book_enabled,
+              COUNT(b.id) FILTER (WHERE b.status IN ${LIVE_BOOKING})::int AS bookings,
+              COALESCE(SUM(EXTRACT(EPOCH FROM (b.scheduled_end - b.scheduled_start)) / 3600)
+                       FILTER (WHERE b.status IN ${LIVE_BOOKING}), 0)::float AS booked_hours,
+              COUNT(b.id) FILTER (WHERE b.status = 'cancelled_by_host')::int AS host_cancellations,
+              COUNT(b.id) FILTER (WHERE b.status = 'cancelled_by_driver')::int AS driver_cancellations
+       FROM charger_listings cl
+       JOIN host_profiles hp ON hp.id = cl.host_profile_id
+       LEFT JOIN bookings b ON b.listing_id = cl.id
+             AND b.scheduled_start > NOW() - make_interval(days => $2) AND b.scheduled_start <= NOW()
+       WHERE hp.user_id = $1 AND cl.status <> 'deactivated'
+       GROUP BY cl.id
+       ORDER BY cl.created_at`,
+      [ctx.userId, days],
+    )
+    if (listings.rows.length === 0) {
+      throw new ValidationError("This account has no charger listings. If they're a host, they can add one under Listings.")
+    }
+
+    const ids = listings.rows.map((l) => l['id'] as string)
+    const [earnings, weekdays] = await Promise.all([
+      db.execute(
+        `SELECT b.listing_id, COALESCE(SUM(ea.amount_pence), 0)::int AS pence
+         FROM earnings_allocations ea
+         JOIN transactions t ON t.id = ea.transaction_id
+         JOIN bookings b ON b.id = t.booking_id
+         WHERE ea.beneficiary_user_id = $1 AND b.listing_id = ANY($2::uuid[])
+           AND ea.created_at > NOW() - make_interval(days => $3)
+         GROUP BY b.listing_id`,
+        [ctx.userId, ids, days],
+      ),
+      db.execute(
+        `SELECT listing_id, EXTRACT(ISODOW FROM scheduled_start AT TIME ZONE 'Europe/London')::int AS dow, COUNT(*)::int AS n
+         FROM bookings
+         WHERE listing_id = ANY($1::uuid[]) AND status IN ${LIVE_BOOKING}
+           AND scheduled_start > NOW() - make_interval(days => $2) AND scheduled_start <= NOW()
+         GROUP BY listing_id, dow`,
+        [ids, days],
+      ),
+    ])
+    const earned = new Map(earnings.rows.map((r) => [r['listing_id'] as string, Number(r['pence'])]))
+
+    const chargers = await Promise.all(listings.rows.map(async (l) => {
+      const id = l['id'] as string
+      const byDay = new Map(weekdays.rows.filter((r) => r['listing_id'] === id).map((r) => [Number(r['dow']), Number(r['n'])]))
+      const dayCounts = [1, 2, 3, 4, 5, 6, 7].map((d) => ({ day: DAY_NAMES[d]!, bookings: byDay.get(d) ?? 0 }))
+      const sorted = [...dayCounts].sort((a, b) => b.bookings - a.bookings)
+
+      // Other hosts' live chargers within 5 km, over the same period.
+      const market = await db.execute(
+        `SELECT c.price_per_kwh_cents, c.price_per_hour_cents,
+                (SELECT COUNT(*)::int FROM bookings b WHERE b.listing_id = c.id AND b.status IN ${LIVE_BOOKING}
+                   AND b.scheduled_start > NOW() - make_interval(days => $4) AND b.scheduled_start <= NOW()) AS bookings
+         FROM charger_listings c
+         JOIN host_profiles hp ON hp.id = c.host_profile_id
+         WHERE c.status = 'active' AND hp.user_id <> $3
+           AND ${withinRadiusSql('c.latitude', 'c.longitude', '$1', '$2', '5000')}`,
+        [Number(l['latitude']), Number(l['longitude']), ctx.userId, days],
+      )
+      const prices = (col: string) => market.rows.map((m) => m[col]).filter((v) => v != null).map(Number)
+      const bookings = Number(l['bookings'])
+      return {
+        listingId: id, title: l['title'], status: l['status'], pricingModel: l['pricing_model'],
+        price: priceText({
+          pricingModel: l['pricing_model'] as string,
+          pricePerKwhPence: l['price_per_kwh_cents'] == null ? null : Number(l['price_per_kwh_cents']),
+          pricePerHourPence: l['price_per_hour_cents'] == null ? null : Number(l['price_per_hour_cents']),
+          pricePerSessionPence: l['price_per_session_cents'] == null ? null : Number(l['price_per_session_cents']),
+        }),
+        instantBook: Boolean(l['instant_book_enabled']),
+        rating: l['average_rating'] == null ? null : Number(l['average_rating']), reviews: Number(l['review_count'] ?? 0),
+        bookings, hoursBookedPerWeek: Math.round((Number(l['booked_hours']) / days) * 7 * 10) / 10,
+        earned: pounds(earned.get(id) ?? 0),
+        hostCancellations: Number(l['host_cancellations']), driverCancellations: Number(l['driver_cancellations']),
+        busiestDays: sorted.filter((d) => d.bookings > 0).slice(0, 2).map((d) => d.day),
+        quietDays: dayCounts.filter((d) => d.bookings === 0).map((d) => d.day),
+        nearby: {
+          otherChargersWithin5km: market.rows.length,
+          medianPerHour: pounds(median(prices('price_per_hour_cents'))),
+          medianPerKwh: pounds(median(prices('price_per_kwh_cents'))),
+          averageBookings: market.rows.length
+            ? Math.round((market.rows.reduce((s, m) => s + Number(m['bookings']), 0) / market.rows.length) * 10) / 10
+            : null,
+        },
+      }
+    }))
+    return { periodDays: days, chargers }
+  },
+
+  async host_bookings(input, ctx) {
+    const { bookings } = await BookingService.listByHost(ctx.userId, { pageSize: 30, ...(input.pending_only ? { status: 'pending' } : {}) })
+    const now = Date.now()
+    return {
+      bookings: bookings.filter((b) => b.scheduledEnd.getTime() > now).map((b) => ({
+        bookingId: b.id, charger: b.listingTitle, status: b.status, needsYourApproval: b.status === 'pending',
+        start: iso(b.scheduledStart), end: iso(b.scheduledEnd), estimatedCost: pounds(b.estimatedCostPence),
+      })),
+    }
+  },
+
+  async propose_price_change(input, ctx) {
+    const prices = {
+      pricePerKwhPence: input.price_per_kwh_pence,
+      pricePerHourPence: input.price_per_hour_pence,
+      pricePerSessionPence: input.price_per_session_pence,
+    }
+    const l = await ListingService.getById(input.listing_id)
+    const db = await getDb()
+    const own = await db.execute(`SELECT 1 FROM host_profiles WHERE id = $1 AND user_id = $2`, [l.hostProfileId, ctx.userId])
+    if (!own.rows[0]) throw new ValidationError('That charger is not one of yours.')
+    const next = {
+      ...l,
+      ...(prices.pricePerKwhPence !== undefined ? { pricePerKwhPence: prices.pricePerKwhPence } : {}),
+      ...(prices.pricePerHourPence !== undefined ? { pricePerHourPence: prices.pricePerHourPence } : {}),
+      ...(prices.pricePerSessionPence !== undefined ? { pricePerSessionPence: prices.pricePerSessionPence } : {}),
+    }
+    const summary = `Change ${l.title} from ${priceText(l)} to ${priceText(next)}. Existing bookings keep their price.`
+    const actionId = await proposeAction(ctx, 'update_price', { listingId: input.listing_id, ...prices }, summary)
+    return { actionId, summary, note: 'Not changed yet. Ask the host to confirm.' }
+  },
+
+  async propose_approve_booking({ booking_id }, ctx) {
+    const b = await BookingService.getById(booking_id, ctx.userId)
+    if (b.status !== 'pending') throw new ValidationError(`That booking is ${b.status}, so there is nothing to approve.`)
+    const summary = `Approve the booking at ${b.listingTitle ?? 'your charger'} on ${whenText(b.scheduledStart)} (about ${pounds(b.estimatedCostPence)}).`
+    const actionId = await proposeAction(ctx, 'approve_booking', { bookingId: booking_id }, summary)
+    return { actionId, summary, note: 'Not approved yet. Ask the host to confirm.' }
   },
 }
 
@@ -376,6 +561,16 @@ async function executeAction(actionId: string, ctx: ToolContext): Promise<unknow
     } else if (a['kind'] === 'cancel_booking') {
       await BookingService.cancel(String(payload['bookingId']), ctx.userId, 'Cancelled via concierge')
       result = { cancelled: true }
+    } else if (a['kind'] === 'update_price') {
+      const l = await ListingService.updatePricing(String(payload['listingId']), ctx.userId, {
+        pricePerKwhPence: payload['pricePerKwhPence'] as number | undefined,
+        pricePerHourPence: payload['pricePerHourPence'] as number | undefined,
+        pricePerSessionPence: payload['pricePerSessionPence'] as number | undefined,
+      })
+      result = { priceChanged: true, charger: l.title, newPrice: priceText(l) }
+    } else if (a['kind'] === 'approve_booking') {
+      await BookingService.approve(String(payload['bookingId']), ctx.userId)
+      result = { approved: true }
     } else {
       const r = await SessionService.requestStop(String(payload['sessionId']), ctx.userId)
       result = { stopping: true, status: r.status }
