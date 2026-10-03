@@ -15,6 +15,9 @@ import { v4 as uuidv4 } from 'uuid'
 import { getDb } from '@/lib/db'
 import { NotFoundError, ConflictError, ForbiddenError } from '@/lib/errors/AppError'
 
+/** Pending reviews are published after this many days even if only one side reviewed. */
+export const REVEAL_AFTER_DAYS = 14
+
 /* ── Types ──────────────────────────────────────────────────── */
 
 export type CreateListingReviewInput = {
@@ -224,6 +227,23 @@ export const ReviewService = {
       status: r['status'] as string,
       createdAt: new Date(r['created_at'] as string),
     }
+  },
+
+  /**
+   * Publishes reviews still pending after REVEAL_AFTER_DAYS — the case where the
+   * other party never reviewed. Listing/host ratings are refreshed by the
+   * trg_refresh_*_rating triggers. Called daily by the scheduler.
+   */
+  async revealStale(): Promise<{ revealed: number }> {
+    const db = await getDb()
+    const res = await db.execute(
+      `UPDATE reviews
+       SET status = 'published', revealed_at = NOW(), updated_at = NOW()
+       WHERE status = 'pending' AND created_at < NOW() - make_interval(days => $1)
+       RETURNING id`,
+      [REVEAL_AFTER_DAYS],
+    )
+    return { revealed: res.rows.length }
   },
 
   /**

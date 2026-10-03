@@ -9,3 +9,4 @@
 
 export { ReviewService } from './ReviewService'
 export { IncidentService } from './IncidentService'
+export { SuperhostService } from './SuperhostService'

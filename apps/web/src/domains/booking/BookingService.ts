@@ -379,23 +379,25 @@ export const BookingService = {
   },
 
   /**
-   * Authorises deferred bookings starting within DEFERRED_AUTH_LEAD_HOURS.
-   * Declines cancel the booking and notify the driver. Called by cron.
+   * Secures payment (card hold or wallet reservation) for deferred bookings
+   * starting within DEFERRED_AUTH_LEAD_HOURS. Declines cancel the booking and
+   * notify the driver. Called by the scheduler; `walletOnly` skips card
+   * bookings (used when Stripe is not configured).
    */
-  async authorizeDue(limit = 50): Promise<{ authorised: number; declined: number; errors: number }> {
+  async authorizeDue(limit = 50, walletOnly = false): Promise<{ authorised: number; declined: number; errors: number }> {
     const db = await getDb()
     const res = await db.execute(
       `SELECT b.id, dp.user_id AS driver_user_id
        FROM bookings b
        JOIN driver_profiles dp ON dp.id = b.driver_profile_id
        WHERE b.status IN ('pending', 'confirmed')
-         AND (b.payment_method_id IS NOT NULL OR b.pay_with_wallet)
+         AND (b.pay_with_wallet OR ($3::BOOLEAN = FALSE AND b.payment_method_id IS NOT NULL))
          AND b.scheduled_start > NOW()
          AND b.scheduled_start <= NOW() + make_interval(hours => $1)
          AND NOT EXISTS (SELECT 1 FROM transactions t WHERE t.booking_id = b.id)
        ORDER BY b.scheduled_start
        LIMIT $2`,
-      [DEFERRED_AUTH_LEAD_HOURS, limit],
+      [DEFERRED_AUTH_LEAD_HOURS, limit, walletOnly],
     )
     let authorised = 0
     let declined = 0
