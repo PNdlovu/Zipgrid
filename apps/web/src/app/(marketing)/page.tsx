@@ -40,9 +40,9 @@ import { CtaBanner } from '@/components/marketing/CtaBanner'
 import { cn } from '@/lib/utils'
 
 export const metadata: Metadata = {
-  title: 'Zipgrid — EV Charging Made Easy',
+  title: 'Zipgrid — Your AI charging concierge',
   description:
-    'Find affordable EV charging near you, or earn from your idle charger. AI-powered scheduling, real-time monitoring, and voice control. UK-first.',
+    "Tell Zipgrid where you're going and its AI concierge finds a charger you can trust, books it and pays. Homeowners, businesses and buildings earn from the chargers they already have.",
   alternates: { canonical: 'https://zipgrid.co.uk' },
 }
 
@@ -170,14 +170,14 @@ export default function HomePage() {
 
             {/* Headline */}
             <h1 className="max-w-3xl text-5xl font-semibold tracking-tight text-[hsl(var(--foreground))] sm:text-6xl lg:text-7xl">
-              EV charging,{' '}
-              <span className="text-[hsl(var(--primary))]">made easy.</span>
+              Tell us where you&apos;re going.{' '}
+              <span className="text-[hsl(var(--primary))]">We&apos;ll handle the charging.</span>
             </h1>
 
             {/* Subheadline */}
             <p className="max-w-xl text-lg leading-relaxed text-[hsl(var(--muted-foreground))] sm:text-xl">
-              Find affordable home chargers near you, or earn from your idle charger. AI scheduling,
-              voice control, and real-time monitoring — built for UK drivers.
+              Say it or type it. Zipgrid&apos;s AI concierge reads the reviews, picks a charger you can trust,
+              books it and pays. Have a charger? Earn from it, whether you&apos;re a homeowner, a business or a building.
             </p>
 
             {/* CTAs */}

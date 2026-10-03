@@ -27,6 +27,7 @@ export async function GET() {
         cardForm: hasEnv('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY'),
         email: hasEnv('RESEND_API_KEY'),
         scheduler: hasEnv('CRON_SECRET'),
+        concierge: hasEnv('ANTHROPIC_API_KEY'),
       },
     },
     { status: database ? 200 : 503, headers: { 'Cache-Control': 'no-store' } },

@@ -13,10 +13,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { MapPin, CalendarDays, Zap, User, Wallet, AlertTriangle } from 'lucide-react'
+import { MapPin, CalendarDays, Zap, User, Wallet, AlertTriangle, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const BOTTOM_NAV = [
+  { href: '/concierge', icon: Sparkles,    label: 'Concierge' },
   { href: '/map',      icon: MapPin,       label: 'Map' },
   { href: '/bookings', icon: CalendarDays, label: 'Bookings' },
   { href: '/session',  icon: Zap,          label: 'Session' },

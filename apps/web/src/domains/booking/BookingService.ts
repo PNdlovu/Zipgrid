@@ -159,82 +159,9 @@ export const BookingService = {
 
     const bookingId = uuidv4()
     const insert = () => transaction(async (tx) => {
-      const dp = await tx.execute(`SELECT id FROM driver_profiles WHERE user_id = $1`, [input.userId])
-      const driverProfileId = dp.rows[0]?.['id'] as string | undefined
-      if (!driverProfileId) throw new ValidationError('Driver profile not found. Please complete your profile.')
-
-      const veh = await tx.execute(
-        `SELECT battery_capacity_kwh FROM driver_vehicles
-         WHERE id = $1 AND driver_profile_id = $2 AND COALESCE(is_active, TRUE)`,
-        [input.vehicleId, driverProfileId],
-      )
-      if (veh.rows.length === 0) throw new ValidationError('Vehicle not found on your account.')
-      const batteryKwh = veh.rows[0]?.['battery_capacity_kwh'] != null ? Number(veh.rows[0]['battery_capacity_kwh']) : null
-
-      const lst = await tx.execute(
-        `SELECT cl.status, cl.pricing_model, cl.price_per_kwh_cents, cl.price_per_hour_cents,
-                cl.price_per_session_cents, cl.idle_fee_per_min_cents, cl.peak_surcharge_pct,
-                cl.access_type, cl.access_instructions, cl.instant_book_enabled,
-                cl.min_booking_hours, cl.max_booking_hours, cl.advance_booking_days,
-                cl.max_power_kw, hp.user_id AS host_user_id
-         FROM charger_listings cl JOIN host_profiles hp ON hp.id = cl.host_profile_id
-         WHERE cl.id = $1`,
-        [input.listingId],
-      )
-      const l = lst.rows[0]
-      if (!l) throw new ValidationError('Listing not found.')
-      if (l['status'] !== 'active') throw new ValidationError('This listing is not currently accepting bookings.')
-      if (l['host_user_id'] === input.userId) throw new ValidationError('You cannot book your own charger.')
-
-      const minHours = Number(l['min_booking_hours'] ?? 0)
-      const maxHours = Number(l['max_booking_hours'] ?? 24)
-      if (durationHours < minHours) throw new ValidationError(`Minimum booking duration is ${minHours} hour${minHours === 1 ? '' : 's'}.`)
-      if (durationHours > maxHours) throw new ValidationError(`Maximum booking duration is ${maxHours} hours.`)
-      const advanceDays = Number(l['advance_booking_days'] ?? 30)
-      if (input.scheduledStart.getTime() > Date.now() + advanceDays * 86_400_000) {
-        throw new ValidationError(`This charger can be booked up to ${advanceDays} days ahead.`)
-      }
-
-      const bay = await PropertyService.bookingRulesFor(tx, input.listingId, input.userId)
-      if (bay && !bay.isResident) {
-        if (bay.accessMode === 'residents_only') {
-          throw new ValidationError(`This bay is reserved for residents of ${bay.propertyName}.`, 'RESIDENTS_ONLY')
-        }
-        if (bay.accessMode === 'residents_priority'
-            && input.scheduledStart.getTime() > Date.now() + PUBLIC_PRIORITY_WINDOW_HOURS * 3_600_000) {
-          throw new ValidationError(
-            `Residents of ${bay.propertyName} get priority on this bay. You can book it up to ${PUBLIC_PRIORITY_WINDOW_HOURS} hours ahead.`,
-            'RESIDENT_PRIORITY_WINDOW',
-          )
-        }
-      }
-      const discountPct = bay?.isResident ? bay.residentDiscountPct : 0
-      const quote = (pence: unknown): number | null =>
-        pence == null ? null : Math.round((Number(pence) * (100 - discountPct)) / 100)
-      const perKwh = quote(l['price_per_kwh_cents'])
-      const perHour = quote(l['price_per_hour_cents'])
-      const perSession = quote(l['price_per_session_cents'])
-
-      // Serialise bookings on this listing, then re-check availability.
+      // Serialise bookings on this listing, then price and re-check availability.
       await tx.execute(`SELECT lock_listing_for_booking($1)`, [input.listingId])
-      const available = await AvailabilityService.isAvailable(input.listingId, input.scheduledStart, input.scheduledEnd, tx)
-      if (!available) {
-        throw new ConflictError('This time slot is unavailable — the charger is already booked or closed.', 'BOOKING_OVERLAP')
-      }
-
-      const estimatedPence = estimateBookingHold({
-        tariff: {
-          pricingModel: l['pricing_model'] as PricingModel,
-          pricePerKwhPence: perKwh,
-          pricePerHourPence: perHour,
-          pricePerSessionPence: perSession,
-          idleFeePerMinPence: 0,
-        },
-        maxPowerKw: Number(l['max_power_kw']),
-        batteryKwh,
-        start: input.scheduledStart,
-        end: input.scheduledEnd,
-      })
+      const { driverProfileId, l, perKwh, perHour, perSession, estimatedPence } = await this._price(tx, input)
 
       await tx.execute(
         `INSERT INTO bookings (
@@ -295,6 +222,104 @@ export const BookingService = {
     }
 
     return this.getById(bookingId, input.userId)
+  },
+
+  /**
+   * Prices a booking without creating it: the same checks as create()
+   * (driver, vehicle, listing window, property access, availability).
+   * Used by the concierge to show a quote before the driver confirms.
+   */
+  async quote(input: Pick<CreateBookingInput, 'userId' | 'listingId' | 'vehicleId' | 'scheduledStart' | 'scheduledEnd'>): Promise<{
+    estimatedPence: number
+    instantBook: boolean
+    residentDiscountPct: number
+  }> {
+    const durationHours = (input.scheduledEnd.getTime() - input.scheduledStart.getTime()) / 3_600_000
+    if (!(durationHours > 0)) throw new ValidationError('The booking must end after it starts.')
+    if (input.scheduledStart.getTime() <= Date.now()) throw new ValidationError('Start time must be in the future.')
+    const db = await getDb()
+    const p = await this._price(db, input)
+    return { estimatedPence: p.estimatedPence, instantBook: Boolean(p.l['instant_book_enabled']), residentDiscountPct: p.discountPct }
+  },
+
+  /** Validates a booking request and prices it (shared by create and quote). */
+  async _price(tx: Db, input: Pick<CreateBookingInput, 'userId' | 'listingId' | 'vehicleId' | 'scheduledStart' | 'scheduledEnd'>) {
+    const durationHours = (input.scheduledEnd.getTime() - input.scheduledStart.getTime()) / 3_600_000
+    const dp = await tx.execute(`SELECT id FROM driver_profiles WHERE user_id = $1`, [input.userId])
+    const driverProfileId = dp.rows[0]?.['id'] as string | undefined
+    if (!driverProfileId) throw new ValidationError('Driver profile not found. Please complete your profile.')
+
+    const veh = await tx.execute(
+      `SELECT battery_capacity_kwh FROM driver_vehicles
+       WHERE id = $1 AND driver_profile_id = $2 AND COALESCE(is_active, TRUE)`,
+      [input.vehicleId, driverProfileId],
+    )
+    if (veh.rows.length === 0) throw new ValidationError('Vehicle not found on your account.')
+    const batteryKwh = veh.rows[0]?.['battery_capacity_kwh'] != null ? Number(veh.rows[0]['battery_capacity_kwh']) : null
+
+    const lst = await tx.execute(
+      `SELECT cl.status, cl.pricing_model, cl.price_per_kwh_cents, cl.price_per_hour_cents,
+              cl.price_per_session_cents, cl.idle_fee_per_min_cents, cl.peak_surcharge_pct,
+              cl.access_type, cl.access_instructions, cl.instant_book_enabled,
+              cl.min_booking_hours, cl.max_booking_hours, cl.advance_booking_days,
+              cl.max_power_kw, hp.user_id AS host_user_id
+       FROM charger_listings cl JOIN host_profiles hp ON hp.id = cl.host_profile_id
+       WHERE cl.id = $1`,
+      [input.listingId],
+    )
+    const l = lst.rows[0]
+    if (!l) throw new ValidationError('Listing not found.')
+    if (l['status'] !== 'active') throw new ValidationError('This listing is not currently accepting bookings.')
+    if (l['host_user_id'] === input.userId) throw new ValidationError('You cannot book your own charger.')
+
+    const minHours = Number(l['min_booking_hours'] ?? 0)
+    const maxHours = Number(l['max_booking_hours'] ?? 24)
+    if (durationHours < minHours) throw new ValidationError(`Minimum booking duration is ${minHours} hour${minHours === 1 ? '' : 's'}.`)
+    if (durationHours > maxHours) throw new ValidationError(`Maximum booking duration is ${maxHours} hours.`)
+    const advanceDays = Number(l['advance_booking_days'] ?? 30)
+    if (input.scheduledStart.getTime() > Date.now() + advanceDays * 86_400_000) {
+      throw new ValidationError(`This charger can be booked up to ${advanceDays} days ahead.`)
+    }
+
+    const bay = await PropertyService.bookingRulesFor(tx, input.listingId, input.userId)
+    if (bay && !bay.isResident) {
+      if (bay.accessMode === 'residents_only') {
+        throw new ValidationError(`This bay is reserved for residents of ${bay.propertyName}.`, 'RESIDENTS_ONLY')
+      }
+      if (bay.accessMode === 'residents_priority'
+          && input.scheduledStart.getTime() > Date.now() + PUBLIC_PRIORITY_WINDOW_HOURS * 3_600_000) {
+        throw new ValidationError(
+          `Residents of ${bay.propertyName} get priority on this bay. You can book it up to ${PUBLIC_PRIORITY_WINDOW_HOURS} hours ahead.`,
+          'RESIDENT_PRIORITY_WINDOW',
+        )
+      }
+    }
+    const discountPct = bay?.isResident ? bay.residentDiscountPct : 0
+    const quote = (pence: unknown): number | null =>
+      pence == null ? null : Math.round((Number(pence) * (100 - discountPct)) / 100)
+    const perKwh = quote(l['price_per_kwh_cents'])
+    const perHour = quote(l['price_per_hour_cents'])
+    const perSession = quote(l['price_per_session_cents'])
+
+    const available = await AvailabilityService.isAvailable(input.listingId, input.scheduledStart, input.scheduledEnd, tx)
+    if (!available) {
+      throw new ConflictError('This time slot is unavailable — the charger is already booked or closed.', 'BOOKING_OVERLAP')
+    }
+
+    const estimatedPence = estimateBookingHold({
+      tariff: {
+        pricingModel: l['pricing_model'] as PricingModel,
+        pricePerKwhPence: perKwh,
+        pricePerHourPence: perHour,
+        pricePerSessionPence: perSession,
+        idleFeePerMinPence: 0,
+      },
+      maxPowerKw: Number(l['max_power_kw']),
+      batteryKwh,
+      start: input.scheduledStart,
+      end: input.scheduledEnd,
+    })
+    return { driverProfileId, l, perKwh, perHour, perSession, discountPct, estimatedPence }
   },
 
   /** Reserves wallet funds for a booking and records its wallet transaction (caller's transaction). */
