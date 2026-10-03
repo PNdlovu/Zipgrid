@@ -1,0 +1,1 @@
+# Static assets served at the site root. Tracked so the Dockerfile COPY of this directory always succeeds.
