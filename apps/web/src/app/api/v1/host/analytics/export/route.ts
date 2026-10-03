@@ -20,7 +20,6 @@ const ExportSchema = z.object({
   type:           z.enum(['sessions', 'earnings', 'customers', 'vat_invoices']),
   from:           z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   to:             z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  format:         z.enum(['csv', 'xlsx']).default('csv'),
   includeHeaders: z.boolean().default(true),
 })
 
@@ -34,9 +33,9 @@ function escapeCell(v: unknown): string {
   return s
 }
 
-function buildCsv(headers: string[], rows: unknown[][]): string {
+function buildCsv(headers: string[], rows: unknown[][], includeHeaders: boolean): string {
   const lines = rows.map((r) => r.map(escapeCell).join(','))
-  return [headers.join(','), ...lines].join('\n')
+  return (includeHeaders ? [headers.map(escapeCell).join(','), ...lines] : lines).join('\n')
 }
 
 /** POST /api/v1/host/analytics/export — Creates an async export job for sessions, earnings, customers, or VAT invoices. */
@@ -49,6 +48,10 @@ export async function POST(request: NextRequest) {
   let body: z.infer<typeof ExportSchema>
   try { body = ExportSchema.parse(await request.json()) }
   catch (err) { return apiError('VALIDATION_ERROR', err instanceof Error ? err.message : 'Invalid request', 400) }
+  if (body.type === 'vat_invoices') {
+    const vatBlocked = await planGate(userId, 'vat_invoices')
+    if (vatBlocked) return vatBlocked
+  }
 
   try {
     const { getDb } = await import('@/lib/db')
@@ -93,7 +96,7 @@ export async function POST(request: NextRequest) {
       const rows = (res.rows as Record<string, unknown>[]).map((r) =>
         headers.map((h) => r[h.replace('£', 'gbp').replace('_', '_')] ?? r[h] ?? ''),
       )
-      csvContent = buildCsv(headers, rows)
+      csvContent = buildCsv(headers, rows, body.includeHeaders)
     }
 
     else if (body.type === 'earnings') {
@@ -119,7 +122,7 @@ export async function POST(request: NextRequest) {
       const rows = (res.rows as Record<string, unknown>[]).map((r) =>
         [r['date'], r['charger'], r['gross_gbp'], r['platform_fee_gbp'], r['net_gbp'], r['payout_status']],
       )
-      csvContent = buildCsv(headers, rows)
+      csvContent = buildCsv(headers, rows, body.includeHeaders)
     }
 
     else if (body.type === 'customers') {
@@ -147,7 +150,7 @@ export async function POST(request: NextRequest) {
       const rows = (res.rows as Record<string, unknown>[]).map((r) =>
         [r['session_date'], r['vehicle_type'], r['plug_type'], r['duration_min'], r['energy_kwh'], r['spend_gbp']],
       )
-      csvContent = buildCsv(headers, rows)
+      csvContent = buildCsv(headers, rows, body.includeHeaders)
     }
 
     else if (body.type === 'vat_invoices') {
@@ -174,19 +177,13 @@ export async function POST(request: NextRequest) {
       const rows = (res.rows as Record<string, unknown>[]).map((r, i) =>
         [`INV-${String(i + 1).padStart(4, '0')}`, r['period'], r['net_gbp'], r['vat_gbp'], r['gross_gbp'], r['charger_count']],
       )
-      csvContent = buildCsv(headers, rows)
+      csvContent = buildCsv(headers, rows, body.includeHeaders)
     }
 
-    // Encode as data URI (for small exports) — production would upload to R2/S3
-    const encodedData = Buffer.from(csvContent).toString('base64')
-    const mimeType = body.format === 'xlsx'
-      ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      : 'text/csv'
-    const fileName = `zipgrid-${body.type}-${body.from}-${body.to}.${body.format}`
-
-    // In production: upload to Vercel Blob/S3, return signed URL
-    // For now: return as base64 data URI
-    const downloadUrl = `data:${mimeType};base64,${encodedData}`
+    // Exports are generated synchronously and returned inline as a data: URI
+    // (bounded by the date range; no file storage needed).
+    const fileName = `zipgrid-${body.type}-${body.from}-${body.to}.csv`
+    const downloadUrl = `data:text/csv;charset=utf-8;base64,${Buffer.from(csvContent).toString('base64')}`
 
     const job = {
       jobId:       crypto.randomUUID(),

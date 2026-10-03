@@ -455,7 +455,7 @@ export default function PairChargerPage() {
               </button>
               <button
                 type="button"
-                onClick={() => router.push(`/host/chargers/${pairedChargerId}`)}
+                onClick={() => router.push(`/chargers/${pairedChargerId}`)}
                 className={cn(
                   'flex h-11 w-full items-center justify-center rounded-[6px] border border-[hsl(var(--border))]',
                   'text-sm font-medium text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] transition-colors',

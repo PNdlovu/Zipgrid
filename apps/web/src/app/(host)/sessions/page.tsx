@@ -87,7 +87,7 @@ function SessionRow({ session }: { session: HostSession }) {
 
   return (
     <Link
-      href={`/host/sessions/${session.id}`}
+      href={`/session/${session.id}`}
       className={cn(
         'grid grid-cols-[1fr_auto] items-start gap-3 rounded-lg border p-4 transition-colors hover:bg-[hsl(var(--muted)_/_50%)]',
         isActive

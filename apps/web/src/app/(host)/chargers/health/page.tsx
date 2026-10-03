@@ -225,7 +225,7 @@ function HealthCard({ c }: { c: ChargerHealth }) {
       {/* Actions */}
       <div className="flex items-center gap-2">
         <Link
-          href={`/host/chargers/${c.listingId}`}
+          href={`/chargers/${c.listingId}`}
           className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50"
         >
           View details <ChevronRight className="h-3.5 w-3.5" />

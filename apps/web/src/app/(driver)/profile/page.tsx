@@ -178,16 +178,18 @@ export default function ProfilePage() {
   }
 
   async function handleStartKyc() {
+    setError(null)
     try {
       const res = await fetch('/api/v1/auth/kyc/initiate', { method: 'POST' })
-      if (res.ok) {
-        const data = (await res.json()) as { data: { clientSecret: string } }
-        // In production: load Stripe Identity SDK and call stripe.verifyIdentity(clientSecret)
-        // For now redirect to a placeholder KYC flow page
-        router.push(`/profile/kyc?session=${data.data.clientSecret}`)
+      const json = (await res.json()) as { data?: { clientSecret: string }; error?: { message: string } }
+      if (!res.ok || !json.data?.clientSecret) {
+        setError(json.error?.message ?? 'Could not start identity verification. Please try again.')
+        return
       }
-    } finally {
-      setSaving(false)
+      // /profile/kyc runs Stripe Identity's verification modal with this session.
+      router.push(`/profile/kyc?session=${encodeURIComponent(json.data.clientSecret)}`)
+    } catch {
+      setError('Network error. Please try again.')
     }
   }
 

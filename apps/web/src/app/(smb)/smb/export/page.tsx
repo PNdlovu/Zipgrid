@@ -27,7 +27,6 @@ type ExportConfig = {
   type: ExportType
   from: string
   to: string
-  format: 'csv' | 'xlsx'
   includeHeaders: boolean
 }
 
@@ -54,12 +53,6 @@ async function requestExport(config: ExportConfig): Promise<ExportJob> {
   return json.data!.job
 }
 
-/** Polls the status of an export job. */
-async function pollExport(jobId: string): Promise<ExportJob> {
-  const res = await fetch(`/api/v1/host/analytics/export/${jobId}`, { credentials: 'include' })
-  const json = await res.json() as { data?: { job: ExportJob } }
-  return json.data!.job
-}
 
 /* ── Helpers ─────────────────────────────────────────────────── */
 
@@ -115,11 +108,9 @@ export default function SmbExportPage() {
   const [selected, setSelected]   = useState<ExportType>('sessions')
   const [from, setFrom]           = useState(defaultFrom)
   const [to, setTo]               = useState(defaultTo)
-  const [format, setFormat]       = useState<'csv' | 'xlsx'>('csv')
   const [headers, setHeaders]     = useState(true)
   const [job, setJob]             = useState<ExportJob | null>(null)
   const [loading, setLoading]     = useState(false)
-  const [polling, setPolling]     = useState(false)
   const [error, setError]         = useState<string | null>(null)
 
   const option = EXPORT_OPTIONS.find((o) => o.type === selected)!
@@ -129,22 +120,7 @@ export default function SmbExportPage() {
     setError(null)
     setJob(null)
     try {
-      const j = await requestExport({ type: selected, from, to, format, includeHeaders: headers })
-      setJob(j)
-      if (j.status === 'queued' || j.status === 'processing') {
-        // Poll until ready
-        setPolling(true)
-        const intervalId = setInterval(async () => {
-          try {
-            const updated = await pollExport(j.jobId)
-            setJob(updated)
-            if (updated.status === 'ready' || updated.status === 'failed') {
-              clearInterval(intervalId)
-              setPolling(false)
-            }
-          } catch { /* continue */ }
-        }, 2000)
-      }
+      setJob(await requestExport({ type: selected, from, to, includeHeaders: headers }))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Export failed')
     } finally {
@@ -157,7 +133,7 @@ export default function SmbExportPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">Data Export</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Export your charging data as CSV or XLSX for your accountant, Xero, or reporting.
+          Export your charging data as CSV — opens in Excel, Google Sheets, Numbers and Xero.
         </p>
       </div>
 
@@ -226,23 +202,6 @@ export default function SmbExportPage() {
             className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
           />
         </div>
-        <div>
-          <label className="mb-1 text-xs font-semibold text-gray-600">Format</label>
-          <div className="flex gap-2">
-            {(['csv', 'xlsx'] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFormat(f)}
-                className={cn(
-                  'flex-1 rounded-lg border px-3 py-2 text-sm font-semibold uppercase transition-colors',
-                  format === f ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50',
-                )}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-        </div>
         <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3">
           <input
             type="checkbox"
@@ -295,7 +254,7 @@ export default function SmbExportPage() {
               download
               className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
             >
-              <Download className="h-4 w-4" /> Download {format.toUpperCase()}
+              <Download className="h-4 w-4" /> Download CSV
             </a>
           )}
         </div>
@@ -305,11 +264,11 @@ export default function SmbExportPage() {
       {(!job || job.status === 'failed') && (
         <button
           onClick={handleExport}
-          disabled={loading || polling}
+          disabled={loading}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
         >
-          {loading || polling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          {loading ? 'Requesting export…' : polling ? 'Preparing…' : `Export ${option.label}`}
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          {loading ? 'Preparing export…' : `Export ${option.label}`}
         </button>
       )}
 

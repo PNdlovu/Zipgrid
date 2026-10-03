@@ -174,7 +174,7 @@ export default function MaintenanceLogPage({
       {/* ── Header ── */}
       <div className="flex flex-wrap items-center gap-4">
         <Link
-          href={`/host/chargers/${encodeURIComponent(chargerId)}`}
+          href={`/chargers/${encodeURIComponent(chargerId)}`}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"
           aria-label="Back to charger"
         >

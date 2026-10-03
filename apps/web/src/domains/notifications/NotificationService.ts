@@ -358,7 +358,7 @@ export const NotificationService = {
       category: 'payout_sent',
       title: 'Payout sent',
       body: `£${amount} for ${opts.periodLabel} is on its way to your bank account.`,
-      actionUrl: `/host/earnings`,
+      actionUrl: `/earnings`,
       channels: ['in_app', 'email'],
       metadata: { amountPence: opts.amountPence },
     })

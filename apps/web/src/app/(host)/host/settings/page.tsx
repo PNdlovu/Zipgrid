@@ -353,7 +353,7 @@ export default function HostSettingsPage() {
               Active bookings must be cancelled before requesting deletion.
             </p>
             <a
-              href="/account/delete"
+              href="/settings?tab=account"
               className="mt-4 flex w-fit items-center gap-1.5 rounded-[6px] border border-[hsl(var(--destructive))] px-4 py-2 text-sm font-medium text-[hsl(var(--destructive))] hover:bg-[hsl(var(--destructive)_/_10%)]"
             >
               Request account deletion

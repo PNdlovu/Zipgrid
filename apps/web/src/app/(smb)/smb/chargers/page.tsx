@@ -211,7 +211,7 @@ function ChargerCard({
           <Settings className="h-3.5 w-3.5" /> Edit
         </Link>
         <Link
-          href={`/host/chargers/${charger.listingId}`}
+          href={`/chargers/${charger.listingId}`}
           className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
         >
           <BarChart3 className="h-3.5 w-3.5" /> Stats

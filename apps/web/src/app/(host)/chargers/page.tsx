@@ -93,7 +93,7 @@ function ChargerCard({ charger }: { charger: Charger }) {
 
   return (
     <Link
-      href={`/host/chargers/${charger.id}`}
+      href={`/chargers/${charger.id}`}
       className="group flex items-start justify-between gap-4 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 transition-colors hover:border-[hsl(var(--primary)_/_40%)] hover:bg-[hsl(var(--muted)_/_50%)]"
       aria-label={`${charger.brand ?? ''} ${charger.model ?? charger.chargePointId} — ${cfg.label}`}
     >

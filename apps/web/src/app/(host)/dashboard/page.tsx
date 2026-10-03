@@ -151,10 +151,10 @@ export default function HostDashboardPage() {
       const hasCharger = chargers.length > 0
 
       setSetupSteps([
-        { label: 'Pair your smart charger',        href: '/host/chargers/pair',    done: hasCharger },
+        { label: 'Pair your smart charger',        href: '/chargers/pair',    done: hasCharger },
         { label: 'Create your first listing',       href: '/host/listings/new',     done: hasListing },
         { label: 'Set your availability schedule',  href: '/host/listings',         done: hasListing },
-        { label: 'Connect your bank account',       href: '/host/settings/payout',  done: false },
+        { label: 'Connect your bank account',       href: '/host/settings',  done: false },
       ])
     } finally {
       setLoading(false)
