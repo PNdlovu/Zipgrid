@@ -214,7 +214,6 @@ CREATE TABLE parking_listings (
     postcode        VARCHAR(10)                 NOT NULL,
     latitude        NUMERIC(10, 7)              NOT NULL,
     longitude       NUMERIC(10, 7)              NOT NULL,
-    location        GEOGRAPHY(POINT, 4326)      NOT NULL,
 
     -- Description
     title           VARCHAR(150)                NOT NULL,
@@ -248,7 +247,7 @@ CREATE TABLE parking_listings (
     updated_at      TIMESTAMPTZ                 NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_parking_listings_location ON parking_listings USING GIST (location);
+CREATE INDEX idx_parking_listings_location ON parking_listings (latitude, longitude);
 CREATE INDEX idx_parking_listings_host     ON parking_listings (host_profile_id);
 CREATE INDEX idx_parking_listings_status   ON parking_listings (status) WHERE status = 'published';
 CREATE INDEX idx_parking_listings_city     ON parking_listings (city, status);

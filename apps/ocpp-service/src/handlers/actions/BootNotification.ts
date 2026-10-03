@@ -1,23 +1,17 @@
 /**
  * @file BootNotification.ts
  * @description OCPP 1.6J BootNotification handler.
- * Called when a charger connects and sends its identity information.
- * Response: Accepted + heartbeat interval.
  *
- * On FIRST boot (new charger_device row), automatically pushes the
- * Zipgrid default configuration via ChangeConfiguration commands.
- * This ensures every newly paired charger reports meter values,
- * uses a 60s heartbeat, and requires central authorisation.
+ * The charger is already authenticated (see authenticateCharger) and therefore
+ * registered via pairing. Boot records its identity and marks it online. On the
+ * first boot after pairing the Zipgrid default configuration is pushed.
  *
  * @module apps/ocpp-service/handlers/actions
- * @version 0.2.0
- * @since 2026-09-29
- * @author Zipgrid Engineering
  */
 
 import type { WebSocket } from 'ws'
-import { OcppMessageType } from '@zipgrid/types'
 import { getDb } from '../db'
+import { reply } from '../common'
 import { logger } from '../../lib/logger'
 import { pushDefaultConfiguration } from '../../commands/ChangeConfiguration'
 
@@ -29,75 +23,51 @@ export async function handleBootNotification(
   payload: Record<string, unknown>,
   ws: WebSocket,
 ): Promise<void> {
-  logger.info(
-    {
-      chargePointId,
-      vendor:   payload['chargePointVendor'],
-      model:    payload['chargePointModel'],
-      firmware: payload['firmwareVersion'],
-    },
-    'BootNotification received',
-  )
-
   const now = new Date()
   let isFirstBoot = false
 
-  // Upsert charger record into charger_devices
   try {
     const db = await getDb()
-
-    // Detect first boot: insert returns a row, update returns 0 rows on xmax=0
-    const upsertRes = await db.execute(
-      `INSERT INTO charger_devices (
-         charge_point_id, vendor, model, serial_number,
-         firmware_version, connected_at, last_boot_at, updated_at
-       ) VALUES ($1, $2, $3, $4, $5, $6, $6, $6)
-       ON CONFLICT (charge_point_id) DO UPDATE
-         SET vendor            = EXCLUDED.vendor,
-             model             = EXCLUDED.model,
-             serial_number     = EXCLUDED.serial_number,
-             firmware_version  = EXCLUDED.firmware_version,
-             connected_at      = EXCLUDED.connected_at,
-             last_boot_at      = EXCLUDED.last_boot_at,
-             updated_at        = EXCLUDED.updated_at
-       RETURNING (xmax = 0) AS inserted`,
+    const prev = await db.execute(
+      `SELECT status FROM charger_devices WHERE charge_point_id = $1`,
+      [chargePointId],
+    )
+    isFirstBoot = prev.rows[0]?.['status'] === 'pending'
+    await db.execute(
+      `UPDATE charger_devices
+       SET brand            = COALESCE($2, brand),
+           model            = COALESCE($3, model),
+           firmware_version = COALESCE($4, firmware_version),
+           status           = 'online',
+           last_seen_at     = $5,
+           last_heartbeat_at = $5,
+           heartbeat_interval = $6,
+           updated_at       = $5
+       WHERE charge_point_id = $1`,
       [
         chargePointId,
-        (payload['chargePointVendor']        as string | null) ?? 'Unknown',
-        (payload['chargePointModel']         as string | null) ?? 'Unknown',
-        (payload['chargePointSerialNumber']  as string | null) ?? null,
-        (payload['firmwareVersion']          as string | null) ?? null,
+        (payload['chargePointVendor'] as string | undefined) ?? null,
+        (payload['chargePointModel'] as string | undefined) ?? null,
+        (payload['firmwareVersion'] as string | undefined) ?? null,
         now.toISOString(),
+        HEARTBEAT_INTERVAL_SECONDS,
       ],
     )
-
-    isFirstBoot = (upsertRes.rows[0] as { inserted: boolean } | undefined)?.inserted ?? false
   } catch (err) {
-    logger.warn({ chargePointId, err }, 'Failed to upsert charger device on BootNotification')
+    logger.warn({ chargePointId, err }, 'Failed to update charger on BootNotification')
   }
 
-  // ── Send Accepted response FIRST (charger expects a prompt reply) ──
-  ws.send(JSON.stringify([
-    OcppMessageType.CallResult,
-    uniqueId,
-    {
-      currentTime: now.toISOString(),
-      interval:    HEARTBEAT_INTERVAL_SECONDS,
-      status:      'Accepted',
-    },
-  ]))
+  reply(ws, uniqueId, {
+    currentTime: now.toISOString(),
+    interval: HEARTBEAT_INTERVAL_SECONDS,
+    status: 'Accepted',
+  })
 
-  // ── Push default configuration on first pairing ─────────────────
-  // Done async AFTER sending the CallResult so we don't block the handshake.
-  // The charger must be in a ready state to accept ChangeConfiguration.
   if (isFirstBoot) {
-    // Small delay to let the charger process the BootNotification response
+    // Let the charger process the BootNotification response first.
     setTimeout(() => {
       void pushDefaultConfiguration(ws, chargePointId, logger).then(({ applied, skipped }) => {
-        logger.info(
-          { chargePointId, applied, skipped },
-          'Default configuration pushed to newly paired charger',
-        )
+        logger.info({ chargePointId, applied, skipped }, 'Default configuration pushed')
       })
     }, 2_000)
   }

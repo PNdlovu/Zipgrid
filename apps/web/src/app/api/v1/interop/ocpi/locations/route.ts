@@ -16,6 +16,7 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
+import { verifyOcpiToken } from '@/lib/ocpi'
 
 function mapPlugTypeToOcpi(plugType: string): string {
   const map: Record<string, string> = {
@@ -33,6 +34,9 @@ function mapPlugTypeToOcpi(plugType: string): string {
 
 /** GET /api/v1/interop/ocpi/locations — paginated OCPI location list. */
 export async function GET(request: NextRequest) {
+  if (!(await verifyOcpiToken(request))) {
+    return NextResponse.json({ data: null, status_code: 2001, status_message: 'Invalid or missing token', timestamp: new Date().toISOString() }, { status: 401 })
+  }
   const { searchParams } = request.nextUrl
   const limit  = Math.min(100, parseInt(searchParams.get('limit') ?? '25', 10))
   const offset = parseInt(searchParams.get('offset') ?? '0', 10)

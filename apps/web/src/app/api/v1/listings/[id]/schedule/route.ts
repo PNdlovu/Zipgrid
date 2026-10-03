@@ -10,7 +10,7 @@
 
 import { type NextRequest } from 'next/server'
 import { z } from 'zod'
-import { AvailabilityService } from '@/domains/charging/AvailabilityService'
+import { AvailabilityService, assertListingOwner } from '@/domains/charging/AvailabilityService'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
 
@@ -52,6 +52,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
   if (!parsed.success) return apiError('VALIDATION_ERROR', parsed.error.errors[0]?.message ?? 'Invalid', 422)
 
   try {
+    await assertListingOwner(id, userId)
     await AvailabilityService.setSchedule(id, parsed.data.schedule)
     return apiResponse({ updated: true })
   } catch (err) {

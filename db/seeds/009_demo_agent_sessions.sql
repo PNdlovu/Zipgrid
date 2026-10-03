@@ -79,6 +79,7 @@ INSERT INTO ai_sessions (
   messages, ai_mode,
   turn_count, tool_call_count,
   started_at, last_active_at, ended_at,
+  extracted_prefs,
   created_at, updated_at
 ) VALUES (
   'a0000000-0000-0000-0000-000000000003',
@@ -104,6 +105,7 @@ INSERT INTO ai_sessions (
   messages, ai_mode,
   turn_count, tool_call_count,
   started_at, last_active_at, ended_at,
+  extracted_prefs,
   created_at, updated_at
 ) VALUES (
   'a0000000-0000-0000-0000-000000000004',

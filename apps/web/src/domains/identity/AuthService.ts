@@ -1,34 +1,36 @@
 /**
  * @file AuthService.ts
- * @description Authentication service — register, login, verify, reset password.
- * All business logic lives here. API routes call this service, never the DB directly.
+ * @description Identity: registration, login, email/phone verification,
+ * password reset and OAuth sign-in. Session/token lifecycle lives in
+ * lib/auth/sessions.ts.
+ *
+ * Email verification is required to log in when REQUIRE_EMAIL_VERIFICATION is
+ * "true", or — when unset — whenever an email provider is configured (so the
+ * platform stays usable before Resend is connected).
  *
  * @module domains/identity
- * @version 0.1.0
- * @since 2026-09-25
- * @author Zipgrid Engineering
  */
 
+import { randomInt } from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import { v4 as uuidv4 } from 'uuid'
+import { signResetToken, verifyResetToken } from '@/lib/jwt'
 import {
-  signAccessToken,
-  signRefreshToken,
-  signResetToken,
-  verifyResetToken,
-} from '@/lib/jwt'
-import {
+  AppError,
   ConflictError,
-  NotFoundError,
   UnauthorizedError,
   ValidationError,
-  AppError,
 } from '@/lib/errors/AppError'
-import { getDb } from '@/lib/db'
+import { getDb, transaction, type Db } from '@/lib/db'
 import { eventBus } from '@/lib/events/event-bus'
+import { escapeHtml, isEmailConfigured, sendEmail } from '@/lib/email'
+import { createSession, revokeAllSessions, type IssuedTokens, type SessionContext } from '@/lib/auth/sessions'
 
 const BCRYPT_ROUNDS = 12
 const OTP_EXPIRY_MINUTES = 10
+const OTP_MAX_ATTEMPTS = 5
+// Valid bcrypt hash of a random string — used to equalise timing for unknown emails.
+const DUMMY_HASH = '$2a$12$C6UzMDM.H6dfI/f/IKcEeO5kCJ2D8yeeq0F7OSUkg0Y2C5Xy7t6Zu'
 
 export type RegisterInput = {
   displayName: string
@@ -37,413 +39,276 @@ export type RegisterInput = {
   role: 'driver' | 'host' | 'both'
 }
 
-export type AuthTokens = {
-  accessToken: string
-  refreshToken: string
-  userId: string
-  roles: string[]
-}
-
 export type LoginInput = {
   email: string
   password: string
   rememberMe: boolean
 }
 
-/**
- * Full authentication service for the identity bounded context.
- */
+export function isEmailVerificationRequired(): boolean {
+  const flag = process.env['REQUIRE_EMAIL_VERIFICATION']
+  if (flag === 'true') return true
+  if (flag === 'false') return false
+  return isEmailConfigured()
+}
+
+const normaliseEmail = (email: string) => email.toLowerCase().trim()
+
+/** Creates driver/host profile rows for the roles a user holds (idempotent). */
+export async function ensureProfiles(db: Db, userId: string, roles: string[]): Promise<void> {
+  if (roles.includes('driver')) {
+    await db.execute(
+      `INSERT INTO driver_profiles (user_id) SELECT $1
+       WHERE NOT EXISTS (SELECT 1 FROM driver_profiles WHERE user_id = $1)`,
+      [userId],
+    )
+  }
+  if (roles.includes('host')) {
+    await db.execute(
+      `INSERT INTO host_profiles (user_id) SELECT $1
+       WHERE NOT EXISTS (SELECT 1 FROM host_profiles WHERE user_id = $1)`,
+      [userId],
+    )
+  }
+}
+
 export const AuthService = {
   /**
-   * Registers a new user account.
-   * - Checks for duplicate email
-   * - Hashes password with bcrypt (12 rounds)
-   * - Creates user row in DB
-   * - Issues JWT access + refresh tokens
-   * - Publishes USER_REGISTERED domain event
-   * @throws {ConflictError} if email already registered
+   * Registers a new account with driver and/or host profiles, sends the email
+   * verification code and returns a logged-in session.
+   * @throws {ConflictError} EMAIL_EXISTS
    */
-  async register(input: RegisterInput): Promise<AuthTokens> {
-    const db = await getDb()
-
-    // Check for existing email — parameterised query, no string interpolation
-    const existing = await db.execute(
-      `SELECT id FROM users WHERE email = $1 LIMIT 1`,
-      [input.email.toLowerCase().trim()],
-    )
-    if (existing.rows.length > 0) {
-      throw new ConflictError('An account with this email address already exists.', 'EMAIL_EXISTS')
-    }
-
-    const userId = uuidv4()
-    const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS)
+  async register(input: RegisterInput, ctx: SessionContext = {}): Promise<IssuedTokens & { requiresVerification: boolean }> {
+    const email = normaliseEmail(input.email)
     const roles = input.role === 'both' ? ['driver', 'host'] : [input.role]
+    const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS)
+    const userId = uuidv4()
 
-    await db.execute(
-      `INSERT INTO users (id, email, display_name, password_hash, roles, kyc_status, ai_mode, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, 'not_started', 'hybrid', NOW(), NOW())`,
-      [userId, input.email.toLowerCase().trim(), input.displayName, passwordHash, roles],
-    )
+    await transaction(async (tx) => {
+      const existing = await tx.execute(`SELECT 1 FROM users WHERE email = $1`, [email])
+      if (existing.rows.length > 0) {
+        throw new ConflictError('An account with this email address already exists.', 'EMAIL_EXISTS')
+      }
+      await tx.execute(
+        `INSERT INTO users (id, email, full_name, display_name, password_hash, roles,
+                            account_status, kyc_status, password_changed_at)
+         VALUES ($1, $2, $3, $3, $4, $5::user_role[], 'active', 'not_started', NOW())`,
+        [userId, email, input.displayName.trim(), passwordHash, roles],
+      )
+      await ensureProfiles(tx, userId, roles)
+    })
 
-    // Publish domain event — compliance domain subscribes to write audit log
-    eventBus.publish({ type: 'USER_REGISTERED', userId, role: input.role === 'both' ? 'driver' : input.role })
+    eventBus.publish({ type: 'USER_REGISTERED', userId, role: roles.includes('host') ? 'host' : 'driver' })
+    await this.sendEmailVerification(userId).catch((err: unknown) => console.error('[AuthService.register] OTP email', err))
 
-    // Generate and send email verification OTP (best-effort — tokens still issued)
-    try {
-      const otp = await this.generateOtp(userId, 'email')
-      await this._sendOtpEmail(input.email.toLowerCase().trim(), input.displayName, otp, 'email')
-    } catch {
-      // Non-fatal — user can request a resend from the verify-email page
-    }
-
-    const [accessToken, refreshToken] = await Promise.all([
-      signAccessToken({ sub: userId, email: input.email, roles, kycVerified: false }),
-      signRefreshToken({ sub: userId, sessionId: uuidv4() }),
-    ])
-
-    return { accessToken, refreshToken, userId, roles }
+    const requiresVerification = isEmailVerificationRequired()
+    const tokens = await createSession(userId, false, ctx)
+    return { ...tokens, requiresVerification }
   },
 
   /**
-   * Authenticates a user with email + password.
-   * @throws {UnauthorizedError} on wrong credentials (same message to prevent enumeration)
-   * @throws {AppError} EMAIL_NOT_VERIFIED if email not verified
+   * Authenticates with email + password. Same error for unknown email and wrong
+   * password; constant work in both cases.
+   * @throws {UnauthorizedError}
+   * @throws {AppError} EMAIL_NOT_VERIFIED (403), ACCOUNT_SUSPENDED (403)
    */
-  async login(input: LoginInput): Promise<AuthTokens & { emailVerified: boolean }> {
+  async login(input: LoginInput, ctx: SessionContext = {}): Promise<IssuedTokens & { emailVerified: boolean }> {
     const db = await getDb()
-
-    const result = await db.execute(
-      `SELECT id, email, password_hash, roles, kyc_status, email_verified
-       FROM users WHERE email = $1 LIMIT 1`,
-      [input.email.toLowerCase().trim()],
+    const res = await db.execute(
+      `SELECT id, password_hash, account_status, deleted_at, email_verified
+       FROM users WHERE email = $1`,
+      [normaliseEmail(input.email)],
     )
-
-    if (result.rows.length === 0) {
-      // Constant-time fake compare to prevent timing attacks
-      await bcrypt.compare(input.password, '$2a$12$placeholder.hash.to.prevent.timing.attacks.XX')
-      throw new UnauthorizedError('Email or password is incorrect.')
-    }
-
-    const user = result.rows[0] as {
+    const user = res.rows[0] as {
       id: string
-      email: string
-      password_hash: string
-      roles: string[]
-      kyc_status: string
+      password_hash: string | null
+      account_status: string
+      deleted_at: string | null
       email_verified: boolean
-    }
+    } | undefined
 
-    const passwordMatches = await bcrypt.compare(input.password, user.password_hash)
-    if (!passwordMatches) {
+    const matches = await bcrypt.compare(input.password, user?.password_hash || DUMMY_HASH)
+    if (!user || !user.password_hash || user.deleted_at || !matches) {
       throw new UnauthorizedError('Email or password is incorrect.')
     }
-
-    if (!user.email_verified) {
+    if (user.account_status === 'suspended' || user.account_status === 'deactivated') {
+      throw new AppError('This account has been suspended. Please contact support.', 'ACCOUNT_SUSPENDED', 403)
+    }
+    if (!user.email_verified && isEmailVerificationRequired()) {
       throw new AppError('Email address not verified. Please check your inbox.', 'EMAIL_NOT_VERIFIED', 403)
     }
 
-    const [accessToken, refreshToken] = await Promise.all([
-      signAccessToken({
-        sub: user.id,
-        email: user.email,
-        roles: user.roles,
-        kycVerified: user.kyc_status === 'verified',
-      }),
-      signRefreshToken({ sub: user.id, sessionId: uuidv4() }, input.rememberMe),
-    ])
-
-    return { accessToken, refreshToken, userId: user.id, roles: user.roles, emailVerified: user.email_verified }
+    const tokens = await createSession(user.id, input.rememberMe, ctx)
+    return { ...tokens, emailVerified: user.email_verified }
   },
 
-  /**
-   * Generates a 6-digit OTP and stores it hashed in the DB.
-   * Sends via the notification service (email or SMS depending on type).
-   * @returns The plain OTP — caller sends it; we store only the hash.
-   */
+  /** Generates and stores (hashed) a fresh 6-digit OTP. Returns the plain code. */
   async generateOtp(userId: string, type: 'email' | 'phone'): Promise<string> {
+    const code = randomInt(0, 1_000_000).toString().padStart(6, '0')
     const db = await getDb()
-    const code = Math.floor(100000 + Math.random() * 900000).toString()
-    const codeHash = await bcrypt.hash(code, 10)
-    const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000)
-
     await db.execute(
-      `INSERT INTO otp_codes (id, user_id, type, code_hash, expires_at, created_at)
-       VALUES ($1, $2, $3, $4, $5, NOW())
+      `INSERT INTO otp_codes (user_id, type, code_hash, expires_at)
+       VALUES ($1, $2, $3, NOW() + make_interval(mins => $4))
        ON CONFLICT (user_id, type) DO UPDATE
-       SET code_hash = $4, expires_at = $5, created_at = NOW(), used = false`,
-      [uuidv4(), userId, type, codeHash, expiresAt],
+       SET code_hash = EXCLUDED.code_hash, expires_at = EXCLUDED.expires_at,
+           created_at = NOW(), used = FALSE, attempts = 0`,
+      [userId, type, await bcrypt.hash(code, 10), OTP_EXPIRY_MINUTES],
     )
-
     return code
   },
 
-  /**
-   * Verifies an email OTP code.
-   * @throws {ValidationError} if code is invalid or expired
-   */
+  /** Checks an OTP, enforcing expiry, single use and a 5-attempt limit. */
+  async _consumeOtp(userId: string, type: 'email' | 'phone', code: string): Promise<void> {
+    await transaction(async (tx) => {
+      const res = await tx.execute(
+        `SELECT code_hash, used, attempts, expires_at < NOW() AS expired
+         FROM otp_codes WHERE user_id = $1 AND type = $2 FOR UPDATE`,
+        [userId, type],
+      )
+      const otp = res.rows[0]
+      if (!otp) throw new ValidationError('No verification code found. Please request a new one.', 'OTP_NOT_FOUND')
+      if (otp['used']) throw new ValidationError('This code has already been used.', 'OTP_USED')
+      if (otp['expired']) throw new ValidationError('Code has expired. Please request a new one.', 'OTP_EXPIRED')
+      if (Number(otp['attempts']) >= OTP_MAX_ATTEMPTS) {
+        throw new ValidationError('Too many incorrect attempts. Please request a new code.', 'OTP_LOCKED')
+      }
+      if (!(await bcrypt.compare(code, otp['code_hash'] as string))) {
+        await tx.execute(`UPDATE otp_codes SET attempts = attempts + 1 WHERE user_id = $1 AND type = $2`, [userId, type])
+        throw new ValidationError('Invalid verification code.', 'OTP_INVALID')
+      }
+      await tx.execute(`UPDATE otp_codes SET used = TRUE WHERE user_id = $1 AND type = $2`, [userId, type])
+    })
+  },
+
   async verifyEmail(email: string, code: string): Promise<void> {
     const db = await getDb()
-
-    const userResult = await db.execute(
-      `SELECT id FROM users WHERE email = $1 LIMIT 1`,
-      [email.toLowerCase().trim()],
-    )
-    if (userResult.rows.length === 0) throw new NotFoundError('User')
-
-    const userId = (userResult.rows[0] as { id: string }).id
-
-    const otpResult = await db.execute(
-      `SELECT code_hash, expires_at, used FROM otp_codes
-       WHERE user_id = $1 AND type = 'email' ORDER BY created_at DESC LIMIT 1`,
-      [userId],
-    )
-    if (otpResult.rows.length === 0) throw new ValidationError('No verification code found. Please request a new one.')
-
-    const otp = otpResult.rows[0] as { code_hash: string; expires_at: Date; used: boolean }
-    if (otp.used) throw new ValidationError('This code has already been used.')
-    if (new Date() > new Date(otp.expires_at)) throw new ValidationError('Code has expired. Please request a new one.')
-
-    const matches = await bcrypt.compare(code, otp.code_hash)
-    if (!matches) throw new ValidationError('Invalid verification code.')
-
+    const res = await db.execute(`SELECT id FROM users WHERE email = $1`, [normaliseEmail(email)])
+    const userId = res.rows[0]?.['id'] as string | undefined
+    // Same error as a wrong code so the endpoint can't be used to probe emails.
+    if (!userId) throw new ValidationError('Invalid verification code.', 'OTP_INVALID')
+    await this._consumeOtp(userId, 'email', code)
     await db.execute(
-      `UPDATE users SET email_verified = true, updated_at = NOW() WHERE id = $1`,
+      `UPDATE users SET email_verified = TRUE, email_verified_at = COALESCE(email_verified_at, NOW()), updated_at = NOW()
+       WHERE id = $1`,
       [userId],
     )
-    await db.execute(`UPDATE otp_codes SET used = true WHERE user_id = $1 AND type = 'email'`, [userId])
+    eventBus.publish({ type: 'EMAIL_VERIFIED', userId })
   },
 
-  /**
-   * Sends a password reset email with a signed JWT link.
-   * Always returns void regardless of whether email exists (anti-enumeration).
-   */
-  async requestPasswordReset(email: string): Promise<void> {
-    const db = await getDb()
-    const result = await db.execute(
-      `SELECT id FROM users WHERE email = $1 LIMIT 1`,
-      [email.toLowerCase().trim()],
-    )
-    if (result.rows.length === 0) return // Silent — prevent email enumeration
-
-    const userId = (result.rows[0] as { id: string }).id
-    const resetToken = await signResetToken({ sub: userId, email: email.toLowerCase().trim() })
-
-    // In production: send email via notification service with resetToken
-    // For now: log token in dev for testing
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn('[DEV] Password reset token:', resetToken)
-    }
-  },
-
-  /**
-   * Confirms a password reset — validates JWT token, updates hash.
-   * @throws {ValidationError} if token is expired or invalid
-   */
-  async confirmPasswordReset(token: string, newPassword: string): Promise<void> {
-    const db = await getDb()
-
-    const payload = await verifyResetToken(token).catch(() => {
-      throw new ValidationError('This reset link has expired or is invalid. Please request a new one.')
-    })
-
-    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS)
-    await db.execute(
-      `UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
-      [passwordHash, payload.sub],
-    )
-  },
-
-  /**
-   * Rotates refresh token — invalidates old session, issues new tokens.
-   * @throws {UnauthorizedError} if refresh token is invalid
-   */
-  async refreshTokens(userId: string, rememberMe = false): Promise<AuthTokens> {
-    const db = await getDb()
-
-    const result = await db.execute(
-      `SELECT id, email, roles, kyc_status FROM users WHERE id = $1 LIMIT 1`,
-      [userId],
-    )
-    if (result.rows.length === 0) throw new UnauthorizedError()
-
-    const user = result.rows[0] as { id: string; email: string; roles: string[]; kyc_status: string }
-    const [accessToken, refreshToken] = await Promise.all([
-      signAccessToken({
-        sub: user.id,
-        email: user.email,
-        roles: user.roles,
-        kycVerified: user.kyc_status === 'verified',
-      }),
-      signRefreshToken({ sub: user.id, sessionId: uuidv4() }, rememberMe),
-    ])
-
-    return { accessToken, refreshToken, userId: user.id, roles: user.roles }
-  },
-
-  /**
-   * Verifies a phone OTP code.
-   * @throws {ValidationError} if code is invalid or expired
-   */
   async verifyPhone(phone: string, code: string): Promise<void> {
     const db = await getDb()
-    const normalised = phone.replace(/\s+/g, '')
-
-    const userResult = await db.execute(
-      `SELECT id FROM users WHERE phone = $1 LIMIT 1`,
-      [normalised],
-    )
-    if (userResult.rows.length === 0) throw new NotFoundError('User')
-
-    const userId = (userResult.rows[0] as { id: string }).id
-
-    const otpResult = await db.execute(
-      `SELECT code_hash, expires_at, used FROM otp_codes
-       WHERE user_id = $1 AND type = 'phone' ORDER BY created_at DESC LIMIT 1`,
-      [userId],
-    )
-    if (otpResult.rows.length === 0) {
-      throw new ValidationError('No verification code found. Please request a new one.')
-    }
-
-    const otp = otpResult.rows[0] as { code_hash: string; expires_at: Date; used: boolean }
-    if (otp.used) throw new ValidationError('This code has already been used.')
-    if (new Date() > new Date(otp.expires_at)) {
-      throw new ValidationError('Code has expired. Please request a new one.')
-    }
-
-    const matches = await bcrypt.compare(code, otp.code_hash)
-    if (!matches) throw new ValidationError('Invalid verification code.')
-
+    const res = await db.execute(`SELECT id FROM users WHERE phone = $1`, [phone.replace(/\s+/g, '')])
+    const userId = res.rows[0]?.['id'] as string | undefined
+    if (!userId) throw new ValidationError('Invalid verification code.', 'OTP_INVALID')
+    await this._consumeOtp(userId, 'phone', code)
     await db.execute(
-      `UPDATE users SET phone_verified = true, updated_at = NOW() WHERE id = $1`,
-      [userId],
-    )
-    await db.execute(
-      `UPDATE otp_codes SET used = true WHERE user_id = $1 AND type = 'phone'`,
+      `UPDATE users SET phone_verified = TRUE, phone_verified_at = NOW(), updated_at = NOW() WHERE id = $1`,
       [userId],
     )
   },
 
-  /**
-   * Sends a verification OTP via SMS using Twilio.
-   * Logs the code in dev when TWILIO_ACCOUNT_SID is not configured.
-   *
-   * @param toPhone - E.164 formatted phone number
-   * @param code    - The 6-digit OTP code
-   */
-  async _sendOtpSms(toPhone: string, code: string): Promise<void> {
-    const accountSid = process.env['TWILIO_ACCOUNT_SID']
-    const authToken  = process.env['TWILIO_AUTH_TOKEN']
-    const fromNumber = process.env['TWILIO_PHONE_NUMBER']
+  /** Generates and emails a verification code if the email is not yet verified. */
+  async sendEmailVerification(userId: string): Promise<void> {
+    const db = await getDb()
+    const res = await db.execute(
+      `SELECT email, COALESCE(display_name, full_name) AS name, email_verified FROM users WHERE id = $1`,
+      [userId],
+    )
+    const u = res.rows[0]
+    if (!u || u['email_verified']) return
+    const code = await this.generateOtp(userId, 'email')
+    await sendEmail(otpEmail(u['email'] as string, u['name'] as string, code))
+  },
 
-    if (!accountSid || !authToken || !fromNumber) {
-      console.warn(`[DEV] SMS OTP for ${toPhone}: ${code}`)
+  /** Generates and texts a phone verification code via Twilio (logged in dev). */
+  async sendPhoneVerification(userId: string, phone: string): Promise<void> {
+    const code = await this.generateOtp(userId, 'phone')
+    const sid = process.env['TWILIO_ACCOUNT_SID']
+    const token = process.env['TWILIO_AUTH_TOKEN']
+    const from = process.env['TWILIO_PHONE_NUMBER'] ?? process.env['TWILIO_FROM_NUMBER']
+    if (!sid || !token || !from) {
+      if (process.env.NODE_ENV !== 'production') console.warn(`[sms:dev] OTP for ${phone}: ${code}`)
+      else console.warn('[sms] Twilio not configured — phone verification code not sent')
       return
     }
+    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString('base64')}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        To: phone,
+        From: from,
+        Body: `Your Zipgrid verification code is ${code}. It expires in ${OTP_EXPIRY_MINUTES} minutes.`,
+      }).toString(),
+      signal: AbortSignal.timeout(10_000),
+    }).catch((err: unknown) => { console.error('[sms] send failed', err); return null })
+    if (res && !res.ok) console.error(`[sms] Twilio responded ${res.status}`)
+  },
 
-    const body = `Your Zipgrid verification code is: ${code}. It expires in ${OTP_EXPIRY_MINUTES} minutes. Do not share this code.`
-
-    try {
-      const credentials = Buffer.from(`${accountSid}:${authToken}`).toString('base64')
-      await fetch(
-        `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Basic ${credentials}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({ To: toPhone, From: fromNumber, Body: body }).toString(),
-          signal: AbortSignal.timeout(10_000),
-        },
-      )
-    } catch {
-      // Non-fatal — caller wraps this in try/catch already
-    }
+  /** Emails a single-use reset link if the account exists. Never reveals existence. */
+  async requestPasswordReset(email: string): Promise<void> {
+    const db = await getDb()
+    const res = await db.execute(
+      `SELECT id, email, COALESCE(display_name, full_name) AS name FROM users
+       WHERE email = $1 AND deleted_at IS NULL`,
+      [normaliseEmail(email)],
+    )
+    const u = res.rows[0]
+    if (!u) return
+    const token = await signResetToken({ sub: u['id'] as string, email: u['email'] as string })
+    const link = `${process.env['NEXT_PUBLIC_APP_URL'] ?? 'http://localhost:3000'}/reset-password?token=${encodeURIComponent(token)}`
+    await sendEmail({
+      to: u['email'] as string,
+      subject: 'Reset your Zipgrid password',
+      text: `Hi ${u['name'] as string},\n\nReset your password using this link (valid for 30 minutes):\n${link}\n\nIf you didn't request this, you can ignore this email.`,
+      html: `<p>Hi ${escapeHtml(u['name'] as string)},</p>
+             <p><a href="${escapeHtml(link)}">Reset your password</a> — the link is valid for 30 minutes.</p>
+             <p>If you didn't request this, you can ignore this email.</p>`,
+    })
   },
 
   /**
-   * Sends a transactional OTP email directly via Resend.
-   * Bypasses the notifications table — these are security codes, not marketing.
-   * Silently logs the code in dev when RESEND_API_KEY is not configured.
-   *
-   * @param toEmail  - Recipient email address
-   * @param name     - Recipient display name for personalisation
-   * @param code     - The 6-digit OTP code
-   * @param type     - 'email' or 'phone' (determines subject copy)
+   * Sets a new password from a reset token. Tokens are single-use: any token
+   * issued before the last password change is rejected. Ends all sessions.
    */
-  async _sendOtpEmail(toEmail: string, name: string, code: string, type: 'email' | 'phone'): Promise<void> {
-    const resendKey = process.env['RESEND_API_KEY']
-    if (!resendKey) {
-      // Dev mode — log the OTP so local testing works without Resend
-      console.warn(`[DEV] OTP for ${toEmail}: ${code}`)
-      return
+  async confirmPasswordReset(token: string, newPassword: string): Promise<void> {
+    const invalid = () => new ValidationError('This reset link has expired or is invalid. Please request a new one.', 'RESET_TOKEN_INVALID')
+    const payload = await verifyResetToken(token).catch(() => { throw invalid() })
+    const issuedAt = new Date(((payload as { iat?: number }).iat ?? 0) * 1000)
+
+    const db = await getDb()
+    const res = await db.execute(
+      `UPDATE users SET password_hash = $2, password_changed_at = NOW(), updated_at = NOW()
+       WHERE id = $1 AND deleted_at IS NULL
+         AND (password_changed_at IS NULL OR password_changed_at < $3)
+       RETURNING id`,
+      [payload.sub, await bcrypt.hash(newPassword, BCRYPT_ROUNDS), issuedAt.toISOString()],
+    )
+    if (res.rows.length === 0) throw invalid()
+    await revokeAllSessions(payload.sub)
+  },
+
+  /** Changes the password for a logged-in user and ends their other sessions. */
+  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+    const db = await getDb()
+    const res = await db.execute(`SELECT password_hash FROM users WHERE id = $1`, [userId])
+    const hash = res.rows[0]?.['password_hash'] as string | null | undefined
+    if (!hash || !(await bcrypt.compare(currentPassword, hash))) {
+      throw new UnauthorizedError('Current password is incorrect.')
     }
-
-    const subject = type === 'email'
-      ? 'Verify your Zipgrid email address'
-      : 'Your Zipgrid verification code'
-
-    const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000)
-      .toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-
-    const html = `
-      <div style="font-family:Inter,sans-serif;max-width:540px;margin:0 auto;padding:32px 24px">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:32px">
-          <span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:#00C853;border-radius:6px">
-            <span style="color:#fff;font-weight:700;font-size:16px">&#9889;</span>
-          </span>
-          <span style="font-size:18px;font-weight:600;color:#0a0a0a">Zipgrid</span>
-        </div>
-        <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0a0a0a">
-          ${type === 'email' ? 'Verify your email' : 'Your verification code'}
-        </h1>
-        <p style="margin:0 0 24px;color:#555;line-height:1.6">
-          Hi ${name}, here is your 6-digit verification code. It expires in ${OTP_EXPIRY_MINUTES} minutes.
-        </p>
-        <div style="text-align:center;margin:24px 0">
-          <span style="display:inline-block;letter-spacing:0.3em;font-size:36px;font-weight:700;font-family:monospace;color:#0a0a0a;background:#f5f5f5;border-radius:8px;padding:16px 28px">
-            ${code}
-          </span>
-        </div>
-        <p style="margin:24px 0 0;color:#999;font-size:13px;line-height:1.5">
-          If you didn&apos;t create a Zipgrid account, you can safely ignore this email.<br>
-          This code expires at ${expiresAt}.
-        </p>
-      </div>
-    `
-
-    try {
-      await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${resendKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: 'Zipgrid <noreply@zipgrid.app>',
-          to: toEmail,
-          subject,
-          html,
-        }),
-        signal: AbortSignal.timeout(10_000),
-      })
-    } catch {
-      // Non-fatal — caller wraps this in try/catch already
-    }
+    await db.execute(
+      `UPDATE users SET password_hash = $2, password_changed_at = NOW(), updated_at = NOW() WHERE id = $1`,
+      [userId, await bcrypt.hash(newPassword, BCRYPT_ROUNDS)],
+    )
+    await revokeAllSessions(userId)
   },
 
   /**
-   * Signs in (or registers) a user via OAuth provider.
-   * Upserts the user record on first sign-in from Google/Apple.
-   * Returns JWT access + refresh tokens, same shape as email login.
-   *
-   * @param input.provider       - 'google' | 'apple'
-   * @param input.providerId     - Unique subject ID from the provider (sub claim)
-   * @param input.email          - Verified email from the provider
-   * @param input.fullName       - Display name from the provider
-   * @param input.avatarUrl      - Profile photo URL (null for Apple)
-   * @param input.emailVerified  - Whether the provider confirmed the email
+   * Signs in with a verified OAuth identity. Accounts are matched by provider
+   * subject first; an existing email account is only linked when the provider
+   * has verified that email. New accounts start as drivers.
    */
   async oauthSignIn(input: {
     provider: 'google' | 'apple'
@@ -452,64 +317,69 @@ export const AuthService = {
     fullName: string
     avatarUrl: string | null
     emailVerified: boolean
-  }): Promise<AuthTokens> {
+  }, ctx: SessionContext = {}): Promise<IssuedTokens> {
+    const subColumn = input.provider === 'google' ? 'google_sub' : 'apple_sub'
+    const email = normaliseEmail(input.email)
+
+    const userId = await transaction(async (tx) => {
+      const bySub = await tx.execute(`SELECT id FROM users WHERE ${subColumn} = $1`, [input.providerId])
+      if (bySub.rows[0]) return bySub.rows[0]['id'] as string
+
+      const byEmail = await tx.execute(`SELECT id FROM users WHERE email = $1`, [email])
+      if (byEmail.rows[0]) {
+        if (!input.emailVerified) {
+          throw new AppError(
+            'An account with this email already exists. Sign in with your password to link this provider.',
+            'OAUTH_EMAIL_UNVERIFIED',
+            409,
+          )
+        }
+        const id = byEmail.rows[0]['id'] as string
+        await tx.execute(
+          // sql-check: ignore — column name is the provider sub column
+          `UPDATE users SET ${subColumn} = $2, avatar_url = COALESCE(avatar_url, $3),
+                  email_verified = TRUE, email_verified_at = COALESCE(email_verified_at, NOW()), updated_at = NOW()
+           WHERE id = $1`,
+          [id, input.providerId, input.avatarUrl],
+        )
+        return id
+      }
+
+      if (!input.emailVerified) {
+        throw new AppError('Your provider has not verified this email address.', 'OAUTH_EMAIL_UNVERIFIED', 400)
+      }
+      const id = uuidv4()
+      await tx.execute(
+        `INSERT INTO users (id, email, full_name, display_name, avatar_url, roles, account_status,
+                            kyc_status, email_verified, email_verified_at, ${subColumn})
+         VALUES ($1, $2, $3, $3, $4, '{driver}', 'active', 'not_started', TRUE, NOW(), $5)`,
+        [id, email, input.fullName, input.avatarUrl, input.providerId],
+      )
+      await ensureProfiles(tx, id, ['driver'])
+      eventBus.publish({ type: 'USER_REGISTERED', userId: id, role: 'driver' })
+      return id
+    })
+
     const db = await getDb()
-    const email = input.email.toLowerCase().trim()
-
-    // Look up existing user by email (OAuth users may not have a password_hash)
-    const existing = await db.execute(
-      `SELECT id, roles, kyc_status FROM users WHERE email = $1 LIMIT 1`,
-      [email],
-    )
-
-    let userId: string
-    let roles: string[]
-
-    if (existing.rows.length > 0) {
-      // Existing user — update avatar if provided and ensure email is verified
-      const row = existing.rows[0] as { id: string; roles: string[]; kyc_status: string }
-      userId = row.id
-      roles  = row.roles ?? ['driver']
-
-      await db.execute(
-        `UPDATE users SET
-           avatar_url        = COALESCE($2, avatar_url),
-           email_verified_at = COALESCE(email_verified_at, CASE WHEN $3 THEN NOW() ELSE NULL END),
-           updated_at        = NOW()
-         WHERE id = $1`,
-        [userId, input.avatarUrl, input.emailVerified],
-      )
-    } else {
-      // New user — create account (OAuth users start as 'driver', can add 'host' later)
-      userId = uuidv4()
-      roles  = ['driver']
-
-      await db.execute(
-        `INSERT INTO users
-           (id, email, full_name, avatar_url, roles, account_status, kyc_status,
-            email_verified_at, created_at, updated_at)
-         VALUES
-           ($1, $2, $3, $4, $5, 'active', 'not_started', $6, NOW(), NOW())`,
-        [
-          userId,
-          email,
-          input.fullName,
-          input.avatarUrl,
-          roles,
-          input.emailVerified ? new Date() : null,
-        ],
-      )
-
-      // Publish registration event for audit + welcome email
-      eventBus.publish({ type: 'USER_REGISTERED', userId, role: 'driver' })
+    const status = await db.execute(`SELECT account_status, deleted_at FROM users WHERE id = $1`, [userId])
+    const s = status.rows[0]
+    if (!s || s['deleted_at'] || ['suspended', 'deactivated'].includes(s['account_status'] as string)) {
+      throw new AppError('This account has been suspended. Please contact support.', 'ACCOUNT_SUSPENDED', 403)
     }
-
-    const [accessToken, refreshToken] = await Promise.all([
-      signAccessToken({ sub: userId, email, roles, kycVerified: false }),
-      signRefreshToken({ sub: userId, sessionId: uuidv4() }),
-    ])
-
-    return { accessToken, refreshToken, userId, roles }
+    return createSession(userId, true, ctx)
   },
 }
 
+function otpEmail(to: string, name: string, code: string) {
+  return {
+    to,
+    subject: 'Verify your Zipgrid email address',
+    text: `Hi ${name},\n\nYour Zipgrid verification code is ${code}. It expires in ${OTP_EXPIRY_MINUTES} minutes.\n\nIf you didn't create a Zipgrid account, you can ignore this email.`,
+    html: `<div style="font-family:Inter,Arial,sans-serif;max-width:540px;margin:0 auto;padding:32px 24px">
+      <h1 style="margin:0 0 8px;font-size:22px;color:#0a0a0a">Verify your email</h1>
+      <p style="color:#555;line-height:1.6">Hi ${escapeHtml(name)}, here is your 6-digit code. It expires in ${OTP_EXPIRY_MINUTES} minutes.</p>
+      <p style="text-align:center;margin:24px 0"><span style="display:inline-block;letter-spacing:.3em;font-size:32px;font-weight:700;font-family:monospace;background:#f5f5f5;border-radius:8px;padding:14px 24px">${code}</span></p>
+      <p style="color:#999;font-size:13px">If you didn't create a Zipgrid account, you can ignore this email.</p>
+    </div>`,
+  }
+}

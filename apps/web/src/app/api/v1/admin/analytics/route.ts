@@ -36,15 +36,15 @@ export async function GET(request: NextRequest) {
     ] = await Promise.all([
       // Current period GMV
       db.execute(
-        `SELECT COALESCE(SUM(total_cost_pence), 0)::BIGINT AS gmv_pence,
-                COALESCE(SUM(total_cost_pence * 0.15), 0)::BIGINT AS platform_revenue_pence,
+        `SELECT COALESCE(SUM(total_session_cost_cents), 0)::BIGINT AS gmv_pence,
+                COALESCE(SUM(total_session_cost_cents * 0.15), 0)::BIGINT AS platform_revenue_pence,
                 COUNT(*)::INT AS session_count
          FROM charging_sessions WHERE status = 'completed' AND started_at >= $1`,
         [since],
       ),
       // Previous period GMV (for delta)
       db.execute(
-        `SELECT COALESCE(SUM(total_cost_pence), 0)::BIGINT AS gmv_pence
+        `SELECT COALESCE(SUM(total_session_cost_cents), 0)::BIGINT AS gmv_pence
          FROM charging_sessions WHERE status = 'completed' AND started_at >= $1 AND started_at < $2`,
         [prevSince, since],
       ),
@@ -64,14 +64,11 @@ export async function GET(request: NextRequest) {
       ),
       // User stats
       db.execute(
-        `SELECT COUNT(*)::INT AS total_users,
-                COUNT(*) FILTER (WHERE created_at >= $1)::INT AS new_users,
-                COUNT(DISTINCT dp.user_id) FILTER (
-                  WHERE b.created_at >= $1
-                )::INT AS mau
-         FROM users u
-         LEFT JOIN driver_profiles dp ON dp.user_id = u.id
-         LEFT JOIN bookings b ON b.driver_profile_id = dp.id`,
+        `SELECT (SELECT COUNT(*) FROM users WHERE deleted_at IS NULL)::INT AS total_users,
+                (SELECT COUNT(*) FROM users WHERE created_at >= $1)::INT AS new_users,
+                (SELECT COUNT(DISTINCT dp.user_id) FROM bookings b
+                 JOIN driver_profiles dp ON dp.id = b.driver_profile_id
+                 WHERE b.created_at >= $1)::INT AS mau`,
         [since],
       ),
       // Active listings
@@ -92,7 +89,7 @@ export async function GET(request: NextRequest) {
       db.execute(
         `SELECT DATE(started_at)::TEXT AS date,
                 COUNT(*)::INT AS sessions,
-                COALESCE(SUM(total_cost_pence), 0)::BIGINT AS gmv_pence
+                COALESCE(SUM(total_session_cost_cents), 0)::BIGINT AS gmv_pence
          FROM charging_sessions WHERE status = 'completed' AND started_at >= $1
          GROUP BY DATE(started_at) ORDER BY date ASC`,
         [since],

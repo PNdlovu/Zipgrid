@@ -21,7 +21,7 @@
     "expo-status-bar": "1.12.1",
     "expo-notifications": "0.28.14",
     "expo-secure-store": "13.0.2",
-    "react": "18.3.1",
+    "react": "18.2.0",
     "react-native": "0.74.5",
     "react-native-maps": "1.14.0",
     "react-native-reanimated": "3.10.1",
@@ -35,7 +35,6 @@
   "devDependencies": {
     "@babel/core": "7.25.2",
     "@types/react": "18.3.3",
-    "@types/react-native": "0.74.0",
     "typescript": "5.5.3",
     "eslint": "8.57.0"
   }

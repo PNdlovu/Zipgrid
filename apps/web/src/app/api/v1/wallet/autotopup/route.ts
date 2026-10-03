@@ -1,14 +1,16 @@
 /**
  * @file route.ts
  * @description PATCH /api/v1/wallet/autotopup — configure auto top-up settings.
+ * Turning it on requires a saved card (the default card is the one charged).
  * @module apps/web/api/v1/wallet/autotopup
  */
 
 import { type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { WalletService } from '@/domains/payments/WalletService'
+import { StripeCustomer } from '@/domains/payments/StripeCustomer'
 import { apiResponse, apiError } from '@/lib/api/response'
-import { AppError } from '@/lib/errors/AppError'
+import { errorResponse, requireUser } from '@/lib/api/context'
 
 const AutoTopupSchema = z.object({
   enabled: z.boolean(),
@@ -17,13 +19,17 @@ const AutoTopupSchema = z.object({
 })
 
 export async function PATCH(request: NextRequest) {
-  const userId = request.headers.get('x-user-id')
-  if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
-  let body: unknown
-  try { body = await request.json() } catch { return apiError('INVALID_JSON', 'Invalid JSON', 400) }
-  const parsed = AutoTopupSchema.safeParse(body)
-  if (!parsed.success) return apiError('VALIDATION_ERROR', parsed.error.errors[0]?.message ?? 'Invalid', 422)
   try {
+    const { userId } = requireUser(request)
+    let body: unknown
+    try { body = await request.json() } catch { return apiError('INVALID_JSON', 'Invalid JSON', 400) }
+    const parsed = AutoTopupSchema.safeParse(body)
+    if (!parsed.success) return apiError('VALIDATION_ERROR', parsed.error.errors[0]?.message ?? 'Invalid input', 422)
+
+    if (parsed.data.enabled && !(await StripeCustomer.defaultCard(userId))) {
+      return apiError('NO_PAYMENT_METHOD', 'Add a card in Settings → Payments before turning on auto top-up.', 422)
+    }
+
     await WalletService.setAutoTopup(
       userId,
       parsed.data.enabled,
@@ -32,7 +38,6 @@ export async function PATCH(request: NextRequest) {
     )
     return apiResponse({ updated: true })
   } catch (err) {
-    if (err instanceof AppError) return apiError(err.code, err.message, err.statusCode)
-    return apiError('INTERNAL_ERROR', 'An unexpected error occurred', 500)
+    return errorResponse(err, 'PATCH /api/v1/wallet/autotopup')
   }
 }

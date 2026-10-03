@@ -28,6 +28,7 @@ import { handleStatusNotification } from './actions/StatusNotification'
 import { handleStartTransaction } from './actions/StartTransaction'
 import { handleStopTransaction } from './actions/StopTransaction'
 import { handleMeterValues } from './actions/MeterValues'
+import { getDb } from './db'
 
 export class MessageRouter {
   constructor(private readonly connectionManager: ConnectionManager) {}
@@ -102,14 +103,19 @@ export class MessageRouter {
           break
 
         case 'Authorize': {
-          // Simple: accept all idTags that start with our prefix
-          const idTag = payload['idTag'] as string | undefined
-          const accepted = idTag?.startsWith('ZG-') ?? false
+          // Only idTags issued for a pending session on this charger are valid.
+          const idTag = String(payload['idTag'] ?? '')
+          const db = await getDb()
+          const res = await db.execute(
+            `SELECT 1 FROM charging_sessions
+             WHERE charge_point_id = $1 AND ocpp_id_tag = $2 AND status = 'preparing' LIMIT 1`,
+            [chargePointId, idTag],
+          )
           ws.send(
             JSON.stringify([
               OcppMessageType.CallResult,
               uniqueId,
-              { idTagInfo: { status: accepted ? 'Accepted' : 'Invalid' } },
+              { idTagInfo: { status: res.rows.length > 0 ? 'Accepted' : 'Invalid' } },
             ]),
           )
           break

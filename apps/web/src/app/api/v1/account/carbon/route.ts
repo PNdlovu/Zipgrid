@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     const res = await db.execute(
       `SELECT
          cs.energy_consumed_wh,
-         cs.total_cost_pence,
+         cs.total_session_cost_cents,
          cs.started_at,
          EXTRACT(YEAR FROM cs.started_at) AS session_year
        FROM charging_sessions cs

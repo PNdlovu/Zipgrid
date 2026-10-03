@@ -26,7 +26,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid'
-import { getDb } from '@/lib/db'
+import { getDb, transaction } from '@/lib/db'
 import { ValidationError } from '@/lib/errors/AppError'
 import { WalletService } from '@/domains/payments/WalletService'
 
@@ -189,6 +189,8 @@ export const RewardsService = {
   /**
    * Redeems points as wallet credit.
    * Minimum 500 pts (= £0.50). Always multiples of 100 pts.
+   * The points debit and the wallet credit commit together; the points balance
+   * row is locked so concurrent redemptions cannot overspend.
    * @throws {ValidationError} if insufficient points or below minimum
    */
   async redeem(userId: string, pointsToRedeem: number): Promise<{ walletCreditPence: number }> {
@@ -199,29 +201,26 @@ export const RewardsService = {
       throw new ValidationError('Points must be redeemed in multiples of 100.')
     }
 
-    const balance = await this.getBalance(userId)
-    if (balance.totalPoints < pointsToRedeem) {
-      throw new ValidationError(
-        `Insufficient points. You have ${balance.totalPoints} pts, need ${pointsToRedeem}.`,
-      )
-    }
-
-    const db = await getDb()
+    await this.getBalance(userId) // ensure the balance row exists
     const walletCreditPence = Math.floor(pointsToRedeem / 100) * REDEMPTION_RATE_PENCE_PER_100_PTS
 
-    // Debit points ledger
-    await db.execute(
-      `INSERT INTO reward_points (user_id, action, points, multiplier, description, created_at)
-       VALUES ($1, 'redemption', -$2, 1.0, $3, NOW())`,
-      [userId, pointsToRedeem, `Redeemed ${pointsToRedeem} pts → £${(walletCreditPence / 100).toFixed(2)} wallet credit`],
-    )
-
-    // Credit wallet
-    await WalletService.creditRewardRedemption(
-      userId,
-      walletCreditPence,
-      `Reward redemption: ${pointsToRedeem} pts`,
-    )
+    await transaction(async (tx) => {
+      const res = await tx.execute(
+        `SELECT total_points FROM reward_balances WHERE user_id = $1 FOR UPDATE`,
+        [userId],
+      )
+      const totalPoints = Number(res.rows[0]?.['total_points'] ?? 0)
+      if (totalPoints < pointsToRedeem) {
+        throw new ValidationError(`Insufficient points. You have ${totalPoints} pts, need ${pointsToRedeem}.`)
+      }
+      // Debit points ledger (trigger keeps reward_balances in sync)
+      await tx.execute(
+        `INSERT INTO reward_points (user_id, action, points, multiplier, description, created_at)
+         VALUES ($1, 'redemption', -($2::int), 1.0, $3, NOW())`,
+        [userId, pointsToRedeem, `Redeemed ${pointsToRedeem} pts → £${(walletCreditPence / 100).toFixed(2)} wallet credit`],
+      )
+      await WalletService.creditRewardRedemption(tx, userId, walletCreditPence, `Reward redemption: ${pointsToRedeem} pts`)
+    })
 
     return { walletCreditPence }
   },

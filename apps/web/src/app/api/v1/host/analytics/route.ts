@@ -57,9 +57,9 @@ export async function GET(request: NextRequest) {
     const summaryRes = await db.execute(
       `SELECT
          COUNT(cs.id)::INT                          AS total_sessions,
-         COALESCE(SUM(cs.total_cost_pence), 0)::INT AS gross_revenue_pence,
+         COALESCE(SUM(cs.total_session_cost_cents), 0)::INT AS gross_revenue_pence,
          COALESCE(SUM(cs.energy_consumed_wh), 0)::BIGINT AS total_wh,
-         ROUND(AVG(cs.total_cost_pence))::INT       AS avg_session_pence,
+         ROUND(AVG(cs.total_session_cost_cents))::INT       AS avg_session_pence,
          ROUND(AVG(cs.energy_consumed_wh / 1000.0)::NUMERIC, 2) AS avg_kwh
        FROM charging_sessions cs
        JOIN bookings b ON b.id = cs.booking_id
@@ -85,9 +85,9 @@ export async function GET(request: NextRequest) {
          cl.city,
          cl.max_power_kw,
          COUNT(cs.id)::INT                          AS sessions,
-         COALESCE(SUM(cs.total_cost_pence), 0)::INT AS revenue_pence,
+         COALESCE(SUM(cs.total_session_cost_cents), 0)::INT AS revenue_pence,
          COALESCE(SUM(cs.energy_consumed_wh), 0)::BIGINT AS energy_wh,
-         ROUND(AVG(cs.total_cost_pence))::INT       AS avg_session_pence
+         ROUND(AVG(cs.total_session_cost_cents))::INT       AS avg_session_pence
        FROM charger_listings cl
        LEFT JOIN bookings b ON b.listing_id = cl.id
        LEFT JOIN charging_sessions cs ON cs.booking_id = b.id
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
       `SELECT
          DATE(cs.started_at)::TEXT AS date,
          COUNT(cs.id)::INT         AS sessions,
-         COALESCE(SUM(cs.total_cost_pence), 0)::INT AS revenue_pence
+         COALESCE(SUM(cs.total_session_cost_cents), 0)::INT AS revenue_pence
        FROM charging_sessions cs
        JOIN bookings b ON b.id = cs.booking_id
        JOIN charger_listings cl ON cl.id = b.listing_id

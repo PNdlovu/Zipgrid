@@ -1,86 +1,67 @@
 /**
  * @file route.ts
- * @description GET  /api/v1/payments/methods — list saved payment methods.
- *              DELETE /api/v1/payments/methods?pmId=pm_xxx — remove a saved card.
+ * @description Saved cards for the authenticated user.
+ *   GET    /api/v1/payments/methods             — list saved cards
+ *   PATCH  /api/v1/payments/methods             — { paymentMethodId } set the default card
+ *   DELETE /api/v1/payments/methods?pmId=pm_xxx — remove a saved card
+ * Cards are added via POST /api/v1/payments/setup-intent + Stripe Elements.
+ * Every mutation first checks the card belongs to the caller's Stripe customer.
  *
  * @module apps/web/api/v1/payments/methods
- * @version 0.1.0
- * @since 2026-09-25
- * @author Zipgrid Engineering
  */
 
 import { type NextRequest } from 'next/server'
+import { z } from 'zod'
 import { StripeService } from '@/domains/payments/StripeService'
+import { StripeCustomer } from '@/domains/payments/StripeCustomer'
 import { apiResponse, apiError } from '@/lib/api/response'
-import { AppError } from '@/lib/errors/AppError'
+import { errorResponse, requireUser } from '@/lib/api/context'
 
-/**
- * GET /api/v1/payments/methods
- * Returns all saved cards for the authenticated user.
- */
+const PM_ID = /^pm_[A-Za-z0-9]+$/
+
 export async function GET(request: NextRequest) {
-  const userId = request.headers.get('x-user-id')
-  if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
-
   try {
-    const { getDb } = await import('@/lib/db')
-    const db = await getDb()
-
-    const result = await db.execute(
-      `SELECT stripe_customer_id FROM users WHERE id = $1 LIMIT 1`,
-      [userId],
-    )
-    const customerId = (result.rows[0] as { stripe_customer_id: string | null } | undefined)
-      ?.stripe_customer_id
-
-    if (!customerId) {
-      // User has no Stripe customer yet — return empty list
-      return apiResponse([])
-    }
-
-    const methods = await StripeService.listPaymentMethods(customerId)
-    return apiResponse(methods)
+    const { userId } = requireUser(request)
+    const customerId = await StripeCustomer.getId(userId)
+    if (!customerId) return apiResponse([])
+    return apiResponse(await StripeService.listPaymentMethods(customerId))
   } catch (err) {
-    if (err instanceof AppError) return apiError(err.code, err.message, err.statusCode)
-    console.error('[GET /api/v1/payments/methods]', err)
-    return apiError('INTERNAL_ERROR', 'An unexpected error occurred', 500)
+    return errorResponse(err, 'GET /api/v1/payments/methods')
   }
 }
 
-/**
- * DELETE /api/v1/payments/methods?pmId=pm_xxx
- * Detaches a saved payment method from the customer.
- */
-export async function DELETE(request: NextRequest) {
-  const userId = request.headers.get('x-user-id')
-  if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
+const SetDefaultSchema = z.object({ paymentMethodId: z.string().regex(PM_ID, 'Invalid paymentMethodId') })
 
-  const pmId = request.nextUrl.searchParams.get('pmId')
-  if (!pmId) return apiError('VALIDATION_ERROR', 'pmId query param is required', 422)
-
+export async function PATCH(request: NextRequest) {
   try {
-    // Verify the PM belongs to this user before detaching
-    const { getDb } = await import('@/lib/db')
-    const db = await getDb()
-    const result = await db.execute(
-      `SELECT stripe_customer_id FROM users WHERE id = $1 LIMIT 1`,
-      [userId],
-    )
-    const customerId = (result.rows[0] as { stripe_customer_id: string | null } | undefined)
-      ?.stripe_customer_id
+    const { userId } = requireUser(request)
+    let body: unknown
+    try { body = await request.json() } catch { return apiError('INVALID_JSON', 'Invalid JSON', 400) }
+    const parsed = SetDefaultSchema.safeParse(body)
+    if (!parsed.success) return apiError('VALIDATION_ERROR', parsed.error.errors[0]?.message ?? 'Invalid input', 422)
 
-    if (!customerId) return apiError('NOT_FOUND', 'No payment methods found', 404)
+    const { paymentMethodId } = parsed.data
+    if (!(await StripeCustomer.ownsPaymentMethod(userId, paymentMethodId))) {
+      return apiError('NOT_FOUND', 'Payment method not found on your account', 404)
+    }
+    await StripeService.setDefaultPaymentMethod((await StripeCustomer.getId(userId))!, paymentMethodId)
+    return apiResponse({ defaultPaymentMethodId: paymentMethodId })
+  } catch (err) {
+    return errorResponse(err, 'PATCH /api/v1/payments/methods')
+  }
+}
 
-    // List methods and confirm pmId belongs to this customer
-    const methods = await StripeService.listPaymentMethods(customerId)
-    const owned = methods.some((m) => m.id === pmId)
-    if (!owned) return apiError('FORBIDDEN', 'Payment method not found on your account', 403)
-
+export async function DELETE(request: NextRequest) {
+  try {
+    const { userId } = requireUser(request)
+    const pmId = request.nextUrl.searchParams.get('pmId') ?? ''
+    if (!PM_ID.test(pmId)) return apiError('VALIDATION_ERROR', 'pmId query param is required', 422)
+    if (!(await StripeCustomer.ownsPaymentMethod(userId, pmId))) {
+      return apiError('NOT_FOUND', 'Payment method not found on your account', 404)
+    }
     await StripeService.detachPaymentMethod(pmId)
     return apiResponse({ detached: true, pmId })
   } catch (err) {
-    if (err instanceof AppError) return apiError(err.code, err.message, err.statusCode)
-    console.error('[DELETE /api/v1/payments/methods]', err)
-    return apiError('INTERNAL_ERROR', 'An unexpected error occurred', 500)
+    return errorResponse(err, 'DELETE /api/v1/payments/methods')
   }
 }

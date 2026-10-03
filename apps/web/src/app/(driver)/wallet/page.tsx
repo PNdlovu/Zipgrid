@@ -1,7 +1,8 @@
 /**
  * @file page.tsx
  * @description /driver/wallet — Wallet balance card, top-up form, transaction history.
- * Auto top-up toggle with threshold and amount settings.
+ * Auto top-up toggle with threshold and amount settings. Data and actions come
+ * from useWallet.
  *
  * @module apps/web/app/(driver)/wallet
  * @version 0.1.0
@@ -11,31 +12,16 @@
 
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import Link from 'next/link'
 import {
   Wallet, PoundSterling, ArrowUpCircle, ArrowDownCircle,
   RefreshCw, Loader2, AlertCircle, CheckCircle2, Settings,
   X, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-/* ── Types ──────────────────────────────────────────────────── */
-
-type WalletBalance = {
-  userId: string; balancePence: number; pendingPence: number
-  autoTopupEnabled: boolean; autoTopupThresholdPence: number; autoTopupAmountPence: number
-}
-
-type WalletTx = {
-  id: string; type: string; amountPence: number; balanceAfterPence: number
-  description: string; createdAt: string; bookingId: string | null
-}
-
-type WalletData = {
-  balance: WalletBalance
-  recentTransactions: WalletTx[]
-  totalTransactions: number
-}
+import { useWallet, type TopUpResult, type WalletBalance } from '@/hooks/useWallet'
+import { usePaymentMethods } from '@/hooks/usePaymentMethods'
 
 /* ── Helpers ────────────────────────────────────────────────── */
 
@@ -54,31 +40,25 @@ const TOP_UP_AMOUNTS = [500, 1000, 2000, 5000, 10000] // pence
 
 /* ── Top-up modal ────────────────────────────────────────────── */
 
-function TopupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+function TopupModal({ onClose, onSuccess, topUp }: {
+  onClose: () => void
+  onSuccess: () => void
+  topUp: (amountPence: number, paymentMethodId: string) => Promise<TopUpResult>
+}) {
   const [amountPence, setAmountPence] = useState(2000)
+  const { cards, defaultCard, error: cardsError } = usePaymentMethods()
+  const [chosenCardId, setChosenCardId] = useState<string | null>(null)
+  const cardId = chosenCardId ?? defaultCard?.id ?? ''
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(cardsError)
 
   const handleTopup = async () => {
+    if (!cardId) { setError('No saved card. Add one in Settings → Payments.'); return }
     setError(null); setSubmitting(true)
     try {
-      // Fetch saved payment methods first
-      const pmRes = await fetch('/api/v1/payments/methods')
-      const pmJson = await pmRes.json() as { success: boolean; data: Array<{ id: string; brand: string; last4: string }> }
-      const defaultPm = pmJson.data?.[0]
-      if (!defaultPm) {
-        setError('No saved payment method. Add a card in Settings → Payments.')
-        return
-      }
-
-      const res = await fetch('/api/v1/wallet/topup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amountPence, paymentMethodId: defaultPm.id }),
-      })
-      const json = await res.json() as { success: boolean; error?: { message: string } }
-      if (!res.ok || !json.success) { setError(json.error?.message ?? 'Top-up failed'); return }
-      onSuccess()
+      const result = await topUp(amountPence, cardId)
+      if (result.ok) onSuccess()
+      else setError(result.error)
     } finally { setSubmitting(false) }
   }
 
@@ -106,11 +86,25 @@ function TopupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
           ))}
         </div>
 
+        <label htmlFor="topup-card" className="mb-1 block text-xs font-medium text-[hsl(var(--foreground))]">Pay with</label>
+        {cards === null ? (
+          <p className="mb-4 text-sm text-[hsl(var(--muted-foreground))]">Loading cards…</p>
+        ) : cards.length === 0 ? (
+          <p className="mb-4 text-sm text-[hsl(var(--muted-foreground))]">
+            No saved cards. <Link href="/settings?tab=payments" className="font-medium text-[hsl(var(--primary))]">Add a card</Link>
+          </p>
+        ) : (
+          <select id="topup-card" value={cardId} onChange={(e) => setChosenCardId(e.target.value)}
+            className="mb-4 w-full rounded-[6px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm focus:outline-none">
+            {cards.map((c) => <option key={c.id} value={c.id}>{c.brand.toUpperCase()} •••• {c.last4}</option>)}
+          </select>
+        )}
+
         {error && <p role="alert" className="mb-3 flex items-center gap-2 text-sm text-[hsl(var(--destructive))]"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{error}</p>}
 
         <p className="mb-4 text-center text-xl font-bold text-[hsl(var(--foreground))]">{fmt(amountPence)}</p>
 
-        <button type="button" onClick={handleTopup} disabled={submitting} aria-busy={submitting}
+        <button type="button" onClick={handleTopup} disabled={submitting || !cardId} aria-busy={submitting}
           className="flex h-11 w-full items-center justify-center gap-2 rounded-[6px] bg-[hsl(var(--primary))] text-sm font-semibold text-[hsl(var(--primary-foreground))] transition-opacity hover:opacity-90 disabled:opacity-50">
           {submitting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <PoundSterling className="h-4 w-4" aria-hidden="true" />}
           {submitting ? 'Processing…' : `Add ${fmt(amountPence)} to wallet`}
@@ -122,7 +116,10 @@ function TopupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
 
 /* ── Auto top-up settings ────────────────────────────────────── */
 
-function AutoTopupSettings({ balance, onSaved }: { balance: WalletBalance; onSaved: () => void }) {
+function AutoTopupSettings({ balance, save: saveSettings }: {
+  balance: WalletBalance
+  save: (enabled: boolean, thresholdPence: number, amountPence: number) => Promise<TopUpResult>
+}) {
   const [open, setOpen] = useState(false)
   const [enabled, setEnabled] = useState(balance.autoTopupEnabled)
   const [threshold, setThreshold] = useState(balance.autoTopupThresholdPence)
@@ -130,15 +127,15 @@ function AutoTopupSettings({ balance, onSaved }: { balance: WalletBalance; onSav
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
+  const [saveError, setSaveError] = useState<string | null>(null)
+
   const save = async () => {
     setSaving(true)
+    setSaveError(null)
     try {
-      const res = await fetch('/api/v1/wallet/autotopup', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled, thresholdPence: threshold, amountPence: amount }),
-      })
-      if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2000); onSaved() }
+      const result = await saveSettings(enabled, threshold, amount)
+      if (result.ok) { setSaved(true); setTimeout(() => setSaved(false), 2000) }
+      else setSaveError(result.error)
     } finally { setSaving(false) }
   }
 
@@ -158,7 +155,9 @@ function AutoTopupSettings({ balance, onSaved }: { balance: WalletBalance; onSav
       {open && (
         <div className="border-t border-[hsl(var(--border))] px-4 py-4">
           <p className="mb-4 text-xs text-[hsl(var(--muted-foreground))]">
-            Automatically top up your wallet when the balance falls below your threshold.
+            We charge your default card when your available balance drops below your threshold, and when a wallet
+            booking needs more than you have, so the booking still goes through. At most 3 auto top-ups a day;
+            if your card is declined twice in a row we switch auto top-up off and let you know.
           </p>
 
           {/* Enable toggle */}
@@ -189,6 +188,7 @@ function AutoTopupSettings({ balance, onSaved }: { balance: WalletBalance; onSav
             </div>
           )}
 
+          {saveError && <p role="alert" className="mt-3 text-xs text-[hsl(var(--destructive))]">{saveError}</p>}
           <button type="button" onClick={save} disabled={saving}
             className="mt-4 flex h-9 w-full items-center justify-center gap-2 rounded-[6px] bg-[hsl(var(--primary))] text-xs font-semibold text-[hsl(var(--primary-foreground))] disabled:opacity-50">
             {saved ? <><CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" /> Saved</> : saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : 'Save settings'}
@@ -202,30 +202,8 @@ function AutoTopupSettings({ balance, onSaved }: { balance: WalletBalance; onSav
 /* ── Page ────────────────────────────────────────────────────── */
 
 export default function WalletPage() {
-  const [data, setData] = useState<WalletData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { balance, outstandingPence, transactions: allTxns, hasMore, loading, error, topUp, setAutoTopup, loadMore } = useWallet()
   const [showTopup, setShowTopup] = useState(false)
-  const [page, setPage] = useState(1)
-  const [allTxns, setAllTxns] = useState<WalletTx[]>([])
-  const PAGE_SIZE = 10
-
-  const fetchWallet = useCallback(async (p: number) => {
-    const res = await fetch(`/api/v1/wallet`)
-    const json = await res.json() as { success: boolean; data?: WalletData }
-    if (json.success && json.data) {
-      setData(json.data)
-      if (p === 1) setAllTxns(json.data.recentTransactions)
-    }
-    setLoading(false)
-  }, [])
-
-  const fetchMore = useCallback(async (p: number) => {
-    const res = await fetch(`/api/v1/wallet/history?page=${p}&pageSize=${PAGE_SIZE}`)
-    const json = await res.json() as { success: boolean; data?: WalletTx[] }
-    if (json.success && json.data) setAllTxns((prev) => [...prev, ...(json.data ?? [])])
-  }, [])
-
-  useEffect(() => { void fetchWallet(1) }, [fetchWallet])
 
   if (loading) return (
     <div className="flex min-h-screen items-center justify-center">
@@ -233,8 +211,6 @@ export default function WalletPage() {
     </div>
   )
 
-  const balance = data?.balance
-  const total = data?.totalTransactions ?? 0
 
   return (
     <>
@@ -255,12 +231,12 @@ export default function WalletPage() {
               <Wallet className="h-8 w-8 opacity-80" aria-hidden="true" strokeWidth={1.5} />
               <div>
                 <p className="text-sm opacity-80">Available balance</p>
-                <p className="font-mono text-4xl font-bold" aria-label={`Wallet balance: ${fmt(balance?.balancePence ?? 0)}`}>
-                  {fmt(balance?.balancePence ?? 0)}
+                <p className="font-mono text-4xl font-bold" aria-label={`Available wallet balance: ${fmt(balance?.availablePence ?? 0)}`}>
+                  {fmt(balance?.availablePence ?? 0)}
                 </p>
               </div>
               {(balance?.pendingPence ?? 0) > 0 && (
-                <p className="text-xs opacity-70">{fmt(balance!.pendingPence)} pending</p>
+                <p className="text-xs opacity-70">{fmt(balance!.pendingPence)} reserved for upcoming bookings</p>
               )}
               <button
                 type="button"
@@ -272,9 +248,25 @@ export default function WalletPage() {
               </button>
             </div>
 
+            {outstandingPence > 0 && (
+              <div role="alert" className="rounded-[6px] border border-[hsl(var(--destructive)_/_30%)] bg-[hsl(var(--destructive)_/_5%)] p-4 text-sm">
+                <p className="font-semibold text-[hsl(var(--destructive))]">Outstanding balance: {fmt(outstandingPence)}</p>
+                <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
+                  A recent session cost more than was held. Top up your wallet and it is cleared automatically —
+                  you can book again as soon as it is paid.
+                </p>
+              </div>
+            )}
+
+            {error && (
+              <p role="alert" className="flex items-center gap-2 text-sm text-[hsl(var(--destructive))]">
+                <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{error}
+              </p>
+            )}
+
             {/* Auto top-up */}
             {balance && (
-              <AutoTopupSettings balance={balance} onSaved={() => void fetchWallet(1)} />
+              <AutoTopupSettings balance={balance} save={setAutoTopup} />
             )}
 
             {/* Transaction history */}
@@ -312,9 +304,9 @@ export default function WalletPage() {
                 </ul>
               )}
 
-              {allTxns.length < total && (
+              {hasMore && (
                 <div className="mt-4 flex justify-center">
-                  <button type="button" onClick={() => { const next = page + 1; setPage(next); void fetchMore(next) }}
+                  <button type="button" onClick={loadMore}
                     className="text-sm font-medium text-[hsl(var(--primary))] hover:opacity-80">
                     Load more
                   </button>
@@ -328,7 +320,8 @@ export default function WalletPage() {
       {showTopup && (
         <TopupModal
           onClose={() => setShowTopup(false)}
-          onSuccess={() => { setShowTopup(false); void fetchWallet(1) }}
+          onSuccess={() => setShowTopup(false)}
+          topUp={topUp}
         />
       )}
     </>

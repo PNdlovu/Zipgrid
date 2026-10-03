@@ -19,7 +19,7 @@
  * @author Zipgrid Engineering
  */
 
-import { v4 as uuidv4 } from 'uuid'
+import { isIP } from 'node:net'
 import { getDb } from '@/lib/db'
 import { eventBus } from '@/lib/events/event-bus'
 
@@ -68,6 +68,8 @@ export type LogInput = {
   targetType?: string
   ipAddress?: string
   userAgent?: string
+  oldValues?: Record<string, unknown>
+  newValues?: Record<string, unknown>
   metadata?: Record<string, unknown>
 }
 
@@ -105,95 +107,92 @@ export const AuditLogger = {
     pageSize?: number
   }): Promise<{ entries: AuditEntry[]; total: number }> {
     const db = await getDb()
-    const page = options.page ?? 1
-    const pageSize = Math.min(options.pageSize ?? 50, 200)
-    const offset = (page - 1) * pageSize
+    const page = Math.max(1, options.page ?? 1)
+    const pageSize = Math.min(Math.max(1, options.pageSize ?? 50), 200)
 
     const conditions: string[] = []
     const values: unknown[] = []
-    let i = 1
-
-    if (options.actorId) {
-      conditions.push(`actor_id = $${i++}`)
-      values.push(options.actorId)
+    const add = (sql: string, value: unknown) => {
+      values.push(value)
+      conditions.push(sql.replace('?', `$${values.length}`))
     }
-    if (options.targetId) {
-      conditions.push(`target_id = $${i++}`)
-      values.push(options.targetId)
-    }
-    if (options.eventType) {
-      conditions.push(`event_type = $${i++}`)
-      values.push(options.eventType)
-    }
-    if (options.from) {
-      conditions.push(`created_at >= $${i++}`)
-      values.push(options.from.toISOString())
-    }
-    if (options.to) {
-      conditions.push(`created_at < $${i++}`)
-      values.push(options.to.toISOString())
-    }
-
+    if (options.actorId) add('actor_user_id = ?', options.actorId)
+    if (options.targetId) add('entity_id = ?', options.targetId)
+    if (options.eventType) add('action = ?', options.eventType)
+    if (options.from) add('occurred_at >= ?', options.from.toISOString())
+    if (options.to) add('occurred_at < ?', options.to.toISOString())
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
 
     const [countRes, rowsRes] = await Promise.all([
       db.execute(`SELECT COUNT(*)::INT AS total FROM audit_log ${where}`, values),
       db.execute(
-        `SELECT id, event_type, actor_id, target_id, target_type,
-                ip_address, user_agent, metadata, created_at
+        `SELECT id, action, actor_user_id, entity_id, entity_type,
+                actor_ip, actor_user_agent, metadata, occurred_at
          FROM audit_log ${where}
-         ORDER BY created_at DESC
-         LIMIT $${i} OFFSET $${i + 1}`,
-        [...values, pageSize, offset],
+         ORDER BY occurred_at DESC
+         LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+        [...values, pageSize, (page - 1) * pageSize],
       ),
     ])
 
     return {
-      entries: rowsRes.rows.map((r) => this._mapRow(r as Record<string, unknown>)),
-      total: (countRes.rows[0] as { total: number }).total,
+      entries: rowsRes.rows.map((r) => this._mapRow(r)),
+      total: Number((countRes.rows[0] as { total: number }).total),
     }
   },
 
   // ── Private ───────────────────────────────────────────────
 
   async _write(input: LogInput): Promise<void> {
+    // entity_id is a UUID column; non-UUID targets are kept in metadata.
+    const targetIsUuid = input.targetId !== undefined && UUID_RE.test(input.targetId)
+    const metadata = {
+      ...(input.metadata ?? {}),
+      ...(input.targetId && !targetIsUuid ? { targetRef: input.targetId } : {}),
+    }
     try {
       const db = await getDb()
       await db.execute(
         `INSERT INTO audit_log (
-           id, event_type, actor_id, target_id, target_type,
-           ip_address, user_agent, metadata, created_at
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, NOW())`,
+           action, actor_user_id, entity_type, entity_id,
+           actor_ip, actor_user_agent, old_values, new_values, metadata
+         ) VALUES ($1, $2, $3, $4, $5::inet, $6, $7::jsonb, $8::jsonb, $9::jsonb)`,
         [
-          uuidv4(),
           input.eventType,
           input.actorId ?? null,
-          input.targetId ?? null,
-          input.targetType ?? null,
-          input.ipAddress ?? null,
+          input.targetType ?? 'system',
+          targetIsUuid ? input.targetId : null,
+          input.ipAddress && isIp(input.ipAddress) ? input.ipAddress : null,
           input.userAgent ?? null,
-          JSON.stringify(input.metadata ?? {}),
+          input.oldValues ? JSON.stringify(input.oldValues) : null,
+          input.newValues ? JSON.stringify(input.newValues) : null,
+          JSON.stringify(metadata),
         ],
       )
-    } catch {
-      // Audit log writes must never throw — platform resilience over log completeness
+    } catch (err) {
+      // Never break the caller, but never fail silently either.
+      console.error('[AuditLogger] write failed', input.eventType, err)
     }
   },
 
   _mapRow(r: Record<string, unknown>): AuditEntry {
+    const metadata = (r['metadata'] as Record<string, unknown> | null) ?? {}
     return {
-      id: r['id'] as string,
-      eventType: r['event_type'] as string,
-      actorId: (r['actor_id'] as string | null) ?? null,
-      targetId: (r['target_id'] as string | null) ?? null,
-      targetType: (r['target_type'] as string | null) ?? null,
-      ipAddress: (r['ip_address'] as string | null) ?? null,
-      userAgent: (r['user_agent'] as string | null) ?? null,
-      metadata: (r['metadata'] as Record<string, unknown>) ?? {},
-      createdAt: new Date(r['created_at'] as string),
+      id: String(r['id']),
+      eventType: r['action'] as string,
+      actorId: (r['actor_user_id'] as string | null) ?? null,
+      targetId: (r['entity_id'] as string | null) ?? (metadata['targetRef'] as string | undefined) ?? null,
+      targetType: (r['entity_type'] as string | null) ?? null,
+      ipAddress: (r['actor_ip'] as string | null) ?? null,
+      userAgent: (r['actor_user_agent'] as string | null) ?? null,
+      metadata,
+      createdAt: new Date(r['occurred_at'] as string),
     }
   },
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const isIp = (v: string) => isIP(v) !== 0
 
 /**
  * Wires AuditLogger to the domain event bus.

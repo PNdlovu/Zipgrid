@@ -14,7 +14,7 @@ BEGIN;
 -- Booking 1: Marcus at Sarah's — confirmed, upcoming tomorrow
 INSERT INTO bookings (
   id, listing_id, driver_profile_id, vehicle_id,
-  scheduled_start, scheduled_end, duration_minutes,
+  scheduled_start, scheduled_end,
   status, pricing_model,
   quoted_price_per_kwh_cents, quoted_idle_fee_per_min_cents,
   estimated_cost_cents,
@@ -28,7 +28,6 @@ INSERT INTO bookings (
   '10000000-0000-0000-3000-000000000003',
   NOW() + INTERVAL '18 hours',
   NOW() + INTERVAL '20 hours 30 minutes',
-  150,
   'confirmed', 'per_kwh',
   34, 10,
   714,
@@ -42,7 +41,7 @@ INSERT INTO bookings (
 -- Booking 2: Marcus at Dev's coworking — completed 3 days ago
 INSERT INTO bookings (
   id, listing_id, driver_profile_id, vehicle_id,
-  scheduled_start, scheduled_end, duration_minutes,
+  scheduled_start, scheduled_end,
   status, pricing_model,
   quoted_price_per_kwh_cents, quoted_price_per_session_cents, quoted_idle_fee_per_min_cents,
   estimated_cost_cents,
@@ -56,7 +55,6 @@ INSERT INTO bookings (
   '10000000-0000-0000-3000-000000000003',
   NOW() - INTERVAL '3 days 4 hours',
   NOW() - INTERVAL '3 days 1 hour',
-  180,
   'completed', 'hybrid',
   28, 100, 12,
   824,
@@ -71,7 +69,7 @@ INSERT INTO bookings (
 -- Booking 3: Andy at Edinburgh — pending approval
 INSERT INTO bookings (
   id, listing_id, driver_profile_id, vehicle_id,
-  scheduled_start, scheduled_end, duration_minutes,
+  scheduled_start, scheduled_end,
   status, pricing_model,
   quoted_price_per_kwh_cents, quoted_idle_fee_per_min_cents,
   estimated_cost_cents,
@@ -85,7 +83,6 @@ INSERT INTO bookings (
   '10000000-0000-0000-3000-000000000004',
   NOW() + INTERVAL '36 hours',
   NOW() + INTERVAL '39 hours',
-  180,
   'pending', 'per_kwh',
   36, 10,
   612,
@@ -93,6 +90,18 @@ INSERT INTO bookings (
   '91827364', '728391',
   NOW() - INTERVAL '30 minutes',
   NOW() - INTERVAL '30 minutes'
+) ON CONFLICT (id) DO NOTHING;
+
+-- Card hold for upcoming booking 1 (a session can only start once held)
+INSERT INTO transactions (
+  id, booking_id, stripe_payment_intent_id, status,
+  subtotal_cents, authorized_cents, platform_fee_cents, total_charged_cents, host_earnings_cents,
+  commission_rate_pct, currency, hold_placed_at
+) VALUES (
+  '40000000-0000-0000-0000-000000000001',
+  '30000000-0000-0000-0000-000000000001',
+  'pi_demo_marcus_sarah_001', 'hold_placed',
+  714, 714, 0, 0, 0, 15.00, 'GBP', NOW() - INTERVAL '2 hours'
 ) ON CONFLICT (id) DO NOTHING;
 
 -- Transaction for completed booking 2

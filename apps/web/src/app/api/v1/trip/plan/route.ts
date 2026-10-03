@@ -21,6 +21,7 @@ import { type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
+import { distanceMetresSql, withinRadiusSql } from '@/lib/db/geo'
 
 const PlanSchema = z.object({
   /** Destination as "lat,lng" or a readable address (used for display) */
@@ -241,19 +242,12 @@ export async function POST(request: NextRequest) {
       const res = await db.execute(
         `SELECT id, title, city, latitude, longitude, max_power_kw,
                 plug_types, price_per_kwh_cents, instant_book_enabled, average_rating,
-                ST_Distance(
-                  location,
-                  ST_MakePoint($2, $1)::GEOGRAPHY
-                ) AS dist_metres
+                ${distanceMetresSql('latitude', 'longitude', '$1', '$2')} AS dist_metres
          FROM charger_listings
          WHERE status = 'active'
            AND plug_types && $3::plug_type[]
-           AND ST_DWithin(
-             location,
-             ST_MakePoint($2, $1)::GEOGRAPHY,
-             20000
-           )
-         ORDER BY location <-> ST_MakePoint($2, $1)::GEOGRAPHY
+           AND ${withinRadiusSql('latitude', 'longitude', '$1', '$2', '20000')}
+         ORDER BY dist_metres
          LIMIT 1`,
         [mid.lat, mid.lng, plugTypesArray],
       )

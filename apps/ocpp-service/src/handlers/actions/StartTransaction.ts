@@ -1,34 +1,22 @@
 /**
  * @file StartTransaction.ts
  * @description OCPP 1.6J StartTransaction handler.
- * Called by the charger when a transaction physically starts (cable plugged in,
- * RFID/idTag authorised, relay closed).
  *
- * Flow:
- * 1. Look up the session by idTag + chargePointId (created by platform on RemoteStart)
- * 2. Update session status to 'charging', store transactionId + meterStart
- * 3. Respond with transactionId and idTagInfo.status = 'Accepted'
+ * The platform creates a `preparing` session with a unique idTag before it
+ * sends RemoteStartTransaction. A StartTransaction is only Accepted when it
+ * matches such a session on this charger; anything else (unknown RFID card,
+ * replayed idTag) is answered Invalid so the charger does not deliver energy.
+ *
+ * meterStart is recorded so energy = meter_stop_wh − meter_start_wh
+ * (energy_consumed_wh is a generated column).
  *
  * @module apps/ocpp-service/handlers/actions
- * @version 0.1.0
- * @since 2026-09-25
- * @author Zipgrid Engineering
  */
 
 import type { WebSocket } from 'ws'
-import { OcppMessageType } from '@zipgrid/types'
 import { getDb } from '../db'
+import { logOcppEvent, parseTimestamp, reply } from '../common'
 import { logger } from '../../lib/logger'
-
-/**
- * OCPP transaction IDs are integers. The platform generates them sequentially.
- * We use the current epoch in seconds as a seed to guarantee uniqueness across restarts.
- */
-let _txCounter = Math.floor(Date.now() / 1000)
-
-function nextTransactionId(): number {
-  return ++_txCounter
-}
 
 export async function handleStartTransaction(
   chargePointId: string,
@@ -36,67 +24,54 @@ export async function handleStartTransaction(
   payload: Record<string, unknown>,
   ws: WebSocket,
 ): Promise<void> {
-  const idTag = payload['idTag'] as string
-  const meterStart = Number(payload['meterStart'] ?? 0)   // Wh
+  const idTag = String(payload['idTag'] ?? '')
+  const meterStart = Math.max(0, Math.round(Number(payload['meterStart'] ?? 0)))
   const connectorId = Number(payload['connectorId'] ?? 1)
-  const timestamp = payload['timestamp']
-    ? new Date(payload['timestamp'] as string)
-    : new Date()
+  const timestamp = parseTimestamp(payload['timestamp'])
 
-  logger.info({ chargePointId, idTag, connectorId, meterStart }, 'StartTransaction')
+  const db = await getDb()
+  // The charger needs a transactionId even when we reject the idTag.
+  const seq = await db.execute(`SELECT nextval('ocpp_transaction_id_seq')::INT AS id`)
+  const transactionId = Number(seq.rows[0]?.['id'])
 
-  const ocppTransactionId = nextTransactionId()
+  const res = await db.execute(
+    `UPDATE charging_sessions
+     SET status = 'charging',
+         ocpp_transaction_id = $3,
+         started_at = $4,
+         meter_start_wh = $5,
+         meter_stop_wh = $5,
+         ocpp_connector_id = $6,
+         connector_id = $6,
+         authorized_at = COALESCE(authorized_at, $4),
+         updated_at = NOW()
+     WHERE id = (
+       SELECT id FROM charging_sessions
+       WHERE charge_point_id = $1 AND ocpp_id_tag = $2 AND status = 'preparing'
+       ORDER BY created_at DESC LIMIT 1
+     )
+     RETURNING id`,
+    [chargePointId, idTag, transactionId, timestamp.toISOString(), meterStart, connectorId],
+  )
+  const sessionId = res.rows[0]?.['id'] as string | undefined
 
-  try {
-    const db = await getDb()
+  await logOcppEvent({
+    chargePointId,
+    eventType: 'StartTransaction',
+    payload: { idTag, meterStart, connectorId, sessionId: sessionId ?? null },
+    connectorId,
+    transactionId,
+    timestamp,
+  })
 
-    // Find the pending session for this charger + idTag
-    const sessionRes = await db.execute(
-      `SELECT id FROM charging_sessions
-       WHERE charge_point_id = $1
-         AND ocpp_id_tag = $2
-         AND status = 'preparing'
-       ORDER BY created_at DESC LIMIT 1`,
-      [chargePointId, idTag],
-    )
-
-    if (sessionRes.rows.length > 0) {
-      const sessionId = (sessionRes.rows[0] as { id: string }).id
-
-      await db.execute(
-        `UPDATE charging_sessions
-         SET status = 'charging',
-             ocpp_transaction_id = $2,
-             started_at = $3,
-             energy_consumed_wh = $4,
-             connector_id = $5,
-             updated_at = NOW()
-         WHERE id = $1`,
-        [sessionId, ocppTransactionId, timestamp.toISOString(), meterStart, connectorId],
-      )
-
-      logger.info({ chargePointId, sessionId, ocppTransactionId }, 'Session moved to charging')
-    } else {
-      // Unknown session — still assign a transactionId so the charger can function
-      // Log for investigation
-      logger.warn(
-        { chargePointId, idTag, connectorId },
-        'StartTransaction received for unknown session — accepting anyway',
-      )
-    }
-  } catch (err) {
-    logger.error({ chargePointId, idTag, err }, 'Error processing StartTransaction')
+  if (sessionId) {
+    logger.info({ chargePointId, sessionId, transactionId }, 'Session charging')
+  } else {
+    logger.warn({ chargePointId, idTag, connectorId }, 'StartTransaction for unknown idTag — rejected')
   }
 
-  // Always respond Accepted — do not block the physical charging session
-  ws.send(
-    JSON.stringify([
-      OcppMessageType.CallResult,
-      uniqueId,
-      {
-        transactionId: ocppTransactionId,
-        idTagInfo: { status: 'Accepted' },
-      },
-    ]),
-  )
+  reply(ws, uniqueId, {
+    transactionId,
+    idTagInfo: { status: sessionId ? 'Accepted' : 'Invalid' },
+  })
 }

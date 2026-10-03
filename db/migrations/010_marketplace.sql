@@ -293,7 +293,7 @@ CREATE TABLE installer_profiles (
     base_postcode       VARCHAR(10),
     base_latitude       NUMERIC(10,7),
     base_longitude      NUMERIC(10,7),
-    base_location       GEOGRAPHY(POINT, 4326),
+    base_location       TEXT,                       -- unused; kept for schema compat
 
     -- Services offered
     service_categories  service_category[]  NOT NULL DEFAULT '{}',
@@ -326,8 +326,8 @@ CREATE TABLE installer_profiles (
 );
 
 CREATE INDEX idx_installer_profiles_user     ON installer_profiles (user_id);
-CREATE INDEX idx_installer_profiles_location ON installer_profiles USING GIST (base_location)
-    WHERE base_location IS NOT NULL;
+CREATE INDEX idx_installer_profiles_location ON installer_profiles (base_latitude, base_longitude)
+    WHERE base_latitude IS NOT NULL;
 CREATE INDEX idx_installer_profiles_verified ON installer_profiles (is_verified)
     WHERE is_verified = TRUE AND accepting_work = TRUE;
 CREATE INDEX idx_installer_profiles_services ON installer_profiles USING GIN (service_categories);
@@ -357,7 +357,7 @@ CREATE TABLE installer_jobs (
     title                   VARCHAR(200)            NOT NULL,
     description             TEXT,
     address                 JSONB                   NOT NULL DEFAULT '{}',
-    job_location            GEOGRAPHY(POINT, 4326),
+    job_location            TEXT,                    -- unused; kept for schema compat
 
     -- Scheduling
     scheduled_date          DATE,
@@ -390,8 +390,7 @@ CREATE TABLE installer_jobs (
 CREATE INDEX idx_installer_jobs_installer ON installer_jobs (installer_profile_id);
 CREATE INDEX idx_installer_jobs_client    ON installer_jobs (client_user_id);
 CREATE INDEX idx_installer_jobs_status    ON installer_jobs (status);
-CREATE INDEX idx_installer_jobs_location  ON installer_jobs USING GIST (job_location)
-    WHERE job_location IS NOT NULL;
+-- job_location index removed (GEOGRAPHY column replaced with TEXT placeholder)
 
 CREATE TRIGGER trg_installer_jobs_updated_at
     BEFORE UPDATE ON installer_jobs

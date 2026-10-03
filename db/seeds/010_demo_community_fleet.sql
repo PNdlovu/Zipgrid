@@ -476,7 +476,7 @@ INSERT INTO fleet_members (
 INSERT INTO parking_listings (
   id, host_profile_id,
   address_line1, city, postcode,
-  latitude, longitude, location,
+  latitude, longitude,
   title, description,
   price_pence, price_unit, min_duration_minutes, max_duration_hours,
   available_from, available_to,
@@ -484,13 +484,12 @@ INSERT INTO parking_listings (
   status, booking_count,
   created_at, updated_at
 ) VALUES (
-  'p0000000-0000-0000-0000-000000000001',
+  'a2000000-0000-0000-0000-000000000001',
   '10000000-0000-0000-1000-000000000002',
   '47 Lever Street',
   'Manchester',
   'M1 1FN',
   53.4808, -2.2374,
-  ST_SetSRID(ST_MakePoint(-2.2374, 53.4808), 4326)::geography,
   'Nexus Coworking — Secure EV Bay (no charger)',
   'Dedicated EV parking bay at Nexus Coworking. CCTV monitored, covered car park. Ideal for those who just need a space while they work — charger bays also available separately.',
   150,         -- £1.50/hour
@@ -515,7 +514,7 @@ INSERT INTO webhook_subscriptions (
   is_active, last_delivery_at, failure_count,
   created_at, updated_at
 ) VALUES (
-  'w0000000-0000-0000-0000-000000000001',
+  'a5000000-0000-0000-0000-000000000001',
   '10000000-0000-0000-0000-000000000002',
   'https://api.nexus-coworking.co.uk/zipgrid/webhooks',
   'whs_nexus_demo_secret_abc123def456',
@@ -538,12 +537,12 @@ INSERT INTO api_tenants (
   trial_ends_at,
   created_at, updated_at
 ) VALUES (
-  'q0000000-0000-0000-0000-000000000001',
+  'a6000000-0000-0000-0000-000000000001',
   'Nexus Coworking Manchester',
   'nexus-coworking',
   'trial',
   '$2b$12$demoHashForNexusCoworkingApiKeyNotARealBcryptHash1234567',
-  'zg_test_nexus',
+  'zg_test_nexu',
   'Nexus EV',
   '#1A56DB',
   'cus_dev_demo_002',
@@ -565,7 +564,7 @@ INSERT INTO blog_post_threads (
   id, article_slug, title, is_open, reply_count,
   created_at, updated_at
 ) VALUES (
-  'bt000000-0000-0000-0000-000000000001',
+  'a7000000-0000-0000-0000-000000000001',
   'octopus-agile-vs-go-for-ev-drivers-2026',
   'Octopus Agile vs Go for EV drivers in 2026 — which saves more?',
   true, 12,
@@ -577,7 +576,7 @@ INSERT INTO blog_post_threads (
   id, article_slug, title, is_open, reply_count,
   created_at, updated_at
 ) VALUES (
-  'bt000000-0000-0000-0000-000000000002',
+  'a7000000-0000-0000-0000-000000000002',
   'how-to-become-a-zipgrid-host-2026',
   'How to become a Zipgrid host in 2026 — the complete guide',
   true, 7,

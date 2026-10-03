@@ -21,6 +21,7 @@ import Stripe from 'stripe'
 import { getDb } from '@/lib/db'
 import { eventBus } from '@/lib/events/event-bus'
 import { NotFoundError, ValidationError } from '@/lib/errors/AppError'
+import { AuditLogger } from '@/domains/compliance/AuditLogger'
 
 export type KycStatus = 'not_started' | 'pending' | 'verified' | 'rejected'
 
@@ -128,7 +129,8 @@ export const KycService = {
 
     return {
       userId,
-      status: r.kyc_status as KycStatus,
+      // DB enum uses 'failed'; the API exposes it as 'rejected'.
+      status: (r.kyc_status === 'failed' ? 'rejected' : r.kyc_status) as KycStatus,
       verificationSessionId: r.kyc_verification_session_id,
       verifiedAt: r.kyc_verified_at ? new Date(r.kyc_verified_at) : null,
       rejectionReason: r.kyc_rejection_reason,
@@ -178,7 +180,7 @@ export const KycService = {
 
       await db.execute(
         `UPDATE users
-         SET kyc_status = 'rejected',
+         SET kyc_status = 'failed',
              kyc_rejection_reason = $2,
              updated_at = NOW()
          WHERE id = $1`,
@@ -213,30 +215,27 @@ export const KycService = {
     adminUserId: string,
   ): Promise<void> {
     const db = await getDb()
+    const verified = status === 'verified'
     await db.execute(
       `UPDATE users
-       SET kyc_status = $2,
-           kyc_verified_at = CASE WHEN $2 = 'verified' THEN NOW() ELSE NULL END,
-           kyc_rejection_reason = CASE WHEN $2 = 'rejected' THEN $3 ELSE NULL END,
+       SET kyc_status = $2::kyc_status,
+           kyc_verified_at = CASE WHEN $3 THEN NOW() ELSE NULL END,
+           kyc_rejection_reason = CASE WHEN $3 THEN NULL ELSE $4 END,
            updated_at = NOW()
        WHERE id = $1`,
-      [userId, status, reason],
+      [userId, verified ? 'verified' : 'failed', verified, reason],
     )
 
-    if (status === 'verified') {
+    if (verified) {
       eventBus.publish({ type: 'KYC_VERIFIED', userId })
     }
 
-    // Write audit entry
-    await db.execute(
-      `INSERT INTO audit_log (id, event_type, actor_id, target_id, target_type, metadata, created_at)
-       VALUES ($1, 'kyc_admin_override', $2, $3, 'user', $4::jsonb, NOW())`,
-      [
-        crypto.randomUUID(),
-        adminUserId,
-        userId,
-        JSON.stringify({ status, reason }),
-      ],
-    )
+    await AuditLogger.logAsync({
+      eventType: 'admin.kyc_override',
+      actorId: adminUserId,
+      targetId: userId,
+      targetType: 'user',
+      metadata: { status, reason },
+    })
   },
 }

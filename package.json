@@ -19,6 +19,7 @@
     "health-check": "tsx scripts/health-check.ts"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "prettier": "^3.0.0",
     "turbo": "^2.0.0",
     "typescript": "^5.0.0"

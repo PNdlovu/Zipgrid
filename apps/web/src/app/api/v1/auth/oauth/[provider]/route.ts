@@ -88,13 +88,15 @@ export async function GET(
 
   const response = NextResponse.redirect(authUrl)
 
-  // Store CSRF state in a short-lived secure httpOnly cookie
+  // Store CSRF state in a short-lived httpOnly cookie. Apple returns via a
+  // cross-site form POST, which only carries SameSite=None (Secure) cookies.
+  const crossSitePost = provider === 'apple'
   response.cookies.set(`__zg_oauth_state_${provider}`, state, {
     httpOnly: true,
-    secure:   process.env['NODE_ENV'] === 'production',
-    sameSite: 'lax',
+    secure:   crossSitePost || process.env['NODE_ENV'] === 'production',
+    sameSite: crossSitePost ? 'none' : 'lax',
     maxAge:   600, // 10 minutes
-    path:     '/',
+    path:     '/api/v1/auth/oauth',
   })
 
   return response

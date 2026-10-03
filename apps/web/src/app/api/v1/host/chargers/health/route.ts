@@ -43,7 +43,8 @@ export async function GET(request: NextRequest) {
          ss.auto_paused,
          -- Charger device (OCPP live state from charger_devices table)
          cd.last_heartbeat_at,
-         cd.connector_status,
+         (SELECT string_agg(cc.connector_id || ':' || cc.status, ',' ORDER BY cc.connector_id)
+            FROM charger_connectors cc WHERE cc.charge_point_id = cl.ocpp_charge_point_id) AS connector_status,
          cd.firmware_version,
          -- Charger age
          ss.charger_install_year,
@@ -58,11 +59,11 @@ export async function GET(request: NextRequest) {
        LEFT JOIN charger_devices cd ON cd.charge_point_id = cl.ocpp_charge_point_id
        LEFT JOIN LATERAL (
          SELECT
-           COUNT(*) FILTER (WHERE oel.event_type = 'Faulted') AS fault_count,
+           COUNT(*) FILTER (WHERE oel.error_code IS NOT NULL) AS fault_count,
            MAX(oel.timestamp)
-             FILTER (WHERE oel.event_type = 'Faulted')        AS last_fault_at,
+             FILTER (WHERE oel.error_code IS NOT NULL)        AS last_fault_at,
            (ARRAY_AGG(oel.error_code ORDER BY oel.timestamp DESC)
-             FILTER (WHERE oel.event_type = 'Faulted'))[1]    AS last_fault_code
+             FILTER (WHERE oel.error_code IS NOT NULL))[1]    AS last_fault_code
          FROM ocpp_event_log oel
          WHERE oel.charge_point_id = cl.ocpp_charge_point_id
            AND oel.timestamp >= NOW() - INTERVAL '30 days'

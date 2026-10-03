@@ -2,7 +2,7 @@
 -- Migration 003: Charger Listings, Availability & Pricing
 -- ============================================================
 -- This is the spatial core of the platform.
--- Each listing stores a PostGIS GEOGRAPHY point for accurate
+-- Each listing stores a lat/lng NUMERIC pair for proximity search.
 -- distance calculations (ST_DWithin, ST_Distance) in meters.
 -- ============================================================
 
@@ -58,15 +58,9 @@ CREATE TABLE charger_listings (
     status                  listing_status  NOT NULL DEFAULT 'draft',
 
     -- --------------------------------------------------------
-    -- LOCATION  (PostGIS spatial column)
-    -- GEOGRAPHY type uses SRID 4326 (WGS84 lat/lng degrees).
-    -- ST_DWithin on GEOGRAPHY works in meters — no projection
-    -- math needed. A GIST index makes radius queries fast.
+    -- LOCATION  (lat/lng decimal columns; earthdistance for radius queries)
     -- --------------------------------------------------------
-    location                GEOGRAPHY(POINT, 4326) NOT NULL,
-
-    -- Human-readable address (stored separately for display;
-    -- never used for geo-queries — use the geometry column).
+    -- Human-readable address
     address_line1           VARCHAR(200)    NOT NULL,
     address_line2           VARCHAR(100),
     city                    VARCHAR(100)    NOT NULL,
@@ -74,8 +68,7 @@ CREATE TABLE charger_listings (
     postal_code             VARCHAR(20)     NOT NULL,
     country_code            CHAR(2)         NOT NULL DEFAULT 'US',  -- ISO 3166-1 alpha-2
 
-    -- Coords stored redundantly for cheap SELECT without
-    -- ST_X()/ST_Y() parsing when full geo-query not needed.
+    -- Coords used for proximity search (earthdistance extension)
     latitude                NUMERIC(10, 7)  NOT NULL,
     longitude               NUMERIC(10, 7)  NOT NULL,
 
@@ -161,10 +154,9 @@ CREATE TABLE charger_listings (
 -- INDEXES
 -- --------------------------------------------------------
 
--- Primary spatial index — powers ALL proximity/radius searches.
--- GIST is the standard index type for PostGIS GEOGRAPHY columns.
+-- B-tree on lat/lng for bounding-box proximity pre-filter
 CREATE INDEX idx_charger_listings_location
-    ON charger_listings USING GIST (location);
+    ON charger_listings (latitude, longitude);
 
 -- Composite index for the most common filter combination:
 -- "active listings of a given charger level"
@@ -195,29 +187,6 @@ CREATE INDEX idx_charger_listings_ocpp_id
     WHERE ocpp_charge_point_id IS NOT NULL;
 
 
--- --------------------------------------------------------
--- AUTO-SYNC GEOGRAPHY from lat/lng on insert or update
--- Keeps the geometry column consistent if host edits
--- address coordinates via the listing builder UI.
--- --------------------------------------------------------
-
-CREATE OR REPLACE FUNCTION sync_listing_location()
-RETURNS TRIGGER AS $$
-BEGIN
-    -- Build a PostGIS POINT from stored lat/lng columns.
-    -- ST_MakePoint(longitude, latitude) — note: X=lng, Y=lat
-    NEW.location = ST_SetSRID(
-        ST_MakePoint(NEW.longitude, NEW.latitude),
-        4326
-    )::GEOGRAPHY;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_sync_listing_location
-    BEFORE INSERT OR UPDATE OF latitude, longitude
-    ON charger_listings
-    FOR EACH ROW EXECUTE FUNCTION sync_listing_location();
 
 -- updated_at trigger (reuses function from migration 002)
 CREATE TRIGGER trg_charger_listings_updated_at

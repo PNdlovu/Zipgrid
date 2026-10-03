@@ -4,7 +4,7 @@
  * Used by both the host earnings page and the ai-service get_earnings tool.
  *
  * Uses transactions.host_earnings_cents (authoritative) rather than
- * estimating 85% of total_cost_pence.
+ * estimating 85% of total_session_cost_cents.
  *
  * @module apps/web/api/v1/host/earnings
  */
@@ -45,11 +45,11 @@ export async function GET(request: NextRequest) {
     const res = await db.execute(
       `SELECT
          COUNT(cs.id)::INT                               AS session_count,
-         COALESCE(SUM(cs.total_cost_pence), 0)::INT      AS gross_earnings_pence,
+         COALESCE(SUM(cs.total_session_cost_cents), 0)::INT      AS gross_earnings_pence,
          COALESCE(SUM(t.platform_fee_cents), 0)::INT     AS platform_fee_pence,
          COALESCE(SUM(t.host_earnings_cents), 0)::INT    AS net_earnings_pence,
          COALESCE(SUM(cs.energy_consumed_wh) / 1000.0, 0)::NUMERIC(10,2) AS total_kwh,
-         ROUND(AVG(cs.total_cost_pence))::INT            AS avg_session_pence
+         ROUND(AVG(cs.total_session_cost_cents))::INT            AS avg_session_pence
        FROM charging_sessions cs
        JOIN bookings b ON b.id = cs.booking_id
        JOIN charger_listings cl ON cl.id = b.listing_id

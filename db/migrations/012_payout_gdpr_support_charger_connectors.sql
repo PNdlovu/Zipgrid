@@ -11,18 +11,14 @@
 --   charger_connectors      — Per-connector status from OCPP StatusNotification
 -- ============================================================
 
-BEGIN;
+-- The migration runner wraps each file in its own transaction.
 
 -- ------------------------------------------------------------
 -- ENUMS
 -- ------------------------------------------------------------
 
-CREATE TYPE payout_status AS ENUM (
-    'pending',
-    'processing',
-    'completed',
-    'failed'
-);
+-- payout_status already exists (migration 004); batches also need 'completed'.
+ALTER TYPE payout_status ADD VALUE IF NOT EXISTS 'completed';
 
 CREATE TYPE gdpr_deletion_status AS ENUM (
     'pending',
@@ -262,4 +258,3 @@ COMMENT ON TABLE support_messages         IS 'Individual messages within a suppo
 COMMENT ON TABLE charger_connectors       IS 'Per-connector OCPP status from StatusNotification (connector 1+)';
 COMMENT ON TABLE notification_preferences IS 'Per-user notification delivery channel preferences';
 
-COMMIT;

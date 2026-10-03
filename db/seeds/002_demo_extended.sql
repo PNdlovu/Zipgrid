@@ -97,7 +97,7 @@ INSERT INTO installer_profiles (
     TRUE, TRUE, FALSE,
     ARRAY['SW', 'SE', 'W', 'EC', 'WC', 'N', 'NW', 'E'],
     25,
-    ARRAY['home_install', 'commercial_install', 'load_balancing', 'solar_integration'],
+    ARRAY['new_installation', 'upgrade', 'maintenance', 'ev_ready_survey']::service_category[],
     9500, 5500,
     TRUE, 12, 4.9, 11,
     TRUE, 'SW1A 1AA'
@@ -127,12 +127,12 @@ INSERT INTO charger_listings (
 -- London: Chelsea terrace Level 2
 (
     '50000000-0000-0000-0000-000000000001',
-    '10000000-0000-0000-0000-000000000001',
+    '30000000-0000-0000-0000-000000000001',
     'Level 2 in Chelsea Terrace Driveway',
     'Quiet residential driveway in the heart of Chelsea. Easee charger, always reliable. Café and shops 2 minutes walk.',
     '14 Royal Avenue', 'London', 'SW3 4QP', 'GB',
     51.4889, -0.1637,
-    'level_2', ARRAY['type_2'], 7.4,
+    'level_2', ARRAY['Type2']::plug_type[], 7.4,
     'Easee', 'Easee One', 'ZIPGRID-LON-001', TRUE,
     'per_kwh', 33, 8,
     'gate_code', NULL,
@@ -150,7 +150,7 @@ INSERT INTO charger_listings (
     'Level 2 7kW on a quiet residential street in South Manchester. Zappi charger supports solar diversion if you have panels.',
     '22 Warburton Street', 'Manchester', 'M20 5PG', 'GB',
     53.4182, -2.2261,
-    'level_2', ARRAY['type_2', 'tethered_type_2'], 7.0,
+    'level_2', ARRAY['Type2']::plug_type[], 7.0,
     'Myenergi', 'Zappi 2', 'ZIPGRID-MCR-001', TRUE,
     'per_kwh', 29, 0,
     'always_open', NULL,
@@ -163,12 +163,12 @@ INSERT INTO charger_listings (
 -- Edinburgh: New Town Level 2
 (
     '50000000-0000-0000-0000-000000000003',
-    '10000000-0000-0000-0000-000000000001',
+    '30000000-0000-0000-0000-000000000001',
     'Georgian New Town Charge Point',
     'Period property in Edinburgh New Town with a modern 7.4kW Ohme charger. Only 10 min walk from the Royal Mile.',
     '8 Nelson Street', 'Edinburgh', 'EH3 6LF', 'GB',
     55.9587, -3.1926,
-    'level_2', ARRAY['type_2'], 7.4,
+    'level_2', ARRAY['Type2']::plug_type[], 7.4,
     'Ohme', 'Ohme Home Pro', 'ZIPGRID-EDI-001', TRUE,
     'per_kwh', 28, 5,
     'buzz_in', NULL,
@@ -186,7 +186,7 @@ INSERT INTO charger_listings (
     'Near Clifton Suspension Bridge. EO Mini Pro 3. Secure driveway, no street parking hassle.',
     '5 Canynge Road', 'Bristol', 'BS8 3LH', 'GB',
     51.4574, -2.6250,
-    'level_2', ARRAY['type_2'], 7.4,
+    'level_2', ARRAY['Type2']::plug_type[], 7.4,
     'EO Charging', 'EO Mini Pro 3', 'ZIPGRID-BRS-001', TRUE,
     'per_kwh', 31, 0,
     'gate_code', NULL,
@@ -204,7 +204,7 @@ INSERT INTO charger_listings (
     'Close to Hyde Park and Headingley stadium. Great for overnight charges. Pod Point Solo charger.',
     '18 Cardigan Road', 'Leeds', 'LS6 3AG', 'GB',
     53.8155, -1.5664,
-    'level_2', ARRAY['type_2'], 7.0,
+    'level_2', ARRAY['Type2']::plug_type[], 7.0,
     'Pod Point', 'Solo 3', 'ZIPGRID-LDS-001', TRUE,
     'per_kwh', 27, 0,
     'always_open', NULL,
@@ -222,7 +222,7 @@ INSERT INTO charger_listings (
     'Level 2 in a safe enclosed parking bay. Andersen A3 — the premium UK charger. 5-star rated neighbourhood.',
     '37 Oxford Road', 'Birmingham', 'B13 9EH', 'GB',
     52.4402, -1.8863,
-    'level_2', ARRAY['type_2', 'tethered_type_2'], 7.4,
+    'level_2', ARRAY['Type2']::plug_type[], 7.4,
     'Andersen', 'Andersen A3', 'ZIPGRID-BHM-001', TRUE,
     'per_kwh', 30, 8,
     'gate_code', NULL,
@@ -235,12 +235,12 @@ INSERT INTO charger_listings (
 -- Oxford: Jericho Level 2
 (
     '50000000-0000-0000-0000-000000000007',
-    '10000000-0000-0000-0000-000000000001',
+    '30000000-0000-0000-0000-000000000001',
     'Jericho Oxford — Level 2 7kW',
     'Residential street in the sought-after Jericho neighbourhood. Walkable to town centre. Rolec unit.',
     '12 Cardigan Street', 'Oxford', 'OX2 6AY', 'GB',
     51.7576, -1.2647,
-    'level_2', ARRAY['type_2'], 7.4,
+    'level_2', ARRAY['Type2']::plug_type[], 7.4,
     'Rolec', 'Rolec WallPod', 'ZIPGRID-OXF-001', TRUE,
     'per_kwh', 32, 0,
     'always_open', NULL,
@@ -253,12 +253,12 @@ INSERT INTO charger_listings (
 -- Cambridge: Newnham Level 2
 (
     '50000000-0000-0000-0000-000000000008',
-    '10000000-0000-0000-0000-000000000001',
+    '30000000-0000-0000-0000-000000000001',
     'Cambridge Newnham — 11kW 3-Phase',
     '3-phase 11kW charger — faster than most home installs. Modern detached property with private drive.',
     '4 Grantchester Meadows', 'Cambridge', 'CB3 9JL', 'GB',
     52.1918, 0.1112,
-    'level_2', ARRAY['type_2', 'ccs_2'], 11.0,
+    'level_2', ARRAY['Type2', 'CCS2']::plug_type[], 11.0,
     'Wallbox', 'Pulsar Plus', 'ZIPGRID-CAM-001', TRUE,
     'per_kwh', 36, 10,
     'gate_code', NULL,
@@ -276,7 +276,7 @@ INSERT INTO charger_listings (
     'Perfect for beach day charging. Covered bay, 7.4kW, great for long sessions. Near Brighton Marina.',
     '22 St Georges Road', 'Brighton', 'BN2 1EB', 'GB',
     50.8233, -0.1212,
-    'level_2', ARRAY['type_2'], 7.4,
+    'level_2', ARRAY['Type2']::plug_type[], 7.4,
     'Ohme', 'Ohme ePod', 'ZIPGRID-BTN-001', TRUE,
     'per_kwh', 34, 0,
     'always_open', NULL,
@@ -294,7 +294,7 @@ INSERT INTO charger_listings (
     'One of the few privately-owned DC fast chargers. 50kW CCS. In and out in 30 minutes. Leafy West End location.',
     '9 Gibson Street', 'Glasgow', 'G12 8NU', 'GB',
     55.8706, -4.2843,
-    'dc_fast', ARRAY['ccs_2', 'chademo'], 50.0,
+    'dc_fast', ARRAY['CCS2', 'CHAdeMO']::plug_type[], 50.0,
     'Kempower', 'Kempower Satellite', 'ZIPGRID-GLA-001', TRUE,
     'per_kwh', 45, 20,
     'app_unlock', NULL,
@@ -347,7 +347,7 @@ INSERT INTO wallet_transactions (
     '00000000-0000-0000-0000-000000000003',
     'session_payment', -750, 1250,
     'Charging session — Austin Rainey St',
-    '70000000-0000-0000-0000-000000000001',  -- booking from seed 001
+    '50000000-0000-0000-0000-000000000001',  -- booking from seed 001
     NOW() - INTERVAL '3 days'
 )
 ON CONFLICT (id) DO NOTHING;
@@ -401,8 +401,8 @@ ON CONFLICT DO NOTHING;
 INSERT INTO emergency_sessions (
     id, driver_user_id, status,
     battery_pct, vehicle_id,
-    driver_location, max_range_metres,
-    nearest_listing_id, accepted_at,
+    current_lat, current_lng, max_range_metres,
+    accepted_listing_id, expires_at,
     created_at, updated_at
 ) VALUES (
     'e0000000-0000-0000-0000-000000000001',
@@ -410,10 +410,10 @@ INSERT INTO emergency_sessions (
     'accepted',
     8,
     '20000000-0000-0000-0000-000000000002',  -- Marcus's Tesla
-    ST_SetSRID(ST_MakePoint(-0.1278, 51.5074), 4326)::GEOGRAPHY,
+    51.5074, -0.1278,
     18000,  -- 18km range remaining
     '50000000-0000-0000-0000-000000000001',  -- Chelsea listing
-    NOW() - INTERVAL '5 days',
+    NOW() - INTERVAL '5 days' + INTERVAL '5 minutes',
     NOW() - INTERVAL '5 days',
     NOW() - INTERVAL '5 days'
 )
@@ -431,10 +431,10 @@ INSERT INTO installer_jobs (
     commission_rate_pct, platform_fee_pence, installer_net_pence,
     created_at, updated_at
 ) VALUES (
-    'j0000000-0000-0000-0000-000000000001',
+    'a1000000-0000-0000-0000-000000000001',
     '40000000-0000-0000-0000-000000000001',  -- Claire Torres
     '00000000-0000-0000-0000-000000000002',  -- Sarah Chen (as client)
-    'home_install',
+    'new_installation',
     'Install 22kW 3-phase charger — Chelsea home',
     'Upgrade existing single-phase 7kW to 3-phase 22kW with load balancing. Panel upgrade required.',
     '{"line1": "14 Royal Avenue", "city": "London", "postcode": "SW3 4QP"}'::jsonb,
@@ -450,68 +450,62 @@ ON CONFLICT (id) DO NOTHING;
 -- MARKETPLACE PRODUCTS
 -- ============================================================
 
-INSERT INTO marketplace_products (
-    id, name, brand, category_slug,
-    description, price_pence, currency,
-    plug_types, max_power_kw,
-    is_featured, stock_status,
-    image_urls, created_at
+INSERT INTO product_categories (id, name, slug, description, sort_order) VALUES
+    ('a9000000-0000-0000-0000-000000000001', 'Home chargers', 'home-chargers', 'Smart wallboxes for driveways and garages', 1),
+    ('a9000000-0000-0000-0000-000000000002', 'Commercial chargers', 'commercial-chargers', 'DC fast and multi-bay AC chargers', 2),
+    ('a9000000-0000-0000-0000-000000000003', 'Cables & accessories', 'cables-accessories', 'Charging cables, holsters and adapters', 3)
+ON CONFLICT (id) DO NOTHING;
+
+-- Claire Torres also sells hardware through the marketplace.
+INSERT INTO vendor_profiles (id, user_id, business_name, description, is_verified, verified_at)
+VALUES ('a8000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000005',
+        'Torres EV Supplies', 'OZEV-approved chargers and accessories, supplied and fitted.', TRUE, NOW() - INTERVAL '60 days')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO products (
+    id, vendor_profile_id, category_id,
+    name, slug,
+    description,
+    status, price_pence, stock_qty, track_inventory,
+    photo_urls, thumbnail_url,
+    specs, compatible_plug_types,
+    commission_rate_pct, featured, created_at
 ) VALUES
 (
-    'p0000000-0000-0000-0000-000000000001',
-    'Zappi 2 — 7kW EV Charger',
-    'Myenergi',
-    'home_charger',
+    'a2000000-0000-0000-0000-000000000001', 'a8000000-0000-0000-0000-000000000001', 'a9000000-0000-0000-0000-000000000001',
+    'Zappi 2 — 7kW EV Charger', 'myenergi-zappi-2-7kw',
     'The Zappi 2 is the UK''s best-selling smart EV charger. Solar-compatible, OCPP 1.6J, app-controlled.',
-    79900,  -- £799
-    'GBP',
-    ARRAY['type_2'],
-    7.0,
-    TRUE, 'in_stock',
-    ARRAY['https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800'],
-    NOW() - INTERVAL '30 days'
+    'active', 79900, 25, TRUE,
+    ARRAY['https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800'], 'https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800',
+    '{"max_power_kw": 7}'::jsonb, ARRAY['Type2'],
+    10.00, TRUE, NOW() - INTERVAL '30 days'
 ),
 (
-    'p0000000-0000-0000-0000-000000000002',
-    'EO Mini Pro 3 — 7.4kW',
-    'EO Charging',
-    'home_charger',
+    'a2000000-0000-0000-0000-000000000002', 'a8000000-0000-0000-0000-000000000001', 'a9000000-0000-0000-0000-000000000001',
+    'EO Mini Pro 3 — 7.4kW', 'eo-mini-pro-3',
     'Sleek and compact. 7.4kW, tethered or untethered, OCPP, built-in load management.',
-    74900,  -- £749
-    'GBP',
-    ARRAY['type_2', 'tethered_type_2'],
-    7.4,
-    FALSE, 'in_stock',
-    ARRAY['https://images.unsplash.com/photo-1593941707874-ef25b8b4a92b?w=800'],
-    NOW() - INTERVAL '30 days'
+    'active', 74900, 18, TRUE,
+    ARRAY['https://images.unsplash.com/photo-1593941707874-ef25b8b4a92b?w=800'], 'https://images.unsplash.com/photo-1593941707874-ef25b8b4a92b?w=800',
+    '{"max_power_kw": 7.4}'::jsonb, ARRAY['Type2'],
+    10.00, FALSE, NOW() - INTERVAL '30 days'
 ),
 (
-    'p0000000-0000-0000-0000-000000000003',
-    'Kempower Satellite — 50kW DC',
-    'Kempower',
-    'commercial_charger',
+    'a2000000-0000-0000-0000-000000000003', 'a8000000-0000-0000-0000-000000000001', 'a9000000-0000-0000-0000-000000000002',
+    'Kempower Satellite — 50kW DC', 'kempower-satellite-50kw',
     'Commercial-grade 50kW DC fast charger. CCS2 + CHAdeMO. OCPP 2.0.1, remote management.',
-    1249900,  -- £12,499
-    'GBP',
-    ARRAY['ccs_2', 'chademo'],
-    50.0,
-    TRUE, 'available_to_order',
-    ARRAY['https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800'],
-    NOW() - INTERVAL '30 days'
+    'active', 1249900, 2, TRUE,
+    ARRAY['https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800'], 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800',
+    '{"max_power_kw": 50}'::jsonb, ARRAY['CCS2', 'CHAdeMO'],
+    10.00, TRUE, NOW() - INTERVAL '30 days'
 ),
 (
-    'p0000000-0000-0000-0000-000000000004',
-    'Type 2 Charging Cable — 5m 32A',
-    'Cartek',
-    'cable',
+    'a2000000-0000-0000-0000-000000000004', 'a8000000-0000-0000-0000-000000000001', 'a9000000-0000-0000-0000-000000000003',
+    'Type 2 Charging Cable — 5m 32A', 'type-2-cable-5m-32a',
     'Universal Mode 3 Type 2 to Type 2 cable. 5-metre, 32A, 7.4kW max. IEC 62196-2 compliant.',
-    6900,  -- £69
-    'GBP',
-    ARRAY['type_2'],
-    7.4,
-    FALSE, 'in_stock',
-    ARRAY['https://images.unsplash.com/photo-1620714223084-8fcacc2d47c9?w=800'],
-    NOW() - INTERVAL '30 days'
+    'active', 6900, 120, TRUE,
+    ARRAY['https://images.unsplash.com/photo-1620714223084-8fcacc2d47c9?w=800'], 'https://images.unsplash.com/photo-1620714223084-8fcacc2d47c9?w=800',
+    '{"max_power_kw": 7.4}'::jsonb, ARRAY['Type2'],
+    10.00, FALSE, NOW() - INTERVAL '30 days'
 )
 ON CONFLICT (id) DO NOTHING;
 
@@ -520,16 +514,18 @@ ON CONFLICT (id) DO NOTHING;
 -- ============================================================
 
 INSERT INTO disputes (
-    id, raised_by_user_id, raised_against_user_id,
-    booking_id, dispute_type, status,
+    id, raised_by_user_id, against_user_id,
+    booking_id, transaction_id, dispute_type, status, title,
     description, created_at, updated_at
 ) VALUES (
     'd0000000-0000-0000-0000-000000000001',
     '00000000-0000-0000-0000-000000000003',   -- Marcus raised it
     '00000000-0000-0000-0000-000000000002',   -- against Sarah
-    '70000000-0000-0000-0000-000000000001',   -- the completed booking
+    '50000000-0000-0000-0000-000000000001',   -- the completed booking
+    '70000000-0000-0000-0000-000000000001',   -- its transaction
     'billing',
     'open',
+    'Billed for full session after charger fault',
     'Session ended prematurely at 80% charge. Billed for full session duration but charger reported fault at 14:23.',
     NOW() - INTERVAL '2 days',
     NOW() - INTERVAL '2 days'
@@ -541,15 +537,14 @@ ON CONFLICT (id) DO NOTHING;
 -- ============================================================
 
 INSERT INTO safety_scores (
-    id, listing_id,
-    charger_age_score, rcd_protection_score, electrician_installed_score,
-    ocpp_fault_rate_score, driver_complaints_score, platform_inspection_score,
-    overall_score, score_band, calculated_at
+    listing_id,
+    score_charger_age, score_rcd_protection, score_electrician_installed,
+    score_ocpp_fault_rate, score_driver_complaints, score_platform_inspection,
+    overall_score, has_rcd_protection, is_electrician_installed, last_calculated_at
 ) VALUES (
-    'ss000000-0000-0000-0000-000000000001',
     '50000000-0000-0000-0000-000000000001',  -- Chelsea listing
     90, 100, 95, 100, 95, 0,  -- platform inspection not done yet
-    89, 'good',
+    89, TRUE, TRUE,
     NOW() - INTERVAL '1 day'
 )
 ON CONFLICT DO NOTHING;
@@ -559,15 +554,15 @@ ON CONFLICT DO NOTHING;
 -- ============================================================
 
 INSERT INTO webhook_subscriptions (
-    id, user_id, endpoint_url,
-    secret_hash, events, is_active,
+    id, user_id, url,
+    secret, events, is_active,
     created_at, updated_at
 ) VALUES (
-    'ws000000-0000-0000-0000-000000000001',
+    'a4000000-0000-0000-0000-000000000001',
     '00000000-0000-0000-0000-000000000004',  -- Andy Park (SMB)
     'https://webhook.site/zipgrid-demo-endpoint',
-    'sha256:demo_secret_hash_not_real',
-    ARRAY['session.completed', 'booking.confirmed', 'payout.paid'],
+    'whsec_demo_not_a_real_secret',
+    ARRAY['session.completed', 'booking.confirmed', 'payout.paid']::webhook_event_type[],
     TRUE,
     NOW() - INTERVAL '30 days',
     NOW() - INTERVAL '30 days'

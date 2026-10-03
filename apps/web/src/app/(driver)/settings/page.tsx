@@ -1,7 +1,8 @@
 ﻿/**
  * @file page.tsx
- * @description /driver/settings — Driver account settings.
- * Tabs: AI Mode, Notifications, Privacy & GDPR, Account / Danger Zone.
+ * @description /settings — Driver account settings.
+ * Tabs: AI Mode, Notifications, Payments (saved cards), Privacy & GDPR,
+ * Account / Danger Zone. ?tab=<key> opens a tab directly (e.g. ?tab=payments).
  *
  * @module apps/web/app/(driver)/settings
  * @version 0.1.0
@@ -15,14 +16,15 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import {
   Zap, Bell, Shield, AlertTriangle, CheckCircle,
-  Loader2, Download, Trash2,
+  Loader2, Download, Trash2, CreditCard,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { PaymentMethodsManager } from '@/components/payments/PaymentMethodsManager'
 
 /* ── Types ───────────────────────────────────────────────── */
 
 type AiMode = 'standard' | 'hybrid' | 'agentic'
-type Tab    = 'ai'       | 'notifications' | 'privacy' | 'account'
+type Tab    = 'ai'       | 'notifications' | 'payments' | 'privacy' | 'account'
 
 type NotifPrefs = {
   emailEnabled: boolean
@@ -33,6 +35,7 @@ type NotifPrefs = {
 const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
   { key: 'ai',            label: 'AI assistant',  icon: Zap },
   { key: 'notifications', label: 'Notifications', icon: Bell },
+  { key: 'payments',      label: 'Payments',      icon: CreditCard },
   { key: 'privacy',       label: 'Privacy',       icon: Shield },
   { key: 'account',       label: 'Account',       icon: AlertTriangle },
 ]
@@ -47,6 +50,12 @@ const AI_MODES: { value: AiMode; label: string; description: string }[] = [
 
 export default function DriverSettingsPage() {
   const [tab,        setTab]        = useState<Tab>('ai')
+
+  // Deep link: /settings?tab=payments
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get('tab')
+    if (TABS.some((t) => t.key === requested)) setTab(requested as Tab)
+  }, [])
   const [aiMode,     setAiMode]     = useState<AiMode>('hybrid')
   const [notifPrefs, setNotifPrefs] = useState<NotifPrefs>({ emailEnabled: true, smsEnabled: false, pushEnabled: true })
   const [loading,    setLoading]    = useState(true)
@@ -58,6 +67,36 @@ export default function DriverSettingsPage() {
   const [exportLoading,  setExportLoading]  = useState(false)
   const [deleteStep,     setDeleteStep]     = useState<'idle' | 'confirm' | 'loading' | 'done'>('idle')
   const [deleteConfirm,  setDeleteConfirm]  = useState('')
+  const [deletionDate,   setDeletionDate]   = useState<string | null>(null)
+  const [cancelling,     setCancelling]     = useState(false)
+
+  // Show an existing pending deletion request (with its cancel option).
+  useEffect(() => {
+    fetch('/api/v1/account/delete')
+      .then((r) => r.json() as Promise<{ data?: { hasPendingRequest: boolean; request: { scheduledFor: string } | null } }>)
+      .then((json) => {
+        if (json.data?.hasPendingRequest && json.data.request) {
+          setDeletionDate(json.data.request.scheduledFor)
+          setDeleteStep('done')
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleCancelDeletion = async () => {
+    setCancelling(true)
+    try {
+      const res = await fetch('/api/v1/account/delete', { method: 'DELETE' })
+      if (!res.ok) {
+        const d = (await res.json()) as { error?: { message?: string } }
+        setError(d.error?.message ?? 'Could not cancel the deletion request.')
+        return
+      }
+      setDeleteStep('idle'); setDeleteConfirm(''); setDeletionDate(null)
+      setSuccess('Your account deletion request has been cancelled.')
+    } catch { setError('Network error.') }
+    finally { setCancelling(false) }
+  }
 
   const fetchPreferences = useCallback(async () => {
     setLoading(true)
@@ -134,6 +173,7 @@ export default function DriverSettingsPage() {
         setError(d.error?.message ?? 'Deletion request failed.')
         setDeleteStep('confirm')
       } else {
+        setDeletionDate(new Date(Date.now() + 30 * 86_400_000).toISOString())
         setDeleteStep('done')
       }
     } catch { setError('Network error.'); setDeleteStep('confirm') }
@@ -261,6 +301,9 @@ export default function DriverSettingsPage() {
         </div>
       )}
 
+      {/* ── Payments ──────────────────────────────────────────── */}
+      {tab === 'payments' && <PaymentMethodsManager />}
+
       {/* ── Privacy ───────────────────────────────────────────── */}
       {tab === 'privacy' && (
         <div className="space-y-5">
@@ -316,14 +359,25 @@ export default function DriverSettingsPage() {
               <CheckCircle className="mx-auto h-8 w-8 text-[hsl(var(--primary))]" aria-hidden="true" />
               <p className="mt-2 text-sm font-medium">Deletion request submitted</p>
               <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
-                Your account will be anonymised in 30 days. You can cancel this in the Privacy tab.
+                Your account will be deleted on {deletionDate ? new Date(deletionDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'the end of the 30-day cooling-off period'}.
+                You can cancel until then.
               </p>
+              <button
+                onClick={() => { void handleCancelDeletion() }}
+                disabled={cancelling}
+                className="mt-3 inline-flex items-center gap-2 rounded-[6px] border border-[hsl(var(--border))] px-4 py-2 text-xs font-medium hover:bg-[hsl(var(--muted))] disabled:opacity-60"
+              >
+                {cancelling && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
+                Cancel deletion request
+              </button>
             </div>
           ) : (
             <div className="rounded-[6px] border border-[hsl(var(--destructive)_/_30%)] bg-[hsl(var(--destructive)_/_5%)] p-5">
               <h2 className="text-sm font-semibold text-[hsl(var(--destructive))]">Delete account</h2>
               <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
                 Permanently deletes your account after a 30-day cooling-off period. Financial records are kept for HMRC compliance (7 years).
+                Money you topped up into your wallet is refunded to your card; promotional and reward credit is forfeited.
+                Upcoming bookings and any outstanding balance must be settled first.
               </p>
               {deleteStep === 'idle' && (
                 <button

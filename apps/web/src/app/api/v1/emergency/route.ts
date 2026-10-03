@@ -21,6 +21,7 @@ import { z } from 'zod'
 import { v4 as uuidv4 } from 'uuid'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
+import { distanceMetresSql, withinRadiusSql } from '@/lib/db/geo'
 
 const EmergencySchema = z.object({
   batteryPct: z.number().int().min(1).max(100),
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
     if (!resolvedVehicleId) {
       // Auto-select primary vehicle
       const pvRes = await db.execute(
-        `SELECT id FROM driver_vehicles dv
+        `SELECT dv.id FROM driver_vehicles dv
          JOIN driver_profiles dp ON dp.id = dv.driver_profile_id
          WHERE dp.user_id = $1 AND dv.is_primary = TRUE LIMIT 1`,
         [userId],
@@ -92,11 +93,11 @@ export async function POST(request: NextRequest) {
               cl.instant_book_enabled,
               cl.ocpp_charge_point_id,
               hp.user_id AS host_user_id,
-              ST_Distance(cl.location, ST_MakePoint($2, $1)::GEOGRAPHY) AS distance_m
+              ${distanceMetresSql('cl.latitude', 'cl.longitude', '$1', '$2')} AS distance_m
        FROM charger_listings cl
        JOIN host_profiles hp ON hp.id = cl.host_profile_id
        WHERE cl.status = 'active'
-         AND ST_DWithin(cl.location, ST_MakePoint($2, $1)::GEOGRAPHY, $3)
+         AND ${withinRadiusSql('cl.latitude', 'cl.longitude', '$1', '$2', '$3')}
          ${plugWhere}
          AND NOT EXISTS (
            SELECT 1 FROM bookings b
@@ -119,14 +120,12 @@ export async function POST(request: NextRequest) {
       `INSERT INTO emergency_sessions (
          id, driver_user_id, vehicle_id, battery_pct,
          current_lat, current_lng,
-         current_location,
          max_range_metres, status,
          alerted_listing_ids, platform_fee_waived,
          expires_at, created_at, updated_at
        ) VALUES (
          $1, $2, $3, $4,
          $5, $6,
-         ST_SetSRID(ST_MakePoint($6, $5), 4326)::GEOGRAPHY,
          $7, 'host_alerted',
          $8::uuid[], TRUE,
          $9, NOW(), NOW()

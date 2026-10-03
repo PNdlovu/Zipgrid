@@ -12,6 +12,7 @@
 import { v4 as uuidv4 } from 'uuid'
 import { getDb } from '@/lib/db'
 import { NotFoundError, ValidationError } from '@/lib/errors/AppError'
+import { distanceMetresSql } from '@/lib/db/geo'
 
 /* ── Types ──────────────────────────────────────────────────── */
 
@@ -131,7 +132,7 @@ export const InstallerService = {
       listValues.push(params.lng, params.lat)
       const lngIdx = listValues.length - 1
       const latIdx = listValues.length
-      orderBy = `ST_Distance(ip.base_location, ST_MakePoint($${lngIdx},$${latIdx})::GEOGRAPHY) ASC NULLS LAST`
+      orderBy = `${distanceMetresSql('ip.base_latitude', 'ip.base_longitude', `${latIdx}`, `${lngIdx}`)} ASC NULLS LAST`
     } else {
       orderBy = 'ip.average_rating DESC NULLS LAST, ip.total_jobs DESC'
     }

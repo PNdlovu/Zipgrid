@@ -186,7 +186,7 @@ export default function ConfirmArrivalPage() {
           This charger is OCPP-connected. Plug in your vehicle and the session will start automatically.
         </p>
         <Link
-          href={`/driver/bookings/${bookingId}`}
+          href={`/bookings/${bookingId}`}
           className="mt-6 inline-flex items-center gap-2 rounded-xl bg-green-600 px-6 py-3 text-sm font-semibold text-white hover:bg-green-700"
         >
           View booking
@@ -228,7 +228,7 @@ export default function ConfirmArrivalPage() {
             <p className="mt-2 text-xs text-gray-400">Estimated cost: {fmtPence(booking.estimatedCostPence)}</p>
           </div>
           <Link
-            href={`/driver/session/${sessionId}`}
+            href={`/session/${sessionId}`}
             className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-6 py-3 text-sm font-semibold text-white hover:bg-green-700"
           >
             Monitor session
@@ -244,7 +244,7 @@ export default function ConfirmArrivalPage() {
   if (step === 'instructions') {
     return (
       <div className="mx-auto max-w-md px-4 py-8 sm:px-6">
-        <Link href={`/driver/bookings/${bookingId}`} className="mb-6 flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-gray-700">
+        <Link href={`/bookings/${bookingId}`} className="mb-6 flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-gray-700">
           <ArrowLeft className="h-4 w-4" /> Back
         </Link>
         <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">Confirm your arrival</h1>

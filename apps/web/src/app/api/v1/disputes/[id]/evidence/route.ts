@@ -33,7 +33,7 @@ async function resolveParty(disputeId: string, userId: string) {
   const db = await getDb()
 
   const res = await db.execute(
-    `SELECT d.id, d.status, d.raised_by_user_id, d.raised_against_user_id
+    `SELECT d.id, d.status, d.raised_by_user_id, d.against_user_id
      FROM disputes d
      WHERE d.id = $1 LIMIT 1`,
     [disputeId],
@@ -44,11 +44,11 @@ async function resolveParty(disputeId: string, userId: string) {
     id: string
     status: string
     raised_by_user_id: string
-    raised_against_user_id: string | null
+    against_user_id: string | null
   }
 
   const isParty = dispute.raised_by_user_id === userId ||
-                  dispute.raised_against_user_id === userId
+                  dispute.against_user_id === userId
 
   return { db, dispute, isParty }
 }

@@ -12,7 +12,7 @@
 
 import { type NextRequest } from 'next/server'
 import { z } from 'zod'
-import { AvailabilityService } from '@/domains/charging/AvailabilityService'
+import { AvailabilityService, assertListingOwner } from '@/domains/charging/AvailabilityService'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
 
@@ -57,6 +57,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (!parsed.success) return apiError('VALIDATION_ERROR', parsed.error.errors[0]?.message ?? 'Invalid', 422)
 
   try {
+    await assertListingOwner(id, userId)
     await AvailabilityService.addBlackout(id, parsed.data.date, parsed.data.reason)
     return apiResponse({ added: true }, undefined, 201)
   } catch (err) {
@@ -74,6 +75,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   if (!date) return apiError('VALIDATION_ERROR', 'date query parameter required', 422)
 
   try {
+    await assertListingOwner(id, userId)
     await AvailabilityService.removeBlackout(id, date)
     return apiResponse({ removed: true })
   } catch (err) {

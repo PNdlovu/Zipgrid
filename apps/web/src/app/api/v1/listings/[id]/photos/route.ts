@@ -95,7 +95,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       const isCover = photoCount === 0
       const photoId = uuidv4()
       await db.execute(
-        `INSERT INTO listing_photos (id, listing_id, photo_url, is_cover, sort_order, created_at)
+        `INSERT INTO listing_photos (id, listing_id, cdn_url, is_cover, display_order, uploaded_at)
          VALUES ($1, $2, $3, $4, $5, NOW())`,
         [photoId, listingId, devUrl, isCover, photoCount],
       )
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     const isCover  = photoCount === 0
     const photoId  = uuidv4()
     await db.execute(
-      `INSERT INTO listing_photos (id, listing_id, photo_url, is_cover, sort_order, created_at)
+      `INSERT INTO listing_photos (id, listing_id, cdn_url, is_cover, display_order, uploaded_at)
        VALUES ($1, $2, $3, $4, $5, NOW())`,
       [photoId, listingId, photoUrl, isCover, photoCount],
     )
@@ -168,7 +168,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
     // Get photo to check existence and cover status
     const photoRes = await db.execute(
-      `SELECT id, is_cover, photo_url FROM listing_photos
+      `SELECT id, is_cover, cdn_url FROM listing_photos
        WHERE id = $1 AND listing_id = $2 LIMIT 1`,
       [photoId, listingId],
     )
@@ -176,7 +176,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       return apiError('NOT_FOUND', 'Photo not found', 404)
     }
 
-    const photo = photoRes.rows[0] as { id: string; is_cover: boolean; photo_url: string }
+    const photo = photoRes.rows[0] as { id: string; is_cover: boolean; cdn_url: string }
 
     // Delete from DB
     await db.execute(`DELETE FROM listing_photos WHERE id = $1`, [photoId])
@@ -187,15 +187,15 @@ export async function DELETE(request: NextRequest, { params }: Params) {
         `UPDATE listing_photos
          SET is_cover = TRUE
          WHERE listing_id = $1
-           AND id = (SELECT id FROM listing_photos WHERE listing_id = $1 ORDER BY sort_order ASC LIMIT 1)`,
+           AND id = (SELECT id FROM listing_photos WHERE listing_id = $1 ORDER BY display_order ASC LIMIT 1)`,
         [listingId],
       )
     }
 
     // Best-effort: delete from Vercel Blob
     const blobToken = process.env['BLOB_READ_WRITE_TOKEN']
-    if (blobToken && photo.photo_url.includes('vercel-storage.com')) {
-      await fetch(photo.photo_url, {
+    if (blobToken && photo.cdn_url.includes('vercel-storage.com')) {
+      await fetch(photo.cdn_url, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${blobToken}` },
       }).catch(() => { /* non-fatal */ })

@@ -16,8 +16,8 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   typescript: {
-    // TypeScript errors are tracked as tech debt — don't block production deploys
-    ignoreBuildErrors: true,
+    // The app typechecks cleanly (npm run typecheck); type errors block deploys
+    ignoreBuildErrors: false,
   },
   transpilePackages: [
     '@zipgrid/types',

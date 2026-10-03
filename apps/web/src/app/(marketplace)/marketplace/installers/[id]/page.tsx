@@ -2,7 +2,7 @@
  * @file page.tsx
  * @description /marketplace/installers/[id] — Installer profile + service booking.
  * Shows the installer's certifications, portfolio, reviews, and a booking form
- * that creates a Stripe escrow hold via /api/v1/marketplace/checkout.
+ * that places a hold on one of the driver's saved cards via /api/v1/marketplace/checkout.
  *
  * @module apps/web/app/(marketplace)/marketplace/installers/[id]
  * @version 0.1.0
@@ -21,6 +21,7 @@ import {
   CalendarDays, PoundSterling,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { usePaymentMethods } from '@/hooks/usePaymentMethods'
 
 /* ── Types ──────────────────────────────────────────────────── */
 
@@ -64,13 +65,13 @@ async function fetchInstaller(id: string): Promise<InstallerDetail> {
   return json.data!.installer
 }
 
-/** Initiates checkout for an installer job. */
-async function requestBooking(installerJobId: string, requestedDate: string, notes: string): Promise<{ orderId: string }> {
+/** Initiates checkout for an installer job, holding the chosen saved card. */
+async function requestBooking(installerJobId: string, paymentMethodId: string): Promise<{ orderId: string }> {
   const res = await fetch('/api/v1/marketplace/checkout', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ installerJobId, requestedDate, notes, paymentMethodId: 'pm_card_visa' }),
+    body: JSON.stringify({ installerJobId, paymentMethodId }),
   })
   const json = await res.json() as { success: boolean; data?: { orderId: string }; error?: { message: string } }
   if (!res.ok || !json.success) throw new Error(json.error?.message ?? 'Booking failed')
@@ -95,6 +96,10 @@ export default function InstallerDetailPage() {
   const [notes, setNotes]             = useState('')
   const [booking, setBooking]         = useState(false)
   const [booked, setBooked]           = useState(false)
+  const [bookingError, setBookingError] = useState<string | null>(null)
+  const { cards, defaultCard } = usePaymentMethods()
+  const [chosenCardId, setChosenCardId] = useState<string | null>(null)
+  const cardId = chosenCardId ?? defaultCard?.id ?? ''
 
   useEffect(() => {
     void fetchInstaller(params.id)
@@ -104,13 +109,14 @@ export default function InstallerDetailPage() {
   }, [params.id])
 
   const handleBook = async () => {
-    if (!selectedJob) return
+    if (!selectedJob || !cardId) return
     setBooking(true)
+    setBookingError(null)
     try {
-      await requestBooking(selectedJob.id, requestDate, notes)
+      await requestBooking(selectedJob.id, cardId)
       setBooked(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Booking failed')
+      setBookingError(err instanceof Error ? err.message : 'Booking failed')
     } finally {
       setBooking(false)
     }
@@ -261,10 +267,25 @@ export default function InstallerDetailPage() {
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm resize-none"
                 />
               </div>
-              {error && <p className="mb-3 text-xs text-red-600">{error}</p>}
+              <div className="mb-4">
+                <label htmlFor="installer-card" className="mb-1 block text-xs font-medium text-gray-600">Pay with</label>
+                {cards === null ? (
+                  <p className="text-xs text-gray-400">Loading cards…</p>
+                ) : cards.length === 0 ? (
+                  <p className="text-xs text-gray-500">
+                    No saved cards. <Link href="/settings?tab=payments" className="font-medium text-green-600 hover:underline">Add a card</Link>
+                  </p>
+                ) : (
+                  <select id="installer-card" value={cardId} onChange={(e) => setChosenCardId(e.target.value)}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
+                    {cards.map((c) => <option key={c.id} value={c.id}>{c.brand.toUpperCase()} •••• {c.last4}</option>)}
+                  </select>
+                )}
+              </div>
+              {bookingError && <p role="alert" className="mb-3 text-xs text-red-600">{bookingError}</p>}
               <button
                 onClick={() => void handleBook()}
-                disabled={!selectedJob || booking}
+                disabled={!selectedJob || !cardId || booking}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
               >
                 {booking ? <Loader2 className="h-4 w-4 animate-spin" /> : <PoundSterling className="h-4 w-4" />}

@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       `SELECT cs.id, cs.status, cs.started_at,
               ROUND((cs.energy_consumed_wh / 1000.0)::NUMERIC, 3) AS energy_kwh,
               cs.total_session_cost_cents AS cost_pence,
-              cs.soc_pct,
+              cs.soc_percent,
               cl.id AS listing_id, cl.title AS listing_title,
               cl.ocpp_charge_point_id
        FROM charging_sessions cs
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
       },
       {
         entity_id: 'sensor.zipgrid_session_soc',
-        state: isCharging && session?.['soc_pct'] ? String(session['soc_pct']) : 'unknown',
+        state: isCharging && session?.['soc_percent'] ? String(session['soc_percent']) : 'unknown',
         attributes: {
           friendly_name: 'Battery State of Charge',
           unit_of_measurement: '%',

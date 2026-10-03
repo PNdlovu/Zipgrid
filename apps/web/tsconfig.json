@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -17,18 +21,36 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "plugins": [{ "name": "next" }],
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
     "paths": {
-      "@/*": ["./src/*"],
-      "@zipgrid/types": ["../../packages/types/src/index.ts"],
-      "@zipgrid/api-client": ["../../packages/api-client/src/index.ts"],
-      "@zipgrid/utils": ["../../packages/utils/src/index.ts"],
-      "@zipgrid/ui-primitives": ["../../packages/ui-primitives/src/index.ts"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@zipgrid/types": [
+        "../../packages/types/src/index.ts"
+      ],
+      "@zipgrid/api-client": [
+        "../../packages/api-client/src/index.ts"
+      ],
+      "@zipgrid/utils": [
+        "../../packages/utils/src/index.ts"
+      ],
+      "@zipgrid/ui-primitives": [
+        "../../packages/ui-primitives/src/index.ts"
+      ]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
   "exclude": [
-    "node_modules",
-    "src/lib/db/index.ts"
+    "node_modules"
   ]
 }

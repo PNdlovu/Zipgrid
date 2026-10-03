@@ -14,6 +14,7 @@ import { z } from 'zod'
 import { ListingService } from '@/domains/charging/ListingService'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
+import { geocodeUkPostcode } from '@/lib/geo/postcode'
 
 /* ── POST — create draft listing ───────────────────────────── */
 
@@ -25,10 +26,11 @@ const CreateListingSchema = z.object({
   city: z.string().min(2).max(100),
   postcode: z.string().min(5).max(10),
   countryCode: z.string().length(2).default('GB'),
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
+  /** Optional: geocoded from the UK postcode when omitted. */
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
   chargerLevel: z.enum(['level_1', 'level_2', 'dc_fast', 'dc_ultra_fast']),
-  plugTypes: z.array(z.string()).min(1),
+  plugTypes: z.array(z.enum(['CCS1', 'CCS2', 'NACS', 'CHAdeMO', 'Type2', 'NEMA_14_50', 'NEMA_5_15', 'J1772'])).min(1),
   maxPowerKw: z.number().positive().max(400),
   numPorts: z.number().int().min(1).max(100).optional(),
   chargerBrand: z.string().max(80).optional(),
@@ -52,6 +54,12 @@ const CreateListingSchema = z.object({
   instantBookEnabled: z.boolean().optional(),
   minBookingHours: z.number().positive().optional(),
   maxBookingHours: z.number().positive().max(24).optional(),
+}).refine((d) => d.isSmartCharger || !['per_kwh', 'hybrid'].includes(d.pricingModel), {
+  message: 'Per-kWh pricing needs a connected (OCPP) charger — choose per hour or a flat fee.',
+  path: ['pricingModel'],
+}).refine((d) => !d.isSmartCharger || Boolean(d.ocppChargePointId), {
+  message: 'Smart chargers need their OCPP Charge Point ID (pair the charger first).',
+  path: ['ocppChargePointId'],
 })
 
 /**
@@ -88,8 +96,29 @@ export async function POST(request: NextRequest) {
     }
     const hostProfileId = (profileResult.rows[0] as { id: string }).id
 
+    // A listing may only use a charger this host has paired.
+    if (parsed.data.ocppChargePointId) {
+      const device = await db.execute(
+        `SELECT 1 FROM charger_devices WHERE charge_point_id = $1 AND host_profile_id = $2`,
+        [parsed.data.ocppChargePointId, hostProfileId],
+      )
+      if (device.rows.length === 0) {
+        return apiError('CHARGER_NOT_PAIRED', 'Pair this charger to your account before listing it.', 422)
+      }
+    }
+
+    let { latitude, longitude } = parsed.data
+    if (latitude === undefined || longitude === undefined) {
+      const geo = await geocodeUkPostcode(parsed.data.postcode)
+      if (!geo) return apiError('POSTCODE_NOT_FOUND', 'We could not find that postcode — please check it.', 422)
+      latitude = geo.lat
+      longitude = geo.lng
+    }
+
     const listing = await ListingService.create({
       ...parsed.data,
+      latitude,
+      longitude,
       hostProfileId,
       description: parsed.data.description ?? undefined,
       addressLine2: parsed.data.addressLine2 ?? undefined,

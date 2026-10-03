@@ -12,6 +12,7 @@
  */
 
 import { ServiceUnavailableError, AppError } from '@/lib/errors/AppError'
+import { requireEnv } from '@/lib/env'
 
 type OcppCommandResult = { status: 'Accepted' | 'Rejected' }
 
@@ -25,7 +26,7 @@ function getOcppServiceUrl(): string {
 }
 
 function getOcppServiceSecret(): string {
-  return process.env['OCPP_SERVICE_SECRET'] ?? 'dev-ocpp-secret'
+  return requireEnv('OCPP_SERVICE_SECRET')
 }
 
 async function callOcppService(path: string, body: Record<string, unknown>): Promise<OcppCommandResult> {

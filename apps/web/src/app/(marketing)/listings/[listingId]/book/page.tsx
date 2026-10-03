@@ -2,7 +2,8 @@
  * @file page.tsx
  * @description /listings/[listingId]/book — Booking creation flow.
  * Authenticated drivers select a vehicle, choose a time slot,
- * confirm a saved payment method, and submit to POST /api/v1/bookings.
+ * pay with a saved card or their wallet, and submit to POST /api/v1/bookings.
+ * Wallet bookings reserve the estimated cost from the available balance.
  *
  * Unauthenticated users are redirected to /auth/register?redirect=...
  * (handled by middleware — this page always receives a valid x-user-id).
@@ -21,7 +22,7 @@ import Link from 'next/link'
 import {
   ArrowLeft, Car, CreditCard, CalendarDays,
   Clock, Zap, PoundSterling, CheckCircle,
-  AlertTriangle, Loader2, ChevronRight,
+  AlertTriangle, Loader2, ChevronRight, Wallet,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -109,12 +110,14 @@ export default function BookPage({
   const [listing,        setListing]        = useState<ListingSummary | null>(null)
   const [vehicles,       setVehicles]       = useState<Vehicle[]>([])
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
+  const [walletAvailablePence, setWalletAvailablePence] = useState<number | null>(null)
   const [loadingData,    setLoadingData]    = useState(true)
   const [dataError,      setDataError]      = useState<string | null>(null)
 
   // Form state
   const [vehicleId,       setVehicleId]       = useState<string>('')
   const [paymentMethodId, setPaymentMethodId] = useState<string>('')
+  const [payWithWallet,   setPayWithWallet]   = useState(false)
 
   // Default start = tomorrow 09:00, end = +2h
   const defaultStart = new Date()
@@ -134,10 +137,11 @@ export default function BookPage({
     setLoadingData(true)
     setDataError(null)
     try {
-      const [listingRes, vehiclesRes, paymentRes] = await Promise.all([
+      const [listingRes, vehiclesRes, paymentRes, walletRes] = await Promise.all([
         fetch(`/api/v1/listings/${listingId}`),
         fetch('/api/v1/vehicles'),
         fetch('/api/v1/payments/methods'),
+        fetch('/api/v1/wallet'),
       ])
 
       if (!listingRes.ok) { setDataError('Listing not found'); return }
@@ -156,6 +160,11 @@ export default function BookPage({
         setPaymentMethods(pm.data ?? [])
         const def = pm.data?.find((x) => x.isDefault)
         if (def) setPaymentMethodId(def.id)
+      }
+
+      if (walletRes.ok) {
+        const w = (await walletRes.json()) as { data?: { balance: { availablePence: number } } }
+        setWalletAvailablePence(w.data?.balance.availablePence ?? null)
       }
     } catch {
       setDataError('Failed to load booking data. Please try again.')
@@ -177,10 +186,12 @@ export default function BookPage({
   const minH = listing?.minBookingHours ?? 0.5
   const maxH = listing?.maxBookingHours ?? 24
   const durationValid = durationH >= minH && durationH <= maxH && startDate > new Date()
+  const walletCovers = walletAvailablePence !== null && walletAvailablePence >= estimatedCostPence
+  const paymentChosen = payWithWallet ? walletCovers : Boolean(paymentMethodId)
 
   // ── Submit ─────────────────────────────────────────────────
   async function handleBook() {
-    if (!vehicleId || !paymentMethodId || !durationValid) return
+    if (!vehicleId || !paymentChosen || !durationValid) return
     setSubmitting(true)
     setSubmitError(null)
     try {
@@ -192,7 +203,7 @@ export default function BookPage({
           vehicleId,
           scheduledStart: startDate.toISOString(),
           scheduledEnd:   endDate.toISOString(),
-          paymentMethodId,
+          ...(payWithWallet ? { payWithWallet: true } : { paymentMethodId }),
         }),
       })
       const json = (await res.json()) as { success: boolean; data?: { id: string }; error?: { message: string } }
@@ -200,7 +211,7 @@ export default function BookPage({
         setSubmitError(json.error?.message ?? 'Booking failed. Please try again.')
         return
       }
-      router.push(`/driver/bookings/${json.data!.id}`)
+      router.push(`/bookings/${json.data!.id}`)
     } catch {
       setSubmitError('Network error — please check your connection and try again.')
     } finally {
@@ -229,7 +240,7 @@ export default function BookPage({
     )
   }
 
-  const canBook = vehicleId && paymentMethodId && durationValid && !submitting
+  const canBook = vehicleId && paymentChosen && durationValid && !submitting
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
@@ -307,7 +318,7 @@ export default function BookPage({
           {vehicles.length === 0 ? (
             <div className="text-center py-4">
               <p className="text-sm text-[hsl(var(--muted-foreground))]">No vehicles on your account.</p>
-              <Link href="/driver/vehicles" className="mt-2 inline-block text-sm font-medium text-[hsl(var(--primary))]">
+              <Link href="/vehicles" className="mt-2 inline-block text-sm font-medium text-[hsl(var(--primary))]">
                 Add a vehicle →
               </Link>
             </div>
@@ -355,10 +366,39 @@ export default function BookPage({
             <CreditCard className="h-4 w-4 text-[hsl(var(--primary))]" aria-hidden="true" />
             Payment method
           </h2>
+          {walletAvailablePence !== null && (
+            <label
+              className={cn(
+                'mb-2 flex cursor-pointer items-center gap-3 rounded-[6px] border p-3 transition-colors',
+                payWithWallet
+                  ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)_/_5%)]'
+                  : 'border-[hsl(var(--border))] hover:border-[hsl(var(--primary)_/_40%)]',
+              )}
+            >
+              <input
+                type="radio"
+                name="payment"
+                value="wallet"
+                checked={payWithWallet}
+                onChange={() => setPayWithWallet(true)}
+                className="accent-[hsl(var(--primary))]"
+              />
+              <Wallet className="h-4 w-4 text-[hsl(var(--primary))]" aria-hidden="true" />
+              <div>
+                <p className="text-sm font-medium">Zipgrid wallet</p>
+                <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                  £{(walletAvailablePence / 100).toFixed(2)} available
+                  {payWithWallet && durationValid && !walletCovers && (
+                    <> · not enough for this booking — <Link href="/wallet" className="font-medium text-[hsl(var(--primary))]">top up</Link></>
+                  )}
+                </p>
+              </div>
+            </label>
+          )}
           {paymentMethods.length === 0 ? (
             <div className="text-center py-4">
               <p className="text-sm text-[hsl(var(--muted-foreground))]">No saved payment methods.</p>
-              <Link href="/driver/wallet" className="mt-2 inline-block text-sm font-medium text-[hsl(var(--primary))]">
+              <Link href="/settings?tab=payments" className="mt-2 inline-block text-sm font-medium text-[hsl(var(--primary))]">
                 Add a payment method →
               </Link>
             </div>
@@ -369,7 +409,7 @@ export default function BookPage({
                   key={pm.id}
                   className={cn(
                     'flex cursor-pointer items-center gap-3 rounded-[6px] border p-3 transition-colors',
-                    paymentMethodId === pm.id
+                    !payWithWallet && paymentMethodId === pm.id
                       ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)_/_5%)]'
                       : 'border-[hsl(var(--border))] hover:border-[hsl(var(--primary)_/_40%)]',
                   )}
@@ -378,8 +418,8 @@ export default function BookPage({
                     type="radio"
                     name="payment"
                     value={pm.id}
-                    checked={paymentMethodId === pm.id}
-                    onChange={() => setPaymentMethodId(pm.id)}
+                    checked={!payWithWallet && paymentMethodId === pm.id}
+                    onChange={() => { setPayWithWallet(false); setPaymentMethodId(pm.id) }}
                     className="accent-[hsl(var(--primary))]"
                   />
                   <span className="text-base" aria-hidden="true">{BRAND_ICONS[pm.brand] ?? '💳'}</span>

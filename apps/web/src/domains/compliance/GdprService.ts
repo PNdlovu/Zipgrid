@@ -28,6 +28,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { getDb } from '@/lib/db'
 import { NotFoundError, ValidationError } from '@/lib/errors/AppError'
 import { AuditLogger } from './AuditLogger'
+import { WalletClosureService } from '@/domains/payments/WalletClosureService'
 
 /* ── Types ─────────────────────────────────────────────────── */
 
@@ -167,7 +168,7 @@ export const GdprService = {
       txRes, walletRes, notifRes, reviewRes, consentRes,
     ] = await Promise.all([
       db.execute(
-        `SELECT id, email, display_name, phone_number, kyc_status,
+        `SELECT id, email, display_name, phone AS phone_number, kyc_status,
                 roles, ai_mode, created_at
          FROM users WHERE id = $1`,
         [userId],
@@ -184,7 +185,7 @@ export const GdprService = {
         [userId],
       ),
       db.execute(
-        `SELECT cs.id, cs.status, cs.energy_consumed_wh, cs.total_cost_pence,
+        `SELECT cs.id, cs.status, cs.energy_consumed_wh, cs.total_session_cost_cents,
                 cs.started_at, cs.ended_at, cs.duration_minutes,
                 cl.title AS listing_title
          FROM charging_sessions cs
@@ -263,7 +264,8 @@ export const GdprService = {
    * The actual deletion is processed asynchronously after a 30-day
    * cooling-off period (allows chargebacks, disputes to settle).
    *
-   * @throws {ValidationError} if the user has open bookings or disputes
+   * @throws {ValidationError} if the user has open bookings, wallet
+   *   reservations or an unpaid session balance
    */
   async requestDeletion(
     userId: string,
@@ -277,7 +279,7 @@ export const GdprService = {
        FROM bookings b
        JOIN driver_profiles dp ON dp.id = b.driver_profile_id
        WHERE dp.user_id = $1
-         AND b.status IN ('confirmed', 'active')`,
+         AND b.status IN ('pending', 'confirmed', 'active')`,
       [userId],
     )
     if ((activeBookingsRes.rows[0] as { cnt: number }).cnt > 0) {
@@ -285,6 +287,9 @@ export const GdprService = {
         'You have active or upcoming bookings. Please cancel them before requesting account deletion.',
       )
     }
+
+    // Wallet reservations and unpaid session balances must be settled first
+    await WalletClosureService.assertClosable(userId)
 
     // Check for existing pending deletion request
     const existingRes = await db.execute(
@@ -337,6 +342,10 @@ export const GdprService = {
    *   - avatar URL → nulled
    *   - password hash → cleared
    *
+   * Wallet: top-up cash is refunded to the original card(s) and non-cash
+   * credit forfeited before any PII is removed (WalletClosureService). A
+   * refund failure aborts processing so it can be retried safely.
+   *
    * Retained (legal basis: legitimate interest / tax compliance):
    *   - transaction records (7 years)
    *   - booking IDs and session energy data (2 years)
@@ -359,15 +368,17 @@ export const GdprService = {
     const userId    = req.user_id
     const anonymId  = `deleted-${uuidv4().slice(0, 8)}`
 
+    const wallet = await WalletClosureService.close(userId)
+
     // Anonymise user PII
     await db.execute(
       `UPDATE users
        SET email         = $2,
            display_name  = 'Deleted User',
            full_name     = 'Deleted User',
-           phone_number  = NULL,
+           phone         = NULL,
            avatar_url    = NULL,
-           password_hash = '',
+           password_hash = NULL,
            deleted_at    = NOW(),
            updated_at    = NOW()
        WHERE id = $1`,
@@ -404,7 +415,7 @@ export const GdprService = {
       actorId: 'system',
       targetId: userId,
       targetType: 'user',
-      metadata: { requestId, anonymisedAs: anonymId },
+      metadata: { requestId, anonymisedAs: anonymId, walletRefundedPence: wallet.refundedPence, walletForfeitedPence: wallet.forfeitedPence },
     })
   },
 

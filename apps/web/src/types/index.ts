@@ -23,47 +23,44 @@ export type {
 
 export type {
   // Listings
-  ChargerListing,
-  ChargerLevel,
-  PlugType,
-  PricingModel,
+  Listing as ChargerListing,
+  ConnectorType as PlugType,
   ListingStatus,
   ListingPhoto,
-  AvailabilitySchedule,
 } from '@zipgrid/types'
 
 export type {
   // Bookings
   Booking,
   BookingStatus,
-  CreateBookingPayload,
+  CreateBookingInput as CreateBookingPayload,
 } from '@zipgrid/types'
 
 export type {
   // Sessions
   ChargingSession,
   SessionStatus,
-  MeterValuePayload,
+  OcppMeterValues as MeterValuePayload,
 } from '@zipgrid/types'
 
 export type {
   // Payments
   Transaction,
   Payout,
-  TransactionStatus,
+  PaymentStatus as TransactionStatus,
 } from '@zipgrid/types'
 
 export type {
   // Rewards & wallet
-  RewardBalance,
-  RewardTier,
+  RewardsAccount as RewardBalance,
+  RewardsTier as RewardTier,
   WalletTransaction,
 } from '@zipgrid/types'
 
 export type {
   // AI
-  AgentMode,
-  IntentCategory,
+  AiMode as AgentMode,
+  VoiceIntent as IntentCategory,
 } from '@zipgrid/types'
 
 export type {
@@ -71,7 +68,7 @@ export type {
   ApiSuccessResponse,
   ApiErrorResponse,
   ApiResponse,
-  PaginatedMeta,
+  PaginationMeta as PaginatedMeta,
 } from '@zipgrid/types'
 
 // ── Web-app-specific types ────────────────────────────────────────────────────

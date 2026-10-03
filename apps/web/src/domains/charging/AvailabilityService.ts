@@ -10,7 +10,67 @@
  */
 
 import { v4 as uuidv4 } from 'uuid'
-import { getDb } from '@/lib/db'
+import { getDb, type Db } from '@/lib/db'
+import { ForbiddenError, NotFoundError } from '@/lib/errors/AppError'
+
+/** IANA time zone used to interpret a listing's schedule. */
+export function timeZoneFor(countryCode: string | null): string {
+  switch ((countryCode ?? 'GB').toUpperCase()) {
+    case 'IE': return 'Europe/Dublin'
+    case 'FR': return 'Europe/Paris'
+    case 'DE': case 'NL': case 'BE': case 'ES': case 'IT': return 'Europe/Berlin'
+    case 'US': return 'America/New_York'
+    default: return 'Europe/London'
+  }
+}
+
+/** Local calendar date (YYYY-MM-DD), weekday and HH:MM of an instant in `timeZone`. */
+export function localParts(at: Date, timeZone: string): { date: string; weekday: string; time: string } {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+      weekday: 'long', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    }).formatToParts(at).map((p) => [p.type, p.value]),
+  )
+  return {
+    date: `${parts['year']}-${parts['month']}-${parts['day']}`,
+    weekday: String(parts['weekday']).toLowerCase(),
+    time: `${parts['hour']}:${parts['minute']}`,
+  }
+}
+
+/**
+ * Converts a wall-clock date/time in `timeZone` (e.g. "2026-10-05", "09:00",
+ * Europe/London) to the corresponding UTC instant, honouring DST.
+ */
+export function localToUtc(date: string, time: string, timeZone: string): Date {
+  const [y, mo, d] = date.split('-').map(Number) as [number, number, number]
+  const [h, mi] = time.split(':').map(Number) as [number, number]
+  const wallAsUtc = Date.UTC(y, mo - 1, d, h, mi)
+  let guess = wallAsUtc
+  // Two passes converge across DST transitions.
+  for (let i = 0; i < 2; i++) {
+    const p = localParts(new Date(guess), timeZone)
+    const [py, pmo, pd] = p.date.split('-').map(Number) as [number, number, number]
+    const [ph, pmi] = p.time.split(':').map(Number) as [number, number]
+    guess += wallAsUtc - Date.UTC(py, pmo - 1, pd, ph, pmi)
+  }
+  return new Date(guess)
+}
+
+/** Throws unless `userId` is the host who owns `listingId`. */
+export async function assertListingOwner(listingId: string, userId: string): Promise<void> {
+  const db = await getDb()
+  const res = await db.execute(
+    `SELECT hp.user_id FROM charger_listings cl
+     JOIN host_profiles hp ON hp.id = cl.host_profile_id
+     WHERE cl.id = $1`,
+    [listingId],
+  )
+  const owner = res.rows[0]?.['user_id']
+  if (!owner) throw new NotFoundError('Listing', listingId)
+  if (owner !== userId) throw new ForbiddenError('You do not own this listing')
+}
 
 export type ScheduleDay = {
   dayOfWeek: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'
@@ -114,47 +174,67 @@ export const AvailabilityService = {
    * Checks whether a listing is available for a given date/time range,
    * accounting for: weekly schedule, blackout dates, and existing bookings.
    */
+  /**
+   * Schedules and blackout dates are in the listing's local time (UK listings:
+   * Europe/London, so BST is respected). Existing bookings block the slot
+   * including the listing's buffer_minutes on either side.
+   *
+   * Pass `db` to run inside a caller's transaction (BookingService does, after
+   * taking the per-listing lock).
+   */
   async isAvailable(
     listingId: string,
     scheduledStart: Date,
     scheduledEnd: Date,
+    db?: Db,
   ): Promise<boolean> {
-    const db = await getDb()
-    const dateStr = scheduledStart.toISOString().split('T')[0]!
+    const conn = db ?? (await getDb())
+    const listingRes = await conn.execute(
+      `SELECT country_code, COALESCE(buffer_minutes, 0) AS buffer_minutes
+       FROM charger_listings WHERE id = $1`,
+      [listingId],
+    )
+    const listing = listingRes.rows[0]
+    if (!listing) return false
+    const timeZone = timeZoneFor(listing['country_code'] as string | null)
+    const start = localParts(scheduledStart, timeZone)
+    const end = localParts(scheduledEnd, timeZone)
 
-    // 1. Check blackout
-    const blackout = await db.execute(
-      `SELECT id FROM listing_blackout_dates WHERE listing_id = $1 AND blackout_date = $2 LIMIT 1`,
-      [listingId, dateStr],
+    // 1. Blackout on either local date
+    const blackout = await conn.execute(
+      `SELECT 1 FROM listing_blackout_dates
+       WHERE listing_id = $1 AND blackout_date BETWEEN $2::date AND $3::date LIMIT 1`,
+      [listingId, start.date, end.date],
     )
     if (blackout.rows.length > 0) return false
 
-    // 2. Check weekly schedule
-    const dayOfWeek = scheduledStart
-      .toLocaleDateString('en-US', { weekday: 'long' })
-      .toLowerCase() as ScheduleDay['dayOfWeek']
-    const schedule = await db.execute(
-      `SELECT open_time, close_time, is_available
-       FROM listing_availability_schedules
-       WHERE listing_id = $1 AND day_of_week = $2 LIMIT 1`,
-      [listingId, dayOfWeek],
+    // 2. Weekly schedule (no rows = available 24/7)
+    const schedule = await conn.execute(
+      `SELECT day_of_week::text AS day, to_char(open_time, 'HH24:MI') AS open_time,
+              to_char(close_time, 'HH24:MI') AS close_time, is_available
+       FROM listing_availability_schedules WHERE listing_id = $1`,
+      [listingId],
     )
     if (schedule.rows.length > 0) {
-      const row = schedule.rows[0] as { open_time: string; close_time: string; is_available: boolean }
-      if (!row.is_available) return false
-      const requestStart = scheduledStart.toTimeString().slice(0, 5) // HH:MM
-      const requestEnd = scheduledEnd.toTimeString().slice(0, 5)
-      if (requestStart < row.open_time || requestEnd > row.close_time) return false
+      // Scheduled listings can only be booked within a single local day's window.
+      if (start.date !== end.date && end.time !== '00:00') return false
+      const day = schedule.rows.find((r) => r['day'] === start.weekday)
+      if (!day || !day['is_available']) return false
+      const endTime = end.time === '00:00' && start.date !== end.date ? '24:00' : end.time
+      if (start.time < (day['open_time'] as string)) return false
+      const close = day['close_time'] === '00:00' ? '24:00' : (day['close_time'] as string)
+      if (endTime > close) return false
     }
 
-    // 3. Check booking overlap
-    const overlap = await db.execute(
-      `SELECT id FROM bookings
+    // 3. Overlap with live bookings, padded by the buffer
+    const overlap = await conn.execute(
+      `SELECT 1 FROM bookings
        WHERE listing_id = $1
-         AND status NOT IN ('cancelled', 'no_show')
-         AND scheduled_start < $3 AND scheduled_end > $2
+         AND status IN ('pending', 'confirmed', 'active')
+         AND scheduled_start < $3::timestamptz + make_interval(mins => $4)
+         AND scheduled_end   > $2::timestamptz - make_interval(mins => $4)
        LIMIT 1`,
-      [listingId, scheduledStart.toISOString(), scheduledEnd.toISOString()],
+      [listingId, scheduledStart.toISOString(), scheduledEnd.toISOString(), Number(listing['buffer_minutes'])],
     )
     return overlap.rows.length === 0
   },

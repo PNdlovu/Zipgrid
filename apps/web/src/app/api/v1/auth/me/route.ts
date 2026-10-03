@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     const res = await db.execute(
       `SELECT id, email, display_name, full_name, avatar_url,
-              phone_number, phone_verified, email_verified,
+              phone AS phone_number, phone_verified, email_verified,
               kyc_status, kyc_verified_at, roles, ai_mode, created_at
        FROM users WHERE id = $1 LIMIT 1`,
       [userId],
@@ -98,7 +98,7 @@ export async function PATCH(request: NextRequest) {
       values.push(parsed.data.aiMode)
     }
     if (parsed.data.phoneNumber !== undefined) {
-      sets.push(`phone_number = $${i++}`, `phone_verified = false`)
+      sets.push(`phone = $${i++}`, `phone_verified = false`)
       values.push(parsed.data.phoneNumber)
     }
 

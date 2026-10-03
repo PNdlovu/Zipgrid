@@ -10,4 +10,5 @@
 export * from './currency'
 export * from './dates'
 export * from './geo'
+export * from './pricing'
 export * from './validation'

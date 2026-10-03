@@ -15,6 +15,7 @@ import { type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
+import { AuditLogger } from '@/domains/compliance/AuditLogger'
 
 function requireAdmin(req: NextRequest) {
   return (req.headers.get('x-user-roles') ?? '').split(',').map((r) => r.trim()).includes('admin')
@@ -96,11 +97,13 @@ export async function PATCH(request: NextRequest) {
       [parsed.data.listingId, newStatus],
     )
 
-    await db.execute(
-      `INSERT INTO audit_log (actor_user_id, action, resource_type, resource_id, metadata)
-       VALUES ($1, 'LISTING_STATUS_CHANGED', 'listing', $2, $3)`,
-      [adminUserId, parsed.data.listingId, JSON.stringify({ action: parsed.data.action, newStatus, note: parsed.data.note })],
-    ).catch(() => {})
+    await AuditLogger.logAsync({
+      eventType: 'admin.listing_status_changed',
+      actorId: adminUserId ?? undefined,
+      targetId: parsed.data.listingId,
+      targetType: 'listing',
+      metadata: { action: parsed.data.action, newStatus, note: parsed.data.note ?? null },
+    })
 
     return apiResponse({ updated: true, listingId: parsed.data.listingId, newStatus })
   } catch (err) {

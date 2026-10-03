@@ -37,30 +37,6 @@ function ocpiResponse(data: unknown, statusCode = 1000, statusMessage = 'Success
   })
 }
 
-/** Verify OCPI token from Authorization header. */
-async function verifyOcpiToken(request: NextRequest): Promise<boolean> {
-  const authHeader = request.headers.get('authorization') ?? ''
-  if (!authHeader.startsWith('Token ')) return false
-  const token = authHeader.slice(6)
-
-  // In production: verify token against ocpi_partners table
-  const validToken = process.env['OCPI_PARTNER_TOKEN']
-  if (validToken && token === validToken) return true
-  if (!validToken) return true // Dev mode — allow all
-
-  try {
-    const { getDb } = await import('@/lib/db')
-    const db = await getDb()
-    const res = await db.execute(
-      `SELECT id FROM ocpi_partners WHERE token_b = $1 AND is_active = TRUE LIMIT 1`,
-      [token],
-    )
-    return res.rows.length > 0
-  } catch {
-    return false
-  }
-}
-
 /** GET /api/v1/interop/ocpi — OCPI versions endpoint. */
 export async function GET(request: NextRequest) {
   const path = request.nextUrl.pathname

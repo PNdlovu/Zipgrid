@@ -54,18 +54,18 @@ export async function GET(request: NextRequest) {
       db.execute(
         `SELECT COUNT(*)::INT AS total
          FROM audit_log al
-         LEFT JOIN users u ON u.id = al.actor_id
+         LEFT JOIN users u ON u.id = al.actor_user_id
          ${where}`,
         params,
       ),
       db.execute(
-        `SELECT al.id, al.actor_id, u.email AS actor_email,
-                al.action, al.resource_type, al.resource_id,
-                al.metadata, al.ip_address, al.created_at
+        `SELECT al.id, al.actor_user_id, u.email AS actor_email,
+                al.action, al.entity_type AS resource_type, al.entity_id AS resource_id,
+                al.metadata, al.actor_ip AS ip_address, al.occurred_at AS created_at
          FROM audit_log al
-         LEFT JOIN users u ON u.id = al.actor_id
+         LEFT JOIN users u ON u.id = al.actor_user_id
          ${where}
-         ORDER BY al.created_at DESC
+         ORDER BY al.occurred_at DESC
          LIMIT $${i++} OFFSET $${i++}`,
         [...params, pageSize, offset],
       ),
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
       const row = r as Record<string, unknown>
       return {
         id:           row['id'],
-        actorId:      row['actor_id'],
+        actorId:      row['actor_user_id'],
         actorEmail:   row['actor_email'],
         action:       row['action'],
         resourceType: row['resource_type'],

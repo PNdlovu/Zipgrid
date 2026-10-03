@@ -13,6 +13,7 @@ import { z } from 'zod'
 import { ListingService } from '@/domains/charging/ListingService'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
+import { geocodeUkPostcode } from '@/lib/geo/postcode'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -62,8 +63,8 @@ const UpdateListingSchema = z.object({
   evParkingOnly:        z.boolean().optional(),
   minBookingHours:      z.number().positive().max(72).optional(),
   maxBookingHours:      z.number().positive().max(72).optional(),
-  // Status (host can pause/resume)
-  status:               z.enum(['active', 'paused', 'draft']).optional(),
+  // Status: hosts can pause here; going live always goes through /publish.
+  status:               z.enum(['paused']).optional(),
 })
 
 /** camelCase → snake_case field name mapping for DB columns that don't follow the pattern */
@@ -92,6 +93,7 @@ const FIELD_MAP: Record<string, string> = {
   minBookingHours:      'min_booking_hours',
   maxBookingHours:      'max_booking_hours',
   pricingModel:         'pricing_model',
+  postcode:             'postal_code',
 }
 
 /** PATCH /api/v1/listings/[id] — update listing fields */
@@ -120,11 +122,35 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     )
     if (ownerCheck.rows.length === 0) return apiError('FORBIDDEN', 'Not your listing', 403)
 
+    const data: Record<string, unknown> = { ...parsed.data }
+
+    // Pricing must stay measurable: per-kWh needs a connected charger.
+    const smart = parsed.data.isSmartCharger ?? listing.isSmartCharger
+    const model = parsed.data.pricingModel ?? listing.pricingModel
+    if (!smart && (model === 'per_kwh' || model === 'hybrid')) {
+      return apiError('VALIDATION_ERROR', 'Per-kWh pricing needs a connected (OCPP) charger.', 422)
+    }
+    if (parsed.data.ocppChargePointId) {
+      const device = await dbInstance.execute(
+        `SELECT 1 FROM charger_devices WHERE charge_point_id = $1 AND host_profile_id = $2`,
+        [parsed.data.ocppChargePointId, listing.hostProfileId],
+      )
+      if (device.rows.length === 0) {
+        return apiError('CHARGER_NOT_PAIRED', 'Pair this charger to your account before linking it.', 422)
+      }
+    }
+    if (parsed.data.postcode && parsed.data.postcode !== listing.postcode) {
+      const geo = await geocodeUkPostcode(parsed.data.postcode)
+      if (!geo) return apiError('POSTCODE_NOT_FOUND', 'We could not find that postcode — please check it.', 422)
+      data['latitude'] = geo.lat
+      data['longitude'] = geo.lng
+    }
+
     const sets: string[] = []
     const vals: unknown[] = []
     let i = 1
 
-    for (const [key, val] of Object.entries(parsed.data)) {
+    for (const [key, val] of Object.entries(data)) {
       if (val === undefined) continue
       // Use explicit mapping if available, otherwise fall back to camelCase→snake_case
       const col = FIELD_MAP[key] ?? key.replace(/([A-Z])/g, '_$1').toLowerCase()

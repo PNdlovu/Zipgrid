@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
            cl.id,
            cl.title,
            cl.city,
-           cl.postcode,
+           cl.postal_code AS postcode,
            cl.status,
            cl.charger_level,
            cl.max_power_kw,
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
            cl.updated_at,
            -- Stats from completed sessions
            COUNT(DISTINCT cs.id)::INT                        AS total_sessions,
-           COALESCE(SUM(cs.total_cost_pence), 0)::INT        AS gross_revenue_pence,
+           COALESCE(SUM(cs.total_session_cost_cents), 0)::INT        AS gross_revenue_pence,
            COALESCE(SUM(cs.energy_consumed_wh) / 1000.0, 0) AS total_kwh_delivered,
            -- Upcoming confirmed bookings
            COUNT(DISTINCT b_upcoming.id)::INT                AS upcoming_bookings

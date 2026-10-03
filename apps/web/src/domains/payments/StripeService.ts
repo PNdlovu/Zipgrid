@@ -13,6 +13,7 @@
  */
 
 import Stripe from 'stripe'
+import { ServiceUnavailableError } from '@/lib/errors/AppError'
 
 /* ── Singleton Stripe client ────────────────────────────────── */
 
@@ -21,7 +22,7 @@ let _stripe: Stripe | null = null
 function getStripe(): Stripe {
   if (_stripe) return _stripe
   const key = process.env.STRIPE_SECRET_KEY
-  if (!key) throw new Error('STRIPE_SECRET_KEY environment variable is not set')
+  if (!key) throw new ServiceUnavailableError('Payments')
   _stripe = new Stripe(key, { apiVersion: '2024-06-20' })
   return _stripe
 }
@@ -39,18 +40,22 @@ export type CreatePaymentIntentInput = {
   bookingId: string
   /** Human-readable description shown in Stripe dashboard */
   description: string
+  /** Stripe idempotency key — retries with the same key never create a second hold */
+  idempotencyKey?: string
 }
 
 export type CapturePaymentIntentInput = {
   paymentIntentId: string
   /** Final amount to capture in pence — may differ from original hold */
   finalAmountPence: number
+  idempotencyKey?: string
 }
 
 export type RefundInput = {
   paymentIntentId: string
   amountPence?: number // partial refund; omit for full refund
   reason?: 'duplicate' | 'fraudulent' | 'requested_by_customer'
+  idempotencyKey?: string
 }
 
 export type CreateSetupIntentResult = {
@@ -71,6 +76,16 @@ export type SavedPaymentMethod = {
  * Stripe service — all payment operations for the Zipgrid platform.
  */
 export const StripeService = {
+  /** True when a Stripe secret key is configured. */
+  isConfigured(): boolean {
+    return Boolean(process.env.STRIPE_SECRET_KEY)
+  },
+
+  /** True for card declines/authentication failures (as opposed to API or network errors). */
+  isCardError(err: unknown): err is Error {
+    return err instanceof Error && 'type' in err && String((err as { type: unknown }).type).startsWith('StripeCard')
+  },
+
   /**
    * Creates a Stripe Customer for a new user.
    * One customer per user — idempotent by email.
@@ -108,14 +123,76 @@ export const StripeService = {
         platform: 'zipgrid',
       },
       // Don't redirect — card payments only
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/driver/bookings`,
-    })
+      return_url: `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/bookings`,
+    }, input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : undefined)
 
     return {
       paymentIntentId: intent.id,
       clientSecret: intent.client_secret ?? '',
       status: intent.status,
     }
+  },
+
+  /**
+   * Charges a saved card immediately for a wallet top-up. The wallet is credited
+   * only by the payment_intent.succeeded webhook, which recognises the
+   * purpose=wallet_topup metadata. A `requires_action` status means the card
+   * needs 3-D Secure; the client completes it with the returned client secret.
+   */
+  async createWalletTopUp(input: {
+    amountPence: number
+    stripeCustomerId: string
+    paymentMethodId: string
+    userId: string
+    idempotencyKey: string
+  }): Promise<{ paymentIntentId: string; clientSecret: string; status: string }> {
+    const stripe = getStripe()
+    const intent = await stripe.paymentIntents.create({
+      amount: input.amountPence,
+      currency: 'gbp',
+      customer: input.stripeCustomerId,
+      payment_method: input.paymentMethodId,
+      confirm: true,
+      description: `Zipgrid wallet top-up £${(input.amountPence / 100).toFixed(2)}`,
+      metadata: { purpose: 'wallet_topup', user_id: input.userId, platform: 'zipgrid' },
+      return_url: `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/wallet`,
+    }, { idempotencyKey: input.idempotencyKey })
+    return { paymentIntentId: intent.id, clientSecret: intent.client_secret ?? '', status: intent.status }
+  },
+
+  /**
+   * Charges a saved card while the customer is not present (merchant-initiated):
+   * auto top-ups and recovery of session shortfalls. The card must have been
+   * saved for off-session use (SetupIntent usage 'off_session').
+   * Card declines throw (see isCardError); a card that demands authentication
+   * comes back as status 'requires_action' and is treated by callers as failed.
+   */
+  async chargeOffSession(input: {
+    amountPence: number
+    stripeCustomerId: string
+    paymentMethodId: string
+    description: string
+    metadata: Record<string, string>
+    idempotencyKey: string
+  }): Promise<{ paymentIntentId: string; status: string }> {
+    const stripe = getStripe()
+    const intent = await stripe.paymentIntents.create({
+      amount: input.amountPence,
+      currency: 'gbp',
+      customer: input.stripeCustomerId,
+      payment_method: input.paymentMethodId,
+      off_session: true,
+      confirm: true,
+      description: input.description,
+      metadata: { ...input.metadata, platform: 'zipgrid' },
+    }, { idempotencyKey: input.idempotencyKey })
+    return { paymentIntentId: intent.id, status: intent.status }
+  },
+
+  /** The customer's default card, else their most recently saved one; null when none. */
+  async getDefaultPaymentMethodId(stripeCustomerId: string): Promise<string | null> {
+    const methods = await this.listPaymentMethods(stripeCustomerId)
+    return (methods.find((m) => m.isDefault) ?? methods[0])?.id ?? null
   },
 
   /**
@@ -127,18 +204,19 @@ export const StripeService = {
     const stripe = getStripe()
     return stripe.paymentIntents.capture(input.paymentIntentId, {
       amount_to_capture: input.finalAmountPence,
-    })
+    }, input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : undefined)
   },
 
   /**
    * Cancels an authorized PaymentIntent (releases the hold).
    * Called when a booking is cancelled before the session starts.
    */
-  async cancelPaymentIntent(paymentIntentId: string): Promise<Stripe.PaymentIntent> {
+  async cancelPaymentIntent(
+    paymentIntentId: string,
+    reason: Stripe.PaymentIntentCancelParams.CancellationReason = 'requested_by_customer',
+  ): Promise<Stripe.PaymentIntent> {
     const stripe = getStripe()
-    return stripe.paymentIntents.cancel(paymentIntentId, {
-      cancellation_reason: 'requested_by_customer',
-    })
+    return stripe.paymentIntents.cancel(paymentIntentId, { cancellation_reason: reason })
   },
 
   /**
@@ -160,7 +238,7 @@ export const StripeService = {
       charge: chargeId,
       ...(input.amountPence !== undefined ? { amount: input.amountPence } : {}),
       reason: input.reason ?? 'requested_by_customer',
-    })
+    }, input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : undefined)
   },
 
   /**
@@ -260,6 +338,18 @@ export const StripeService = {
     return { accountId: account.id, onboardingUrl: link.url }
   },
 
+  /** Fresh onboarding link for an existing Connect account (links expire quickly). */
+  async createAccountLink(accountId: string, returnUrl: string, refreshUrl: string): Promise<string> {
+    const stripe = getStripe()
+    const link = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: refreshUrl,
+      return_url: returnUrl,
+      type: 'account_onboarding',
+    })
+    return link.url
+  },
+
   /**
    * Transfers funds to a host's Stripe Connect account.
    * Called by the weekly payout batch.
@@ -274,6 +364,7 @@ export const StripeService = {
     connectAccountId: string,
     description: string,
     metadata: Record<string, string> = {},
+    idempotencyKey?: string,
   ): Promise<Stripe.Transfer> {
     const stripe = getStripe()
     return stripe.transfers.create({
@@ -282,7 +373,7 @@ export const StripeService = {
       destination: connectAccountId,
       description,
       metadata,
-    })
+    }, idempotencyKey ? { idempotencyKey } : undefined)
   },
 
   /**

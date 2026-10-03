@@ -27,3 +27,6 @@ export async function POST(request: NextRequest) {
     return apiError('INTERNAL_ERROR', 'An unexpected error occurred', 500)
   }
 }
+
+/** PATCH is accepted as an alias (the notifications page uses it). */
+export const PATCH = POST

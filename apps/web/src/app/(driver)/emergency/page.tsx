@@ -363,7 +363,7 @@ export default function EmergencyPage() {
               </p>
             </div>
             <div className="flex w-full flex-col gap-3">
-              <button type="button" onClick={() => router.push(`/driver/bookings/${bookingId}`)}
+              <button type="button" onClick={() => router.push(`/bookings/${bookingId}`)}
                 className="flex h-12 w-full items-center justify-center gap-2 rounded-[6px] bg-[hsl(var(--primary))] text-sm font-semibold text-[hsl(var(--primary-foreground))] transition-opacity hover:opacity-90">
                 <ArrowRight className="h-4 w-4" aria-hidden="true" /> View booking & PIN
               </button>

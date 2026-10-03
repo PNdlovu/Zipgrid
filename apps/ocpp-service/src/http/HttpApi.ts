@@ -24,10 +24,9 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { ConnectionManager } from '../connection/ConnectionManager'
 import { OcppCommandDispatcher } from './OcppCommandDispatcher'
 import { logger } from '../lib/logger'
+import { config, safeEqual } from '../lib/config'
 
-function getServiceSecret(): string {
-  return process.env['OCPP_SERVICE_SECRET'] ?? 'dev-ocpp-secret'
-}
+const MAX_BODY_BYTES = 64 * 1024
 
 function unauthorized(res: ServerResponse): void {
   res.writeHead(401, { 'Content-Type': 'application/json' })
@@ -60,7 +59,16 @@ function serverError(res: ServerResponse, message: string): void {
 async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
-    req.on('data', (chunk: Buffer) => chunks.push(chunk))
+    let size = 0
+    req.on('data', (chunk: Buffer) => {
+      size += chunk.length
+      if (size > MAX_BODY_BYTES) {
+        reject(new Error('Body too large'))
+        req.destroy()
+        return
+      }
+      chunks.push(chunk)
+    })
     req.on('end', () => {
       try {
         const body = JSON.parse(Buffer.concat(chunks).toString()) as Record<string, unknown>
@@ -78,7 +86,8 @@ async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> 
  */
 function isAuthenticated(req: IncomingMessage): boolean {
   const auth = req.headers['authorization'] ?? ''
-  return auth === `Bearer ${getServiceSecret()}`
+  if (!auth.startsWith('Bearer ')) return false
+  return safeEqual(auth.slice(7), config.serviceSecret)
 }
 
 /**
@@ -95,6 +104,12 @@ export function createHttpApiHandler(connectionManager: ConnectionManager) {
   ): Promise<void> {
     const url = req.url ?? ''
     const method = req.method ?? 'GET'
+
+    // Unauthenticated liveness probe (container healthcheck / Railway)
+    if (method === 'GET' && (url === '/health' || url === '/ocpp/health')) {
+      ok(res, { status: 'ok', connectedChargers: connectionManager.count })
+      return
+    }
 
     // Only handle /ocpp/* paths
     if (!url.startsWith('/ocpp')) {
@@ -202,12 +217,6 @@ export function createHttpApiHandler(connectionManager: ConnectionManager) {
         }
         const connected = connectionManager.get(chargePointId) !== undefined
         ok(res, { chargePointId, connected, connectedCount: connectionManager.count })
-        return
-      }
-
-      // GET /ocpp/health
-      if (method === 'GET' && url === '/ocpp/health') {
-        ok(res, { status: 'ok', connectedChargers: connectionManager.count })
         return
       }
 

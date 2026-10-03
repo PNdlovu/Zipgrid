@@ -410,8 +410,8 @@ export default function ProfilePage() {
       {/* Quick links */}
       <section className="mt-8 space-y-2" aria-label="Account links">
         {[
-          { label: 'My vehicles', href: '/driver/vehicles', icon: Zap },
-          { label: 'Manage vehicles →', href: '/driver/vehicles', icon: ChevronRight },
+          { label: 'My vehicles', href: '/vehicles', icon: Zap },
+          { label: 'Manage vehicles →', href: '/vehicles', icon: ChevronRight },
         ].slice(0, 1).map(({ label, href, icon: Icon }) => (
           <a
             key={href}

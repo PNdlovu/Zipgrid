@@ -153,7 +153,7 @@ function BookingCard({ booking }: { booking: BookingRow }) {
 
   return (
     <Link
-      href={`/driver/bookings/${booking.id}`}
+      href={`/bookings/${booking.id}`}
       className={cn(
         'flex items-center gap-4 rounded-[8px] border border-[hsl(var(--border))]',
         'bg-[hsl(var(--card))] px-4 py-4 transition-colors hover:bg-[hsl(var(--secondary)/0.4)]',

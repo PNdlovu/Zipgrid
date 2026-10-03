@@ -258,7 +258,7 @@ Yours faithfully,
               Use the Resolution Centre to report property damage, a driver complaint, or a billing issue.
             </p>
             <Link
-              href="/driver/help/resolution"
+              href="/help/resolution"
               className="flex h-9 items-center justify-center gap-2 rounded-[6px] border border-[hsl(var(--border))] text-sm font-medium text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))]"
             >
               Resolution Centre

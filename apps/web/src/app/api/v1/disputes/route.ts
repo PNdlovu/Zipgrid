@@ -23,6 +23,7 @@ import { z } from 'zod'
 import { v4 as uuidv4 } from 'uuid'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
+import { AuditLogger } from '@/domains/compliance/AuditLogger'
 
 /* ── Schema ────────────────────────────────────────────────── */
 
@@ -38,7 +39,7 @@ const DisputeTypeValues = [
 const CreateDisputeSchema = z.object({
   disputeType: z.enum(DisputeTypeValues),
   description: z.string().min(10, 'Please describe what happened (at least 10 characters)').max(2000),
-  bookingId: z.string().uuid().optional(),
+  bookingId: z.string().uuid({ message: 'Select the booking this dispute is about' }),
 })
 
 /* ── GET ─────────────────────────────────────────────────── */
@@ -72,21 +73,21 @@ export async function GET(request: NextRequest) {
       db.execute(
         `SELECT COUNT(*)::INT AS total
          FROM disputes d
-         WHERE (d.raised_by_user_id = $1 OR d.raised_against_user_id = $2)
+         WHERE (d.raised_by_user_id = $1 OR d.against_user_id = $2)
          ${statusClause}`,
         params,
       ),
       db.execute(
         `SELECT d.id, d.status, d.dispute_type, d.description,
-                d.raised_by_user_id, d.raised_against_user_id,
+                d.raised_by_user_id, d.against_user_id,
                 d.booking_id,
-                d.resolution_notes, d.refund_amount_cents,
+                d.resolution_notes, d.resolution_amount_cents AS refund_amount_cents,
                 d.created_at, d.updated_at,
                 cl.title AS listing_title
          FROM disputes d
          LEFT JOIN bookings b ON b.id = d.booking_id
          LEFT JOIN charger_listings cl ON cl.id = b.listing_id
-         WHERE (d.raised_by_user_id = $1 OR d.raised_against_user_id = $2)
+         WHERE (d.raised_by_user_id = $1 OR d.against_user_id = $2)
          ${statusClause}
          ORDER BY d.created_at DESC
          LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
@@ -104,7 +105,7 @@ export async function GET(request: NextRequest) {
         disputeType:          row['dispute_type'],
         description:          row['description'],
         raisedByUserId:       row['raised_by_user_id'],
-        raisedAgainstUserId:  row['raised_against_user_id'],
+        raisedAgainstUserId:  row['against_user_id'],
         bookingId:            row['booking_id'] ?? null,
         listingTitle:         row['listing_title'] ?? null,
         resolutionNotes:      row['resolution_notes'] ?? null,
@@ -205,23 +206,27 @@ export async function POST(request: NextRequest) {
 
     await db.execute(
       `INSERT INTO disputes
-         (id, raised_by_user_id, raised_against_user_id, booking_id,
-          dispute_type, description, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, 'open', NOW(), NOW())`,
-      [disputeId, userId, raisedAgainstUserId, verifiedBookingId, disputeType, description],
+         (id, raised_by_user_id, against_user_id, booking_id, transaction_id,
+          dispute_type, title, description, status)
+       VALUES ($1, $2, $3, $4, (SELECT id FROM transactions WHERE booking_id = $4 LIMIT 1),
+               $5, $6, $7, 'open')`,
+      [disputeId, userId, raisedAgainstUserId, verifiedBookingId, disputeType,
+       disputeType.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()), description],
     )
 
     // Insert audit log entry
-    await db.execute(
-      `INSERT INTO audit_log (actor_user_id, action, resource_type, resource_id, metadata)
-       VALUES ($1, 'DISPUTE_CREATED', 'dispute', $2, $3)`,
-      [userId, disputeId, JSON.stringify({ disputeType, bookingId: verifiedBookingId })],
-    ).catch(() => { /* non-critical */ })
+    await AuditLogger.logAsync({
+      eventType: 'dispute.opened',
+      actorId: userId,
+      targetId: disputeId,
+      targetType: 'dispute',
+      metadata: { disputeType, bookingId: verifiedBookingId },
+    })
 
     // Fetch the created dispute to return
     const newRes = await db.execute(
       `SELECT d.id, d.status, d.dispute_type, d.description,
-              d.raised_by_user_id, d.raised_against_user_id,
+              d.raised_by_user_id, d.against_user_id,
               d.booking_id, d.created_at, d.updated_at,
               cl.title AS listing_title
        FROM disputes d
@@ -239,7 +244,7 @@ export async function POST(request: NextRequest) {
         disputeType:          row['dispute_type'],
         description:          row['description'],
         raisedByUserId:       row['raised_by_user_id'],
-        raisedAgainstUserId:  row['raised_against_user_id'] ?? null,
+        raisedAgainstUserId:  row['against_user_id'] ?? null,
         bookingId:            row['booking_id'] ?? null,
         listingTitle:         row['listing_title'] ?? null,
         resolutionNotes:      null,

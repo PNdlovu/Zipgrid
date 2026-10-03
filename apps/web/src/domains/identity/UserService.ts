@@ -36,7 +36,7 @@ export const UserService = {
   async getById(userId: string): Promise<UserRecord> {
     const db = await getDb()
     const result = await db.execute(
-      `SELECT id, email, display_name, avatar_url, phone_number, phone_verified,
+      `SELECT id, email, display_name, avatar_url, phone AS phone_number, phone_verified,
               email_verified, kyc_status, roles, ai_mode, created_at
        FROM users WHERE id = $1 LIMIT 1`,
       [userId],

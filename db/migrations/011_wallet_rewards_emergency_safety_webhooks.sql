@@ -209,7 +209,6 @@ CREATE TABLE emergency_sessions (
     battery_pct         SMALLINT            NOT NULL CHECK (battery_pct BETWEEN 1 AND 100),
     current_lat         NUMERIC(10,7)       NOT NULL,
     current_lng         NUMERIC(10,7)       NOT NULL,
-    current_location    GEOGRAPHY(POINT, 4326) NOT NULL,
     max_range_metres    INT                 NOT NULL,  -- calculated driveable range
 
     -- Status
@@ -230,7 +229,7 @@ CREATE TABLE emergency_sessions (
 
 CREATE INDEX idx_emergency_driver   ON emergency_sessions (driver_user_id);
 CREATE INDEX idx_emergency_status   ON emergency_sessions (status) WHERE status = 'searching';
-CREATE INDEX idx_emergency_location ON emergency_sessions USING GIST (current_location);
+CREATE INDEX idx_emergency_location ON emergency_sessions (current_lat, current_lng);
 
 CREATE TRIGGER trg_emergency_updated_at
     BEFORE UPDATE ON emergency_sessions

@@ -16,13 +16,11 @@
 
 import { type NextRequest } from 'next/server'
 import { apiResponse, apiError } from '@/lib/api/response'
+import { hasValidServiceSecret } from '@/lib/env'
 
 /** Verify grid API key. */
 function verifyGridKey(request: NextRequest): boolean {
-  const key = request.headers.get('x-grid-api-key')
-  const validKey = process.env['GRID_API_KEY']
-  if (!validKey) return true  // dev mode
-  return key === validKey
+  return hasValidServiceSecret(request.headers, 'GRID_API_KEY', 'x-grid-api-key')
 }
 
 /** GET /api/v1/grid/analytics — anonymised demand data. */

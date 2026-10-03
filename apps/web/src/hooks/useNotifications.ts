@@ -19,7 +19,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 export type NotificationCategory =
   | 'booking_confirmed' | 'booking_cancelled'
   | 'session_started'  | 'session_completed'
-  | 'payment_captured' | 'payout_sent'
+  | 'payment_captured' | 'payment_issue' | 'payout_sent'
   | 'kyc_update'       | 'emergency_mode'
   | 'new_review'       | 'reward_earned'
   | 'referral_joined'  | 'system_message'

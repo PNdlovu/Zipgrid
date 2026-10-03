@@ -339,7 +339,7 @@ export default function BookingDetailPage({
         setStartError(json.error?.message ?? 'Could not start session. Please try again.')
         return
       }
-      router.push(`/driver/session/${json.data!.sessionId}`)
+      router.push(`/session/${json.data!.sessionId}`)
     } finally {
       setStartingSession(false)
     }

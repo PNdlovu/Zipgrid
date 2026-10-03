@@ -43,7 +43,9 @@ function LoginForm() {
   const searchParams = useSearchParams()
   const [serverError, setServerError] = useState<string | null>(null)
 
-  const redirectTo = searchParams.get('redirect') ?? '/dashboard'
+  // Only same-site relative paths — never "//evil.com" or absolute URLs.
+  const requested = searchParams.get('redirect') ?? ''
+  const redirectTo = /^\/(?![/\\])/.test(requested) ? requested : '/dashboard'
 
   const {
     register,
@@ -76,7 +78,7 @@ function LoginForm() {
       if (!res.ok || !json.success) {
         if (json.error?.code === 'EMAIL_NOT_VERIFIED') {
           sessionStorage.setItem('zipgrid_pending_email', data.email)
-          router.push('/auth/verify-email')
+          router.push('/verify-email')
           return
         }
         setServerError(
@@ -87,16 +89,9 @@ function LoginForm() {
         return
       }
 
-      // Store the access token in a cookie so the Edge middleware can verify it.
-      // The refresh token is already set as HttpOnly by the API route.
-      // __zg_at is NOT HttpOnly so client JS can write it; middleware reads it.
-      if (json.data?.accessToken) {
-        const isSecure = window.location.protocol === 'https:'
-        const age = data.rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 15 // 30 days or 15 min
-        document.cookie = `__zg_at=${json.data.accessToken}; path=/; max-age=${age}; SameSite=Lax${isSecure ? '; Secure' : ''}`
-      }
-
-      router.push(redirectTo)
+      // Auth cookies are HttpOnly and set by the API response; a full
+      // navigation lets middleware and server components see them.
+      window.location.assign(redirectTo)
     } catch {
       setServerError('Network error — please check your connection and try again.')
     }
@@ -153,7 +148,7 @@ function LoginForm() {
           />
           <div className="flex justify-end">
             <Link
-              href="/auth/forgot-password"
+              href="/forgot-password"
               className="text-xs text-[hsl(var(--primary))] hover:opacity-80"
             >
               Forgot password?

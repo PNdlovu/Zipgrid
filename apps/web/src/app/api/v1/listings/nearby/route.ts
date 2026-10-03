@@ -25,6 +25,10 @@
 import { type NextRequest } from 'next/server'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
+import { distanceMetresSql, withinRadiusSql } from '@/lib/db/geo'
+
+const WITHIN = withinRadiusSql('cl.latitude', 'cl.longitude', '$2', '$1', '$3')
+const DISTANCE = distanceMetresSql('cl.latitude', 'cl.longitude', '$2', '$1')
 
 /**
  * Geocodes a UK postcode to lat/lng via postcodes.io (free, no key required).
@@ -54,13 +58,13 @@ export async function GET(request: NextRequest) {
   let lat = searchParams.get('lat') ? parseFloat(searchParams.get('lat')!) : null
   let lng = searchParams.get('lng') ? parseFloat(searchParams.get('lng')!) : null
   const postcode    = searchParams.get('postcode')
-  const radiusKm    = Math.min(50, parseFloat(searchParams.get('radiusKm')  ?? '10'))
+  const radiusKm    = Math.min(50, Math.max(0.1, parseFloat(searchParams.get('radiusKm') ?? '10') || 10))
   const plugType    = searchParams.get('plugType')
   const minPowerKw  = searchParams.get('minPowerKw') ? parseFloat(searchParams.get('minPowerKw')!) : null
   const pricingModel= searchParams.get('pricingModel')
   const instantBook = searchParams.get('instantBook')
   const page        = Math.max(1, parseInt(searchParams.get('page')     ?? '1',  10))
-  const pageSize    = Math.min(50, parseInt(searchParams.get('pageSize') ?? '20', 10))
+  const pageSize    = Math.min(50, Math.max(1, parseInt(searchParams.get('pageSize') ?? '20', 10) || 20))
   const offset      = (page - 1) * pageSize
   const availableNow= searchParams.get('available') === 'true'
 
@@ -87,7 +91,7 @@ export async function GET(request: NextRequest) {
     const db = await getDb()
 
     // ── Build parameterised query ─────────────────────────
-    const params: unknown[] = [lng, lat, radiusKm * 1000] // PostGIS uses metres
+    const params: unknown[] = [lng, lat, radiusKm * 1000] // $1 lng, $2 lat, $3 radius (m)
     let i = params.length + 1
 
     const conditions: string[] = [`cl.status = 'active'`]
@@ -125,11 +129,7 @@ export async function GET(request: NextRequest) {
         `SELECT COUNT(*)::INT AS total
          FROM charger_listings cl
          WHERE ${where}
-           AND ST_DWithin(
-             cl.location::GEOGRAPHY,
-             ST_SetSRID(ST_MakePoint($1, $2), 4326)::GEOGRAPHY,
-             $3
-           )`,
+           AND ${WITHIN}`,
         params,
       ),
       db.execute(
@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
            cl.id,
            cl.title,
            cl.city,
-           cl.postcode,
+           cl.postal_code AS postcode,
            cl.latitude,
            cl.longitude,
            cl.charger_level,
@@ -157,21 +157,14 @@ export async function GET(request: NextRequest) {
            cl.shelter_available,
            cl.ev_parking_only,
            -- Distance in metres from search point
-           ROUND(ST_Distance(
-             cl.location::GEOGRAPHY,
-             ST_SetSRID(ST_MakePoint($1, $2), 4326)::GEOGRAPHY
-           ))::INT AS distance_m,
+           ROUND(${DISTANCE})::INT AS distance_m,
            -- First photo (if any)
-           (SELECT photo_url FROM listing_photos lp
+           (SELECT cdn_url FROM listing_photos lp
             WHERE lp.listing_id = cl.id AND lp.is_cover = TRUE
             LIMIT 1) AS cover_photo_url
          FROM charger_listings cl
          WHERE ${where}
-           AND ST_DWithin(
-             cl.location::GEOGRAPHY,
-             ST_SetSRID(ST_MakePoint($1, $2), 4326)::GEOGRAPHY,
-             $3
-           )
+           AND ${WITHIN}
          ORDER BY distance_m ASC, cl.average_rating DESC NULLS LAST
          LIMIT $${i} OFFSET $${i + 1}`,
         [...params, pageSize, offset],

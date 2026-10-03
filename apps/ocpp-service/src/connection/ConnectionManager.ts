@@ -86,10 +86,16 @@ export class ConnectionManager {
    * Publishes presence to Redis (if connected).
    */
   register(chargePointId: string, ws: WebSocket): void {
+    // A reconnecting charger replaces its previous (likely half-open) socket.
+    const previous = this.connections.get(chargePointId)
+    if (previous && previous !== ws) previous.terminate()
+
     this.connections.set(chargePointId, ws)
     void this._publishPresence(chargePointId)
 
     ws.on('close', () => {
+      // Only drop the entry if it still points at this socket.
+      if (this.connections.get(chargePointId) !== ws) return
       this.connections.delete(chargePointId)
       void this._removePresence(chargePointId)
       logger.info({ chargePointId, nodeId: NODE_ID }, 'Charger disconnected')

@@ -43,11 +43,11 @@ export async function GET(request: NextRequest) {
        FROM charger_devices cd
        LEFT JOIN charging_sessions cs ON cs.charge_point_id = cd.charge_point_id
        LEFT JOIN LATERAL (
-           SELECT score FROM safety_scores
+           SELECT overall_score AS score FROM safety_scores
            WHERE listing_id IN (
                SELECT id FROM charger_listings WHERE ocpp_charge_point_id = cd.charge_point_id
            )
-           ORDER BY calculated_at DESC LIMIT 1
+           ORDER BY last_calculated_at DESC LIMIT 1
        ) ss ON TRUE
        WHERE cd.host_profile_id = $1
        GROUP BY cd.id, cd.charge_point_id, cd.brand, cd.model,

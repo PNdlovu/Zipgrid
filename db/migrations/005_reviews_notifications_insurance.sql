@@ -343,7 +343,8 @@ CREATE TABLE incident_reports (
     supporting_docs         TEXT[]              DEFAULT '{}',  -- police report, repair quote
 
     -- Location of incident (may differ from listing if occurred nearby)
-    incident_location       GEOGRAPHY(POINT, 4326),
+    incident_lat            DECIMAL(9,6),
+    incident_lng            DECIMAL(9,6),
 
     -- Assigned platform agent
     assigned_to_user_id     UUID                REFERENCES users(id),
@@ -365,8 +366,8 @@ CREATE INDEX idx_incidents_reported_by  ON incident_reports (reported_by_user_id
 CREATE INDEX idx_incidents_booking      ON incident_reports (booking_id);
 CREATE INDEX idx_incidents_status       ON incident_reports (status);
 CREATE INDEX idx_incidents_severity     ON incident_reports (severity);
-CREATE INDEX idx_incidents_location     ON incident_reports USING GIST (incident_location)
-    WHERE incident_location IS NOT NULL;
+CREATE INDEX idx_incidents_location     ON incident_reports (incident_lat, incident_lng)
+    WHERE incident_lat IS NOT NULL;
 
 CREATE TRIGGER trg_incident_reports_updated_at
     BEFORE UPDATE ON incident_reports

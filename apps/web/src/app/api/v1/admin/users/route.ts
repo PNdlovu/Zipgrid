@@ -15,6 +15,7 @@ import { type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
+import { AuditLogger } from '@/domains/compliance/AuditLogger'
 
 function requireAdmin(request: NextRequest): boolean {
   const roles = request.headers.get('x-user-roles') ?? ''
@@ -140,16 +141,13 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Write audit log
-    await db.execute(
-      `INSERT INTO audit_log (actor_user_id, action, resource_type, resource_id, metadata)
-       VALUES ($1, $2, 'user', $3, $4)`,
-      [
-        adminUserId,
-        action.toUpperCase(),
-        userId,
-        JSON.stringify({ action, role: role ?? null, note: parsed.data.note ?? null }),
-      ],
-    ).catch(() => { /* audit log failure must not block the response */ })
+    await AuditLogger.logAsync({
+      eventType: `admin.user_${action}`,
+      actorId: adminUserId ?? undefined,
+      targetId: userId,
+      targetType: 'user',
+      metadata: { action, role: role ?? null, note: parsed.data.note ?? null },
+    })
 
     return apiResponse({ updated: true, userId, action })
   } catch (err) {

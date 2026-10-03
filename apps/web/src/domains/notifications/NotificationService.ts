@@ -33,6 +33,7 @@ export type NotificationCategory =
   | 'session_started'
   | 'session_completed'
   | 'payment_captured'
+  | 'payment_issue'
   | 'payout_sent'
   | 'kyc_update'
   | 'emergency_mode'
@@ -40,6 +41,7 @@ export type NotificationCategory =
   | 'reward_earned'
   | 'referral_joined'
   | 'system_message'
+  | 'charger_fault'
 
 export type SendNotificationInput = {
   userId: string
@@ -92,11 +94,11 @@ export const NotificationService = {
     await db.execute(
       `INSERT INTO notifications (
          id, user_id, category, title, body, action_url,
-         metadata, is_read, channels_requested,
+         metadata, channels_requested,
          created_at, updated_at
        ) VALUES (
          $1, $2, $3, $4, $5, $6,
-         $7::jsonb, false, $8,
+         $7::jsonb, $8,
          NOW(), NOW()
        )`,
       [
@@ -154,13 +156,13 @@ export const NotificationService = {
     const offset = (page - 1) * pageSize
 
     const baseWhere = options.unreadOnly
-      ? 'WHERE user_id = $1 AND is_read = false'
+      ? 'WHERE user_id = $1 AND read_at IS NULL'
       : 'WHERE user_id = $1'
 
     const [countRes, unreadRes, listRes] = await Promise.all([
       db.execute(`SELECT COUNT(*)::INT AS total FROM notifications ${baseWhere}`, [userId]),
       db.execute(
-        `SELECT COUNT(*)::INT AS cnt FROM notifications WHERE user_id = $1 AND is_read = false`,
+        `SELECT COUNT(*)::INT AS cnt FROM notifications WHERE user_id = $1 AND read_at IS NULL`,
         [userId],
       ),
       db.execute(
@@ -187,8 +189,8 @@ export const NotificationService = {
     const db = await getDb()
     await db.execute(
       `UPDATE notifications
-       SET is_read = true, read_at = NOW(), updated_at = NOW()
-       WHERE id = $1 AND user_id = $2 AND is_read = false`,
+       SET read_at = NOW(), updated_at = NOW()
+       WHERE id = $1 AND user_id = $2 AND read_at IS NULL`,
       [notificationId, userId],
     )
   },
@@ -201,8 +203,8 @@ export const NotificationService = {
     const db = await getDb()
     const res = await db.execute(
       `UPDATE notifications
-       SET is_read = true, read_at = NOW(), updated_at = NOW()
-       WHERE user_id = $1 AND is_read = false
+       SET read_at = NOW(), updated_at = NOW()
+       WHERE user_id = $1 AND read_at IS NULL
        RETURNING id`,
       [userId],
     )
@@ -304,7 +306,7 @@ export const NotificationService = {
         category: 'booking_confirmed',
         title: 'Booking confirmed',
         body: `Your booking at ${opts.listingTitle} on ${dateStr} is confirmed.`,
-        actionUrl: `/driver/bookings/${opts.bookingId}`,
+        actionUrl: `/bookings/${opts.bookingId}`,
         channels: ['in_app', 'email'],
         metadata: { bookingId: opts.bookingId },
       }),
@@ -336,7 +338,7 @@ export const NotificationService = {
       category: 'session_completed',
       title: 'Charging complete',
       body: `You charged ${kwh} kWh for £${cost}. Great drive!`,
-      actionUrl: `/driver/session/${opts.sessionId}`,
+      actionUrl: `/session/${opts.sessionId}`,
       channels: ['in_app'],
       metadata: { sessionId: opts.sessionId },
     })
@@ -438,12 +440,12 @@ export const NotificationService = {
 
       // Fetch user phone
       const userRes = await db.execute(
-        `SELECT phone_number FROM users WHERE id = $1 AND phone_verified = true LIMIT 1`,
+        `SELECT phone FROM users WHERE id = $1 AND phone_verified = true LIMIT 1`,
         [userId],
       )
       if (userRes.rows.length === 0) return
 
-      const phone = (userRes.rows[0] as { phone_number: string | null }).phone_number
+      const phone = (userRes.rows[0] as { phone: string | null }).phone
       if (!phone) return
 
       const credentials = Buffer.from(`${accountSid}:${authToken}`).toString('base64')

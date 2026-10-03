@@ -69,55 +69,80 @@ type Props = {
 /** Floating voice assistant button. Handles STT → AI → TTS + navigation. */
 export function VoiceButton({ role = 'driver', context, className }: Props) {
   const router = useRouter()
-  const [status, setStatus]         = useState<VoiceStatus>('idle')
-  const [transcript, setTranscript] = useState('')
+  const [status, setStatusState]    = useState<VoiceStatus>('idle')
+  const [transcript, setTranscriptState] = useState('')
   const [response, setResponse]     = useState('')
   const [expanded, setExpanded]     = useState(false)
   const [supported, setSupported]   = useState(true)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SpeechRecognition not in TS lib in all build environments
-  const recognitionRef = useRef<any>(null)
+  const recognitionRef = useRef<SpeechRecognition | null>(null)
+  // Recognition callbacks outlive renders; refs give them the live values.
+  const statusRef = useRef<VoiceStatus>('idle')
+  const transcriptRef = useRef('')
+
+  const setStatus = useCallback((next: VoiceStatus) => {
+    statusRef.current = next
+    setStatusState(next)
+  }, [])
+  const setTranscript = useCallback((next: string) => {
+    transcriptRef.current = next
+    setTranscriptState(next)
+  }, [])
 
   // Feature-detect on mount
   useEffect(() => {
-    const w = window as typeof window & { SpeechRecognition?: new () => unknown; webkitSpeechRecognition?: new () => unknown }
-    setSupported(!!(w.SpeechRecognition ?? w.webkitSpeechRecognition))
+    setSupported(Boolean(window.SpeechRecognition ?? window.webkitSpeechRecognition))
   }, [])
 
   const speak = useCallback((text: string) => {
-    if (!('speechSynthesis' in window)) return
+    if (!('speechSynthesis' in window)) { setStatus('idle'); return }
     window.speechSynthesis.cancel()
     const utt = new SpeechSynthesisUtterance(text)
     utt.lang = 'en-GB'
     utt.rate = 1.05
     utt.onstart  = () => setStatus('speaking')
-    utt.onend    = () => { setStatus('idle') }
-    utt.onerror  = () => { setStatus('idle') }
+    utt.onend    = () => setStatus('idle')
+    utt.onerror  = () => setStatus('idle')
     window.speechSynthesis.speak(utt)
-  }, [])
+  }, [setStatus])
 
   const executeAction = useCallback((action: VoiceAction) => {
     switch (action.type) {
       case 'navigate':
-        if (action.url) router.push(action.url)
+        if (action.url?.startsWith('/')) router.push(action.url)
         break
       case 'show_session_status':
-        if (action.sessionId) router.push(`/driver/session/${action.sessionId}`)
+        if (action.sessionId) router.push(`/session/${action.sessionId}`)
         break
       case 'navigate_to_booking':
-        if (action.bookingId) router.push(`/driver/bookings/${action.bookingId}`)
+        if (action.bookingId) router.push(`/bookings/${action.bookingId}`)
         break
       case 'stop_session':
-        // Handled by the session page after navigation
-        if (action.sessionId) router.push(`/driver/session/${action.sessionId}?action=stop`)
+        // The session page offers the stop control after navigation.
+        if (action.sessionId) router.push(`/session/${action.sessionId}?action=stop`)
         break
       default:
         break
     }
   }, [router])
 
+  const submit = useCallback(async (finalTranscript: string) => {
+    if (!finalTranscript.trim()) { setStatus('idle'); return }
+    setStatus('processing')
+    try {
+      const result = await runVoiceCommand(finalTranscript, role, context)
+      setResponse(result.speech)
+      speak(result.speech)
+      if (!result.requiresConfirmation) executeAction(result.action)
+    } catch {
+      setStatus('error')
+      const errMsg = "Sorry, I couldn't process that. Please try again."
+      setResponse(errMsg)
+      speak(errMsg)
+    }
+  }, [role, context, speak, executeAction, setStatus])
+
   const startListening = useCallback(() => {
-    const w = window as typeof window & { SpeechRecognition?: new () => unknown; webkitSpeechRecognition?: new () => unknown }
-    const SR = w.SpeechRecognition ?? w.webkitSpeechRecognition
+    const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition
     if (!SR) { setStatus('error'); return }
 
     const recognition = new SR()
@@ -128,46 +153,38 @@ export function VoiceButton({ role = 'driver', context, className }: Props) {
 
     recognition.onstart = () => { setStatus('listening'); setExpanded(true); setTranscript('') }
     recognition.onresult = (e) => {
-      const t = Array.from(e.results).map((r) => r[0]!.transcript).join('')
+      const t = Array.from({ length: e.results.length }, (_, i) => e.results[i]?.[0]?.transcript ?? '').join('')
       setTranscript(t)
     }
     recognition.onerror = () => { setStatus('error'); setTimeout(() => setStatus('idle'), 2000) }
-    recognition.onend = async () => {
-      if (status === 'listening') {
-        setStatus('processing')
-        try {
-          const finalTranscript = recognitionRef.current ? transcript : ''
-          if (!finalTranscript.trim()) { setStatus('idle'); return }
-          const result = await runVoiceCommand(finalTranscript, role, context)
-          setResponse(result.speech)
-          speak(result.speech)
-          if (!result.requiresConfirmation) {
-            executeAction(result.action)
-          }
-        } catch {
-          setStatus('error')
-          const errMsg = 'Sorry, I couldn\'t process that. Please try again.'
-          setResponse(errMsg)
-          speak(errMsg)
-        }
-      }
+    recognition.onend = () => {
+      recognitionRef.current = null
+      // Natural end or user tapped stop: submit what we heard.
+      if (statusRef.current === 'listening') void submit(transcriptRef.current)
     }
 
     recognition.start()
-  }, [status, transcript, role, context, speak, executeAction])
+  }, [setStatus, setTranscript, submit])
 
+  /** Stops listening (and submits), or stops speaking. */
   const stop = useCallback(() => {
-    recognitionRef.current?.stop()
-    if (status === 'speaking') window.speechSynthesis.cancel()
+    if (statusRef.current === 'listening') {
+      recognitionRef.current?.stop()
+      return
+    }
+    if (statusRef.current === 'speaking') window.speechSynthesis.cancel()
     setStatus('idle')
-  }, [status])
+  }, [setStatus])
 
+  /** Closes the panel, discarding anything in progress. */
   const dismiss = useCallback(() => {
-    stop()
+    setStatus('idle')
+    recognitionRef.current?.abort()
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel()
     setExpanded(false)
     setTranscript('')
     setResponse('')
-  }, [stop])
+  }, [setStatus, setTranscript])
 
   if (!supported) return null
 

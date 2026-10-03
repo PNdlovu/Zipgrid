@@ -12,7 +12,6 @@
 import { type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { BookingService } from '@/domains/booking/BookingService'
-import { StripeService } from '@/domains/payments/StripeService'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
 
@@ -54,7 +53,6 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const userId = request.headers.get('x-user-id')
-  const userRoles = request.headers.get('x-user-roles') ?? ''
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
 
   const { id } = await params
@@ -72,30 +70,32 @@ export async function PATCH(
   }
 
   try {
-    // Determine caller role for cancellation attribution
-    const role: 'driver' | 'host' = userRoles.includes('host') ? 'host' : 'driver'
-
-    // Fetch the Stripe PI id before cancelling (BookingService.cancel will update DB)
-    const booking = await BookingService.getById(id, userId)
-    const piId = booking.stripePaymentIntentId
-
-    await BookingService.cancel(id, userId, role, parsed.data.reason)
-
-    // Release the Stripe authorization hold after successful DB cancel
-    if (piId) {
-      try {
-        await StripeService.cancelPaymentIntent(piId)
-      } catch (stripeErr) {
-        // Log but don't fail — the booking is already cancelled in DB.
-        // A background reconciliation job handles mismatches.
-        console.error('[PATCH /api/v1/bookings/:id] Stripe cancel failed:', stripeErr)
-      }
-    }
-
-    return apiResponse({ cancelled: true, bookingId: id })
+    const { cancelledBy } = await BookingService.cancel(id, userId, parsed.data.reason)
+    return apiResponse({ cancelled: true, bookingId: id, cancelledBy })
   } catch (err) {
     if (err instanceof AppError) return apiError(err.code, err.message, err.statusCode)
     console.error('[PATCH /api/v1/bookings/:id]', err)
+    return apiError('INTERNAL_ERROR', 'An unexpected error occurred', 500)
+  }
+}
+
+/**
+ * DELETE /api/v1/bookings/[id]
+ * Cancels the booking (same as PATCH { action: 'cancel' }) and releases the hold.
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const userId = request.headers.get('x-user-id')
+  if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
+  const { id } = await params
+  try {
+    const { cancelledBy } = await BookingService.cancel(id, userId)
+    return apiResponse({ cancelled: true, bookingId: id, cancelledBy })
+  } catch (err) {
+    if (err instanceof AppError) return apiError(err.code, err.message, err.statusCode)
+    console.error('[DELETE /api/v1/bookings/:id]', err)
     return apiError('INTERNAL_ERROR', 'An unexpected error occurred', 500)
   }
 }

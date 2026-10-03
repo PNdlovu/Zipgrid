@@ -1,24 +1,19 @@
 /**
  * @file route.ts
- * @description POST /api/v1/auth/logout — clears refresh token cookie.
- * The client is responsible for discarding the access token from memory.
- *
+ * @description POST /api/v1/auth/logout — revoke the current session and clear
+ * auth cookies. Always succeeds.
  * @module apps/web/api/v1/auth/logout
- * @access Public (no auth required — safe to call even if already logged out)
- * @version 0.1.0
- * @since 2026-09-25
- * @author Zipgrid Engineering
  */
 
-import { clearRefreshTokenCookie } from '@/lib/cookies'
+import { type NextRequest } from 'next/server'
+import { revokeSession } from '@/lib/auth/sessions'
+import { clearAuthCookies, getRefreshTokenFromCookies } from '@/lib/cookies'
 import { apiResponse } from '@/lib/api/response'
 
-/**
- * POST /api/v1/auth/logout
- * Clears the refresh token cookie. Always returns 200.
- */
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const token = getRefreshTokenFromCookies(request.cookies)
+  if (token) await revokeSession(token)
   const response = apiResponse({ loggedOut: true })
-  clearRefreshTokenCookie(response)
+  clearAuthCookies(response)
   return response
 }

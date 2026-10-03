@@ -79,8 +79,9 @@ export async function GET(
     const eventsRes = await db.execute(
       `SELECT
          oel.id, oel.charge_point_id, oel.connector_id, oel.event_type,
-         oel.error_code, oel.info, oel.status, oel.vendor_id,
-         oel.vendor_error_code, oel.resolved, oel.timestamp
+         oel.error_code, oel.payload->>'info' AS info, oel.payload->>'status' AS status,
+         oel.payload->>'vendorId' AS vendor_id, oel.payload->>'vendorErrorCode' AS vendor_error_code,
+         oel.resolved, oel.timestamp
        FROM ocpp_event_log oel
        WHERE ${conditions.join(' AND ')}
        ORDER BY oel.timestamp DESC

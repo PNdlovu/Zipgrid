@@ -22,7 +22,7 @@ import { type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { BookingService } from '@/domains/booking/BookingService'
 import { apiResponse, apiError } from '@/lib/api/response'
-import { AppError, ForbiddenError, NotFoundError } from '@/lib/errors/AppError'
+import { AppError } from '@/lib/errors/AppError'
 
 /* ── GET — host booking list ────────────────────────────────── */
 
@@ -89,98 +89,11 @@ export async function PATCH(request: NextRequest) {
   const { bookingId, action, reason } = parsed.data
 
   try {
-    const { getDb } = await import('@/lib/db')
-    const db = await getDb()
-
-    // Verify host owns the listing for this booking
-    const bookingRes = await db.execute(
-      `SELECT b.id, b.status, b.driver_profile_id,
-              cl.id AS listing_id,
-              hp.user_id AS host_user_id
-       FROM bookings b
-       JOIN charger_listings cl ON cl.id = b.listing_id
-       JOIN host_profiles hp ON hp.id = cl.host_profile_id
-       WHERE b.id = $1 LIMIT 1`,
-      [bookingId],
-    )
-
-    if (bookingRes.rows.length === 0) throw new NotFoundError('Booking', bookingId)
-
-    const booking = bookingRes.rows[0] as {
-      id: string
-      status: string
-      driver_profile_id: string
-      listing_id: string
-      host_user_id: string
-    }
-
-    if (booking.host_user_id !== userId) throw new ForbiddenError()
-
-    if (booking.status !== 'pending') {
-      return apiError(
-        'INVALID_STATE',
-        `Booking is already '${booking.status}' — only pending bookings can be approved or rejected.`,
-        409,
-      )
-    }
-
     if (action === 'approve') {
-      await db.execute(
-        `UPDATE bookings
-         SET status = 'confirmed', confirmed_at = NOW(), updated_at = NOW()
-         WHERE id = $1`,
-        [bookingId],
-      )
-
-      // Notify the driver
-      try {
-        const { NotificationService } = await import('@/domains/notifications/NotificationService')
-        const driverRes = await db.execute(
-          `SELECT dp.user_id FROM driver_profiles dp WHERE dp.id = $1 LIMIT 1`,
-          [booking.driver_profile_id],
-        )
-        if (driverRes.rows.length > 0) {
-          await NotificationService.send({
-            userId: (driverRes.rows[0] as { user_id: string }).user_id,
-            category: 'booking_confirmed',
-            title: 'Booking approved',
-            body: 'Your booking has been approved by the host. You\'re all set!',
-            actionUrl: `/driver/bookings/${bookingId}`,
-            channels: ['in_app', 'email'],
-          })
-        }
-      } catch {
-        // Notification failure must not roll back the approval
-      }
+      await BookingService.approve(bookingId, userId)
     } else {
-      // reject → cancelled_by_host
-      await db.execute(
-        `UPDATE bookings
-         SET status = 'cancelled_by_host',
-             cancelled_at = NOW(),
-             cancellation_note = $2,
-             updated_at = NOW()
-         WHERE id = $1`,
-        [bookingId, reason ?? 'Booking declined by host'],
-      )
-
-      // Release Stripe hold on rejection
-      const txRes = await db.execute(
-        `SELECT stripe_payment_intent_id FROM transactions
-         WHERE booking_id = $1 AND status = 'hold_placed' LIMIT 1`,
-        [bookingId],
-      )
-      if (txRes.rows.length > 0) {
-        const piId = (txRes.rows[0] as { stripe_payment_intent_id: string | null }).stripe_payment_intent_id
-        if (piId) {
-          const { StripeService } = await import('@/domains/payments/StripeService')
-          await StripeService.cancelPaymentIntent(piId).catch((e: unknown) => {
-            console.error('[bookings/host PATCH] Stripe cancel failed:', e)
-          })
-        }
-      }
+      await BookingService.cancel(bookingId, userId, reason ?? 'Booking declined by host')
     }
-
     return apiResponse({ bookingId, action, updated: true })
   } catch (err) {
     if (err instanceof AppError) return apiError(err.code, err.message, err.statusCode)

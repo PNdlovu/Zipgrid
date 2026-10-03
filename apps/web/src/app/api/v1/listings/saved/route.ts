@@ -30,11 +30,11 @@ export async function GET(request: NextRequest) {
          sl.created_at AS saved_at,
          cl.title, cl.city, cl.address_line1,
          cl.charger_level, cl.max_power_kw, cl.plug_types,
-         cl.price_per_kwh_pence, cl.price_per_hour_pence,
+         cl.price_per_kwh_cents AS price_per_kwh_pence, cl.price_per_hour_cents AS price_per_hour_pence,
          cl.average_rating, cl.review_count,
          cl.status AS listing_status,
          ss.overall_score AS safety_score,
-         (SELECT url FROM listing_photos lp WHERE lp.listing_id = cl.id AND lp.is_cover = TRUE LIMIT 1) AS cover_url
+         (SELECT cdn_url FROM listing_photos lp WHERE lp.listing_id = cl.id AND lp.is_cover = TRUE LIMIT 1) AS cover_url
        FROM saved_listings sl
        JOIN charger_listings cl ON cl.id = sl.listing_id
        LEFT JOIN safety_scores ss ON ss.listing_id = cl.id

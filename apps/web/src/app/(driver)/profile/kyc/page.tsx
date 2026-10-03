@@ -23,20 +23,8 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import { ShieldCheck, Loader2, AlertTriangle } from 'lucide-react'
+import { loadStripe, type Stripe } from '@stripe/stripe-js'
 import { cn } from '@/lib/utils'
-
-/* ── Stripe Identity types (minimal surface) ────────────────── */
-declare global {
-  interface Window {
-    Stripe?: (publishableKey: string) => StripeInstance
-  }
-}
-
-type StripeInstance = {
-  verifyIdentity: (clientSecret: string) => Promise<{
-    error?: { message: string; code?: string }
-  }>
-}
 
 type StepState = 'loading' | 'ready' | 'verifying' | 'processing' | 'success' | 'cancelled' | 'error'
 
@@ -48,7 +36,7 @@ function KycPageInner() {
 
   const [step, setStep] = useState<StepState>('loading')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [stripe, setStripe] = useState<StripeInstance | null>(null)
+  const [stripe, setStripe] = useState<Stripe | null>(null)
 
   // Redirect immediately if no client_secret provided
   useEffect(() => {
@@ -68,34 +56,16 @@ function KycPageInner() {
       return
     }
 
-    // Inject Stripe.js if not already present
-    const existing = document.getElementById('stripe-js')
-    if (existing) {
-      if (window.Stripe) {
-        setStripe(window.Stripe(publishableKey))
+    loadStripe(publishableKey)
+      .then((instance) => {
+        if (!instance) throw new Error('Stripe.js unavailable')
+        setStripe(instance)
         setStep('ready')
-      }
-      return
-    }
-
-    const script = document.createElement('script')
-    script.id = 'stripe-js'
-    script.src = 'https://js.stripe.com/v3/'
-    script.async = true
-    script.onload = () => {
-      if (window.Stripe) {
-        setStripe(window.Stripe(publishableKey))
-        setStep('ready')
-      } else {
-        setErrorMessage('Could not load the verification tool. Please try again.')
+      })
+      .catch(() => {
+        setErrorMessage('Could not load the verification tool. Check your connection and try again.')
         setStep('error')
-      }
-    }
-    script.onerror = () => {
-      setErrorMessage('Could not load the verification tool. Check your connection and try again.')
-      setStep('error')
-    }
-    document.head.appendChild(script)
+      })
   }, [clientSecret])
 
   const handleVerify = async () => {

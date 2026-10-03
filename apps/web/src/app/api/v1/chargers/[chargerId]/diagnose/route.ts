@@ -94,10 +94,10 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     // Fetch last 20 OCPP events for context
     const eventsRes = await db.execute(
-      `SELECT action, payload, created_at
+      `SELECT event_type AS action, payload, timestamp AS created_at
        FROM ocpp_event_log
        WHERE charge_point_id = $1
-       ORDER BY created_at DESC
+       ORDER BY timestamp DESC
        LIMIT 20`,
       [device.charge_point_id],
     )

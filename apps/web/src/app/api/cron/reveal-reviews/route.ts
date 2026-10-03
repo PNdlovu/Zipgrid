@@ -16,14 +16,14 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
+import { hasValidServiceSecret } from '@/lib/env'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   // Guard: require CRON_SECRET header so only the scheduler can trigger this
-  const secret = request.headers.get('x-cron-secret')
-  if (!secret || secret !== process.env['CRON_SECRET']) {
+  if (!hasValidServiceSecret(request.headers, 'CRON_SECRET', 'x-cron-secret')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

@@ -50,12 +50,12 @@ export class ForbiddenError extends AppError {
   }
 }
 
-/** Input validation failed */
+/** Input or business-rule validation failed. `code` lets clients branch (e.g. TOO_EARLY). */
 export class ValidationError extends AppError {
   readonly details: unknown
 
-  constructor(message: string, details?: unknown) {
-    super(message, 'VALIDATION_ERROR', 422)
+  constructor(message: string, code = 'VALIDATION_ERROR', details?: unknown) {
+    super(message, code, 422)
     this.name = 'ValidationError'
     this.details = details
   }

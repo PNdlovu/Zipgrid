@@ -21,11 +21,11 @@
 
 import { type NextRequest } from 'next/server'
 import { apiResponse, apiError } from '@/lib/api/response'
+import { hasValidServiceSecret } from '@/lib/env'
 
 export async function GET(request: NextRequest) {
   // Verify cron secret
-  const secret = request.headers.get('x-cron-secret') ?? request.nextUrl.searchParams.get('secret')
-  if (secret !== process.env['CRON_SECRET']) {
+  if (!hasValidServiceSecret(request.headers, 'CRON_SECRET', 'x-cron-secret')) {
     return apiError('UNAUTHORIZED', 'Invalid cron secret', 401)
   }
 
@@ -34,33 +34,29 @@ export async function GET(request: NextRequest) {
     const db = await getDb()
 
     // Evaluate all hosts
+    // Each metric is an independent subquery — joining listings, bookings,
+    // reviews and incidents together would multiply the counts.
     const hostsRes = await db.execute(
       `SELECT hp.id AS host_profile_id, hp.is_superhost,
-              COUNT(b.id) FILTER (
-                WHERE b.status = 'completed'
-                AND b.completed_at >= NOW() - INTERVAL '12 months'
-              )::INT AS sessions_12m,
-              AVG(r.rating_overall) FILTER (
-                WHERE r.created_at >= NOW() - INTERVAL '12 months'
-              ) AS avg_rating,
-              COUNT(ir.id) FILTER (
-                WHERE ir.created_at >= NOW() - INTERVAL '6 months'
-                AND ir.status NOT IN ('dismissed')
-              )::INT AS incidents_6m,
-              COUNT(b.id) FILTER (
-                WHERE b.created_at >= NOW() - INTERVAL '3 months'
-              )::INT AS total_bookings_3m,
-              COUNT(b.id) FILTER (
-                WHERE b.created_at >= NOW() - INTERVAL '3 months'
-                AND b.status IN ('confirmed', 'completed')
-              )::INT AS responded_bookings_3m,
-              COUNT(cl.id) FILTER (WHERE cl.status = 'active')::INT AS active_listings
+              (SELECT COUNT(*) FROM bookings b JOIN charger_listings cl ON cl.id = b.listing_id
+               WHERE cl.host_profile_id = hp.id AND b.status = 'completed'
+                 AND b.completed_at >= NOW() - INTERVAL '12 months')::INT AS sessions_12m,
+              (SELECT AVG(r.overall_rating) FROM reviews r JOIN charger_listings cl ON cl.id = r.listing_id
+               WHERE cl.host_profile_id = hp.id AND r.subject = 'listing' AND r.status = 'published'
+                 AND r.created_at >= NOW() - INTERVAL '12 months') AS avg_rating,
+              (SELECT COUNT(*) FROM incident_reports ir JOIN charger_listings cl ON cl.id = ir.listing_id
+               WHERE cl.host_profile_id = hp.id AND ir.status <> 'resolved_no_claim'
+                 AND ir.created_at >= NOW() - INTERVAL '6 months')::INT AS incidents_6m,
+              (SELECT COUNT(*) FROM bookings b JOIN charger_listings cl ON cl.id = b.listing_id
+               WHERE cl.host_profile_id = hp.id
+                 AND b.created_at >= NOW() - INTERVAL '3 months')::INT AS total_bookings_3m,
+              (SELECT COUNT(*) FROM bookings b JOIN charger_listings cl ON cl.id = b.listing_id
+               WHERE cl.host_profile_id = hp.id AND b.status IN ('confirmed', 'active', 'completed')
+                 AND b.created_at >= NOW() - INTERVAL '3 months')::INT AS responded_bookings_3m,
+              (SELECT COUNT(*) FROM charger_listings cl
+               WHERE cl.host_profile_id = hp.id AND cl.status = 'active')::INT AS active_listings
        FROM host_profiles hp
-       LEFT JOIN charger_listings cl ON cl.host_profile_id = hp.id
-       LEFT JOIN bookings b ON b.listing_id = cl.id
-       LEFT JOIN reviews r ON r.listing_id = cl.id AND r.reviewer_role = 'driver'
-       LEFT JOIN incident_reports ir ON ir.listing_id = cl.id
-       GROUP BY hp.id, hp.is_superhost`,
+       WHERE hp.deleted_at IS NULL`,
       [],
     )
 

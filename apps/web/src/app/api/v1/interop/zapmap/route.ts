@@ -12,6 +12,7 @@
 
 import { type NextRequest } from 'next/server'
 import { apiResponse, apiError } from '@/lib/api/response'
+import { distanceMetresSql, withinRadiusSql } from '@/lib/db/geo'
 
 type ZapMapCharger = {
   id: string
@@ -49,8 +50,8 @@ export async function GET(request: NextRequest) {
               cl.status, cl.address_line1, cl.postal_code
        FROM charger_listings cl
        WHERE cl.status = 'active'
-         AND ST_DWithin(cl.location, ST_MakePoint($2, $1)::GEOGRAPHY, $3)
-       ORDER BY cl.location <-> ST_MakePoint($2, $1)::GEOGRAPHY
+         AND ${withinRadiusSql('cl.latitude', 'cl.longitude', '$1', '$2', '$3')}
+       ORDER BY ${distanceMetresSql('cl.latitude', 'cl.longitude', '$1', '$2')}
        LIMIT 200`,
       [lat, lng, radius],
     )

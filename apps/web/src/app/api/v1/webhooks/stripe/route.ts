@@ -28,6 +28,10 @@ import { type NextRequest, NextResponse } from 'next/server'
 import type Stripe from 'stripe'
 import { StripeService } from '@/domains/payments/StripeService'
 import { eventBus } from '@/lib/events/event-bus'
+import { transaction } from '@/lib/db'
+import { EarningsAllocator } from '@/domains/payments/EarningsAllocator'
+import { PayoutAccountService } from '@/domains/payments/PayoutAccountService'
+import { ShortfallService } from '@/domains/payments/ShortfallService'
 
 /* ── Helpers ────────────────────────────────────────────────── */
 
@@ -36,18 +40,25 @@ async function getDb() {
   return _getDb()
 }
 
-/** Idempotency check — returns true if event already processed */
-async function isDuplicate(eventId: string, eventType: string): Promise<boolean> {
+/**
+ * Claims an event for processing. Returns false when it was already claimed.
+ * Database errors propagate (→ 500 → Stripe retries) rather than being
+ * mistaken for duplicates.
+ */
+async function claimEvent(eventId: string, eventType: string): Promise<boolean> {
   const db = await getDb()
-  try {
-    await db.execute(
-      `INSERT INTO stripe_webhook_events (id, event_type) VALUES ($1, $2)`,
-      [eventId, eventType],
-    )
-    return false // successfully inserted → first time seeing this event
-  } catch {
-    return true // unique constraint violation → already processed
-  }
+  const res = await db.execute(
+    `INSERT INTO stripe_webhook_events (id, event_type) VALUES ($1, $2)
+     ON CONFLICT (id) DO NOTHING RETURNING id`,
+    [eventId, eventType],
+  )
+  return res.rows.length > 0
+}
+
+/** Releases a claim so Stripe's retry of a failed event is processed again. */
+async function releaseEvent(eventId: string): Promise<void> {
+  const db = await getDb()
+  await db.execute(`DELETE FROM stripe_webhook_events WHERE id = $1`, [eventId])
 }
 
 /* ── Event handlers ─────────────────────────────────────────── */
@@ -63,58 +74,72 @@ async function handleHoldConfirmed(pi: Stripe.PaymentIntent) {
   )
 }
 
-/** payment_intent.succeeded — capture completed */
+/**
+ * payment_intent.succeeded
+ *   - wallet top-up (manual or auto) → credit the wallet (idempotent per
+ *     PaymentIntent), then clear any outstanding session balance from it
+ *   - shortfall recovery charge → mark the shortfall collected
+ *   - charging hold captured outside Zipgrid (e.g. Stripe dashboard) →
+ *     reconcile the transaction. Captures made by SettlementService are
+ *     already recorded, so this is a no-op for them.
+ */
 async function handlePaymentSucceeded(pi: Stripe.PaymentIntent) {
-  const db = await getDb()
+  if (pi.metadata?.['purpose'] === 'wallet_topup' && pi.metadata['user_id']) {
+    const { WalletService } = await import('@/domains/payments/WalletService')
+    await WalletService.topUp(pi.metadata['user_id'], pi.amount_received, pi.id)
+    await ShortfallService.collectFromWallet(pi.metadata['user_id'])
+    return
+  }
+  if (pi.metadata?.['purpose'] === 'shortfall' && pi.metadata['shortfall_id']) {
+    await ShortfallService.applyCardPayment(pi.metadata['shortfall_id'], pi.amount_received, pi.id)
+    return
+  }
 
-  // Update transaction
-  await db.execute(
-    `UPDATE transactions
-     SET status = 'captured',
-         total_charged_cents = $2,
-         stripe_charge_id = $3,
-         captured_at = NOW(),
-         updated_at = NOW()
-     WHERE stripe_payment_intent_id = $1`,
-    [
-      pi.id,
-      pi.amount_received,
-      typeof pi.latest_charge === 'string' ? pi.latest_charge : (pi.latest_charge?.id ?? null),
-    ],
-  )
+  const chargeId = typeof pi.latest_charge === 'string' ? pi.latest_charge : (pi.latest_charge?.id ?? null)
+  const reconciled = await transaction(async (tx) => {
+    const res = await tx.execute(
+      `SELECT t.id, t.commission_rate_pct, dp.user_id AS driver_user
+       FROM transactions t
+       JOIN bookings b ON b.id = t.booking_id
+       JOIN driver_profiles dp ON dp.id = b.driver_profile_id
+       WHERE t.stripe_payment_intent_id = $1 AND t.status = 'hold_placed'
+       FOR UPDATE OF t`,
+      [pi.id],
+    )
+    const t = res.rows[0]
+    if (!t) return null
+    const total = pi.amount_received
+    const fee = Math.round((total * Number(t['commission_rate_pct'] ?? 15)) / 100)
+    await tx.execute(
+      `UPDATE transactions
+       SET status = 'captured', total_charged_cents = $2, platform_fee_cents = $3,
+           host_earnings_cents = $4, stripe_charge_id = $5, captured_at = NOW(), updated_at = NOW()
+       WHERE id = $1`,
+      [t['id'], total, fee, total - fee, chargeId],
+    )
+    await EarningsAllocator.allocateCapture(tx, t['id'] as string, total - fee)
+    await tx.execute(
+      `UPDATE bookings b SET status = 'completed', completed_at = COALESCE(b.completed_at, NOW()), updated_at = NOW()
+       FROM transactions t WHERE t.id = $1 AND t.booking_id = b.id AND b.status IN ('confirmed', 'active')`,
+      [t['id']],
+    )
+    return { transactionId: t['id'] as string, driverId: t['driver_user'] as string, amount: total }
+  })
 
-  // Mark booking completed
-  await db.execute(
-    `UPDATE bookings b
-     SET status = 'completed', completed_at = NOW(), updated_at = NOW()
-     FROM transactions t
-     WHERE t.stripe_payment_intent_id = $1 AND t.booking_id = b.id
-       AND b.status NOT IN ('cancelled_by_driver','cancelled_by_host','cancelled_by_platform','no_show','completed')`,
-    [pi.id],
-  )
-
-  // Publish domain event for downstream (rewards, reviews prompt, payout scheduling)
-  const txnResult = await db.execute(
-    `SELECT t.id, t.booking_id, t.total_charged_cents, dp.user_id AS driver_user
-     FROM transactions t
-     JOIN bookings b ON b.id = t.booking_id
-     JOIN driver_profiles dp ON dp.id = b.driver_profile_id
-     WHERE t.stripe_payment_intent_id = $1 LIMIT 1`,
-    [pi.id],
-  )
-  if (txnResult.rows.length > 0) {
-    const row = txnResult.rows[0] as {
-      id: string
-      booking_id: string
-      total_charged_cents: number
-      driver_user: string
-    }
+  if (reconciled) {
     eventBus.publish({
       type: 'PAYMENT_CAPTURED',
-      transactionId: row.id,
-      amountPence: row.total_charged_cents,
-      driverId: row.driver_user,
+      transactionId: reconciled.transactionId,
+      amountPence: reconciled.amount,
+      driverId: reconciled.driverId,
     })
+  } else if (chargeId) {
+    const db = await getDb()
+    await db.execute(
+      `UPDATE transactions SET stripe_charge_id = COALESCE(stripe_charge_id, $2), updated_at = NOW()
+       WHERE stripe_payment_intent_id = $1`,
+      [pi.id, chargeId],
+    )
   }
 }
 
@@ -157,20 +182,30 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
   if (!charge.payment_intent) return
   const piId =
     typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent.id
-  const db = await getDb()
-
   const totalRefunded = charge.amount_refunded
   const isFullRefund = charge.refunded
 
-  await db.execute(
-    `UPDATE transactions
-     SET status = $2,
-         refunded_cents = $3,
-         refunded_at = NOW(),
-         updated_at = NOW()
-     WHERE stripe_payment_intent_id = $1`,
-    [piId, isFullRefund ? 'fully_refunded' : 'partially_refunded', totalRefunded],
-  )
+  await transaction(async (tx) => {
+    const res = await tx.execute(
+      `SELECT id, COALESCE(refunded_cents, 0) AS refunded, commission_rate_pct
+       FROM transactions WHERE stripe_payment_intent_id = $1 FOR UPDATE`,
+      [piId],
+    )
+    const t = res.rows[0]
+    if (!t) return // not a charging transaction (e.g. marketplace order)
+    const delta = totalRefunded - Number(t['refunded'])
+    await tx.execute(
+      `UPDATE transactions
+       SET status = $2, refunded_cents = $3, refunded_at = NOW(), updated_at = NOW()
+       WHERE id = $1`,
+      [t['id'], isFullRefund ? 'fully_refunded' : 'partially_refunded', totalRefunded],
+    )
+    // Refunds issued outside Zipgrid (e.g. Stripe dashboard) still reduce earnings.
+    if (delta > 0) {
+      const feeRate = Number(t['commission_rate_pct'] ?? 15) / 100
+      await EarningsAllocator.allocateRefund(tx, t['id'] as string, Math.round(delta * (1 - feeRate)), `stripe_refund:${totalRefunded}`)
+    }
+  })
 }
 
 /** charge.dispute.created — chargeback opened */
@@ -215,16 +250,9 @@ async function handlePayoutFailed(payout: Stripe.Payout) {
   )
 }
 
-/** account.updated — Stripe Connect onboarding state changed */
+/** account.updated — Stripe Connect payout readiness changed */
 async function handleAccountUpdated(account: Stripe.Account) {
-  if (!account.charges_enabled) return
-  const db = await getDb()
-  await db.execute(
-    `UPDATE host_profiles
-     SET stripe_connect_onboarded = true, updated_at = NOW()
-     WHERE stripe_connect_account_id = $1`,
-    [account.id],
-  )
+  await PayoutAccountService.onAccountUpdated(account.id, Boolean(account.payouts_enabled && account.details_submitted))
 }
 
 /** identity.verification_session.* — KYC status update */
@@ -265,9 +293,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 400 })
   }
 
-  // Idempotency check
-  const alreadyProcessed = await isDuplicate(event.id, event.type)
-  if (alreadyProcessed) {
+  // Idempotency: claim the event; a duplicate delivery is acknowledged.
+  if (!(await claimEvent(event.id, event.type))) {
     return NextResponse.json({ received: true, duplicate: true })
   }
 
@@ -313,9 +340,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ received: true })
   } catch (err) {
-    // Return 500 so Stripe retries. The idempotency table prevents double-processing
-    // once the retry succeeds.
+    // Release the claim and return 500 so Stripe retries the event.
     console.error(`[stripe-webhook] Handler failed for ${event.type}:`, err)
+    await releaseEvent(event.id).catch((e: unknown) => console.error('[stripe-webhook] release failed', e))
     return NextResponse.json({ error: 'Webhook handler failed' }, { status: 500 })
   }
 }

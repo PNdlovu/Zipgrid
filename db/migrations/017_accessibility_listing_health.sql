@@ -63,15 +63,15 @@ ALTER TABLE charger_listings
     -- e.g. {"audio_guidance":true,"braille_labels":false,"help_button":true}
     ADD COLUMN IF NOT EXISTS accessibility_extras     JSONB    DEFAULT '{}';
 
--- Partial indexes for the most common accessibility filters
+-- Partial indexes for accessibility filters (using lat/lng B-tree)
 CREATE INDEX IF NOT EXISTS idx_listings_wheelchair
-    ON charger_listings (location) WHERE access_wheelchair = TRUE AND status = 'published';
+    ON charger_listings (latitude, longitude) WHERE access_wheelchair = TRUE AND status = 'active';
 
 CREATE INDEX IF NOT EXISTS idx_listings_covered
-    ON charger_listings (location) WHERE access_covered = TRUE AND status = 'published';
+    ON charger_listings (latitude, longitude) WHERE access_covered = TRUE AND status = 'active';
 
 CREATE INDEX IF NOT EXISTS idx_listings_family
-    ON charger_listings (location) WHERE access_family_friendly = TRUE AND status = 'published';
+    ON charger_listings (latitude, longitude) WHERE access_family_friendly = TRUE AND status = 'active';
 
 COMMENT ON COLUMN charger_listings.access_wheelchair IS
     'Bay and path are accessible for wheelchair users. Host self-declares; verified by Safety Score inspection.';

@@ -123,7 +123,7 @@ export const SafetyScoreService = {
     // Faults per 100 sessions (last 90 days)
     const faultRes = await db.execute(
       `SELECT
-         COUNT(*) FILTER (WHERE event_type = 'Faulted' AND resolved = false)::FLOAT AS fault_count,
+         COUNT(*) FILTER (WHERE error_code IS NOT NULL AND resolved = false)::FLOAT AS fault_count,
          COUNT(DISTINCT b.id)::FLOAT AS total_sessions
        FROM ocpp_event_log oel
        JOIN charger_listings cl ON cl.ocpp_charge_point_id = oel.charge_point_id

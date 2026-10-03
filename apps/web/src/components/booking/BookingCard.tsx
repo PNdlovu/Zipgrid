@@ -42,7 +42,7 @@ function fmtTime(iso: string): string {
 /** Booking list row — links to driver or host booking detail. */
 export function BookingCard({ booking, role, className }: BookingCardProps) {
   const href = role === 'driver'
-    ? `/driver/bookings/${booking.id}`
+    ? `/bookings/${booking.id}`
     : `/host/bookings/${booking.id}`
 
   const counterparty = role === 'driver' ? booking.hostName : booking.driverName

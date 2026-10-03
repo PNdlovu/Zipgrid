@@ -1,53 +1,54 @@
 /**
  * @file cookies.ts
- * @description Secure cookie helpers for auth token management.
- * Refresh token stored as HttpOnly, Secure, SameSite=Lax cookie.
+ * @description Auth cookies. Both tokens are HttpOnly, so page scripts (and any
+ * injected XSS) can never read them.
  *
- * @module apps/web/lib
- * @version 0.1.0
- * @since 2026-09-25
- * @author Zipgrid Engineering
+ *   __zg_at  access token  (15 min)        — read by middleware
+ *   __zg_rt  refresh token (7 / 30 days)   — read by middleware and /auth/refresh
+ *
+ * SameSite=Lax blocks cross-site POSTs; middleware additionally checks Origin on
+ * cookie-authenticated state-changing requests.
+ *
+ * @module lib/cookies
  */
 
 import { type NextResponse } from 'next/server'
 import { REFRESH_TOKEN_COOKIE } from './jwt'
 
-const IS_PRODUCTION = process.env.NODE_ENV === 'production'
+export const ACCESS_TOKEN_COOKIE = '__zg_at'
 
-/**
- * Sets the refresh token as a secure HttpOnly cookie on the response.
- */
-export function setRefreshTokenCookie(
+const ACCESS_MAX_AGE = 15 * 60
+const secure = () => process.env.NODE_ENV === 'production'
+
+/** Sets both auth cookies on a response. */
+export function setAuthCookies(
   response: NextResponse,
-  token: string,
-  rememberMe = false,
+  tokens: { accessToken: string; refreshToken: string; rememberMe?: boolean },
 ): void {
-  const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24 * 7 // 30d or 7d
-  response.cookies.set(REFRESH_TOKEN_COOKIE, token, {
+  response.cookies.set(ACCESS_TOKEN_COOKIE, tokens.accessToken, {
     httpOnly: true,
-    secure: IS_PRODUCTION,
+    secure: secure(),
     sameSite: 'lax',
     path: '/',
-    maxAge,
+    maxAge: ACCESS_MAX_AGE,
+  })
+  response.cookies.set(REFRESH_TOKEN_COOKIE, tokens.refreshToken, {
+    httpOnly: true,
+    secure: secure(),
+    sameSite: 'lax',
+    path: '/',
+    maxAge: (tokens.rememberMe ? 30 : 7) * 24 * 60 * 60,
   })
 }
 
-/**
- * Clears the refresh token cookie (sets it with maxAge=0).
- */
-export function clearRefreshTokenCookie(response: NextResponse): void {
-  response.cookies.set(REFRESH_TOKEN_COOKIE, '', {
-    httpOnly: true,
-    secure: IS_PRODUCTION,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 0,
-  })
+/** Clears both auth cookies. */
+export function clearAuthCookies(response: NextResponse): void {
+  for (const name of [ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE]) {
+    response.cookies.set(name, '', { httpOnly: true, secure: secure(), sameSite: 'lax', path: '/', maxAge: 0 })
+  }
 }
 
-/**
- * Extracts the refresh token from request cookies.
- */
+/** Extracts the refresh token from request cookies. */
 export function getRefreshTokenFromCookies(
   cookies: { get: (name: string) => { value: string } | undefined },
 ): string | null {

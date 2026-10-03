@@ -112,16 +112,25 @@ function RegisterForm() {
         }),
       })
 
-      const json = (await res.json()) as { success: boolean; error?: { message: string } }
+      const json = (await res.json()) as {
+        success: boolean
+        data?: { requiresVerification?: boolean }
+        error?: { message: string }
+      }
 
       if (!res.ok || !json.success) {
         setServerError(json.error?.message ?? 'Something went wrong. Please try again.')
         return
       }
 
-      // Store email for verify-email page
+      // The account is signed in (HttpOnly cookies). Verify email first when
+      // the platform requires it; otherwise go straight in.
       sessionStorage.setItem('zipgrid_pending_email', data.email)
-      router.push('/auth/verify-email')
+      if (json.data?.requiresVerification) {
+        router.push('/verify-email')
+      } else {
+        window.location.assign('/dashboard')
+      }
     } catch {
       setServerError('Network error — please check your connection and try again.')
     }

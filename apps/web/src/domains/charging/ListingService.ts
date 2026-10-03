@@ -15,6 +15,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { getDb } from '@/lib/db'
 import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/errors/AppError'
 import { eventBus } from '@/lib/events/event-bus'
+import { distanceMetresSql, withinRadiusSql } from '@/lib/db/geo'
 
 /* ── Types ──────────────────────────────────────────────────── */
 
@@ -193,10 +194,10 @@ export const ListingService = {
         [id],
       ),
       db.execute(
-        `SELECT id, photo_url AS url, is_cover
+        `SELECT id, cdn_url AS url, is_cover
          FROM listing_photos
          WHERE listing_id = $1
-         ORDER BY sort_order ASC, created_at ASC`,
+         ORDER BY display_order ASC, uploaded_at ASC`,
         [id],
       ),
     ])
@@ -238,7 +239,7 @@ export const ListingService = {
 
   /**
    * Searches active listings within a radius of a point.
-   * Uses PostGIS ST_DWithin with GEOGRAPHY type (distance in metres).
+   * Bounding-box + haversine on lat/lng (distance in metres).
    */
   async searchNearby(params: {
     lat: number
@@ -259,7 +260,7 @@ export const ListingService = {
 
     const conditions: string[] = [
       `status = 'active'`,
-      `ST_DWithin(location, ST_MakePoint($2, $1)::GEOGRAPHY, $3)`,
+      withinRadiusSql('latitude', 'longitude', '$1', '$2', '$3'),
     ]
     const values: unknown[] = [params.lat, params.lng, radius]
     let i = 4
@@ -303,10 +304,10 @@ export const ListingService = {
               min_booking_hours, max_booking_hours,
               instant_book_enabled, average_rating, review_count,
               total_kwh_delivered, created_at, updated_at,
-              ST_Distance(location, ST_MakePoint($2,$1)::GEOGRAPHY) AS distance_metres
+              ${distanceMetresSql('latitude', 'longitude', '$1', '$2')} AS distance_metres
        FROM charger_listings
        WHERE ${where}
-       ORDER BY location <-> ST_MakePoint($2,$1)::GEOGRAPHY
+       ORDER BY distance_metres
        LIMIT $${i} OFFSET $${i + 1}`,
       [...values, pageSize, offset],
     )
@@ -331,9 +332,24 @@ export const ListingService = {
     if (hostCheck.rows.length === 0) throw new ForbiddenError()
 
     if (listing.status === 'active') return // already published
-
+    if (listing.status === 'deactivated' || listing.status === 'under_review') {
+      throw new ValidationError('This listing is under review by Zipgrid and cannot be published yet.', 'LISTING_UNDER_REVIEW')
+    }
     if (!listing.title || listing.latitude === 0 || listing.longitude === 0) {
-      throw new ValidationError('Listing is missing required fields (title, location)')
+      throw new ValidationError('Listing is missing required fields (title, location)', 'LISTING_INCOMPLETE')
+    }
+    const priced =
+      (listing.pricingModel === 'per_kwh' && (listing.pricePerKwhPence ?? 0) > 0) ||
+      (listing.pricingModel === 'per_hour' && (listing.pricePerHourPence ?? 0) > 0) ||
+      (listing.pricingModel === 'per_session' && (listing.pricePerSessionPence ?? 0) > 0) ||
+      (listing.pricingModel === 'hybrid' && (listing.pricePerKwhPence ?? 0) > 0)
+    if (!priced) throw new ValidationError('Set a price for your charger before publishing.', 'LISTING_UNPRICED')
+    if (listing.isSmartCharger && !listing.ocppChargePointId) {
+      throw new ValidationError('Link your paired charger before publishing.', 'LISTING_NO_CHARGER')
+    }
+    const terms = await db.execute(`SELECT insurance_tos_accepted FROM charger_listings WHERE id = $1`, [listingId])
+    if (!terms.rows[0]?.['insurance_tos_accepted']) {
+      throw new ValidationError('Accept the host safety and insurance terms before publishing.', 'TERMS_NOT_ACCEPTED')
     }
 
     await db.execute(
