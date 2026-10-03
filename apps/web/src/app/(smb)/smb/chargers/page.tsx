@@ -15,9 +15,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import {
-  PlugZap, Plus, RefreshCw, AlertTriangle, CheckCircle2,
-  PauseCircle, WifiOff, Zap, Settings, TrendingUp,
-  Loader2, BarChart3, ArrowRight,
+  PlugZap, Plus, RefreshCw, AlertTriangle, CheckCircle2, PauseCircle, WifiOff, Zap, Settings, Loader2, BarChart3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -234,6 +232,7 @@ function StatMini({ label, value }: { label: string; value: string }) {
 
 /* ── Page ───────────────────────────────────────────────────── */
 
+/** Page at /smb/chargers — Multi-charger management for SMB hosts. */
 export default function SmBChargersPage() {
   const [chargers, setChargers]       = useState<Charger[]>([])
   const [summary, setSummary]         = useState<Summary | null>(null)

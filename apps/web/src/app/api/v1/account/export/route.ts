@@ -32,6 +32,7 @@ function checkExportRateLimit(userId: string): boolean {
   return true
 }
 
+/** POST /api/v1/account/export — GDPR Art. 20 data portability: JSON export of all of the caller's personal data. */
 export async function POST(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)

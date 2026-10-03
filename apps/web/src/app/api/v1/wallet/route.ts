@@ -11,6 +11,7 @@ import { ShortfallService } from '@/domains/payments/ShortfallService'
 import { apiResponse } from '@/lib/api/response'
 import { errorResponse, requireUser } from '@/lib/api/context'
 
+/** GET /api/v1/wallet — current balance (total, reserved, available), any outstanding session balance owed, and the 10 most recent ledger entries. */
 export async function GET(request: NextRequest) {
   try {
     const { userId } = requireUser(request)

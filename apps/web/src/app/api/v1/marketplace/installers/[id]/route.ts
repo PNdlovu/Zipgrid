@@ -9,6 +9,7 @@ import { InstallerService } from '@/domains/marketplace/InstallerService'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
 
+/** GET /api/v1/marketplace/installers/[id] — installer profile. */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   try {

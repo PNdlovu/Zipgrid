@@ -15,6 +15,7 @@ const BodySchema = z.object({
   email: z.string().email(),
 })
 
+/** POST /api/v1/fleet/invite — Fleet admin invites a driver by email. */
 export async function POST(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)

@@ -30,6 +30,7 @@ const NAV_ITEMS = [
   { href: '/admin/audit',     icon: ClipboardList,    label: 'Audit Log' },
 ] as const
 
+/** Layout for the (admin) route group — Platform admin portal layout — dark-accented sidebar. */
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)

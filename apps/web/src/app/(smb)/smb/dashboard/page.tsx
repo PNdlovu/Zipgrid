@@ -159,6 +159,7 @@ const PERIODS = [
   { key: '90d', label: '90 days' },
 ]
 
+/** Page at /smb/dashboard — SMB host overview: KPI cards, per-charger status grid, revenue sparklines, peak-hours heatmap, and active sessions. */
 export default function SmbDashboardPage() {
   const [period, setPeriod] = useState('30d')
   const [data, setData] = useState<Analytics | null>(null)

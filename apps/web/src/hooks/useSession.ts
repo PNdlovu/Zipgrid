@@ -44,6 +44,7 @@ export type LiveSession = {
 const TERMINAL_STATES: SessionStatus[] = ['completed', 'faulted']
 const POLL_INTERVAL_MS = 5_000
 
+/** Live state of a charging session (null id = no session). */
 export function useSession(sessionId: string | null) {
   const [session, setSession] = useState<LiveSession | null>(null)
   const [loading, setLoading] = useState(false)

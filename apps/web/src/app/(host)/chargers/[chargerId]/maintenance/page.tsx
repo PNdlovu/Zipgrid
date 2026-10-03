@@ -85,6 +85,7 @@ function fmtRelative(iso: string) {
 
 /* ── Page ───────────────────────────────────────────────────── */
 
+/** Page at /chargers/[chargerId]/maintenance — Full maintenance log. */
 export default function MaintenanceLogPage({
   params,
 }: {

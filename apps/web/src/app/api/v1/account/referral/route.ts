@@ -26,6 +26,7 @@ function generateReferralCode(userId: string): string {
   return userId.replace(/-/g, '').slice(0, 8).toUpperCase()
 }
 
+/** GET /api/v1/account/referral — returns the driver's unique referral link + stats (referrals made, credits earned). */
 export async function GET(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
@@ -71,6 +72,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/** POST /api/v1/account/referral — redeems a referral code on first booking (driver-side). */
 export async function POST(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)

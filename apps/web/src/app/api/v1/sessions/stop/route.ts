@@ -11,6 +11,7 @@ import { SessionService, LIVE_SESSION_STATUSES } from '@/domains/sessions/Sessio
 import { apiResponse, apiError } from '@/lib/api/response'
 import { errorResponse, requireUser } from '@/lib/api/context'
 
+/** POST /api/v1/sessions/stop — stop the caller's most recent live session (used by voice/AI flows that don't know the session id). */
 export async function POST(request: NextRequest) {
   try {
     const { userId } = requireUser(request)

@@ -23,6 +23,7 @@ const BookSchema = z.object({
   listingId: z.string().uuid().optional(),
 })
 
+/** POST /api/v1/marketplace/installers/[id]/book — book an installer job. */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },

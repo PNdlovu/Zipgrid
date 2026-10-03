@@ -17,6 +17,7 @@ import { Scheduler } from '@/domains/scheduling/Scheduler'
 
 export const dynamic = 'force-dynamic'
 
+/** POST /api/v1/cron/tick — runs all scheduled work (see domains/scheduling/Scheduler.ts). */
 export async function POST(request: NextRequest) {
   if (!hasValidServiceSecret(request.headers, 'CRON_SECRET', 'x-cron-secret')) {
     return apiError('UNAUTHORIZED', 'Invalid cron secret', 401)

@@ -22,6 +22,7 @@ function requireAdmin(req: NextRequest) {
   return (req.headers.get('x-user-roles') ?? '').split(',').map((r) => r.trim()).includes('admin')
 }
 
+/** GET /api/v1/admin/disputes — paginated dispute queue. */
 export async function GET(request: NextRequest) {
   if (!requireAdmin(request)) return apiError('FORBIDDEN', 'Admin access required', 403)
 
@@ -76,6 +77,7 @@ const PatchDisputeSchema = z.object({
   refundAmountPence: z.number().int().nonnegative().optional(),
 })
 
+/** PATCH /api/v1/admin/disputes — resolve/escalate a dispute. */
 export async function PATCH(request: NextRequest) {
   const adminUserId = request.headers.get('x-user-id')
   if (!requireAdmin(request)) return apiError('FORBIDDEN', 'Admin access required', 403)

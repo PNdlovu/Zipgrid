@@ -86,6 +86,7 @@ export type VoiceCommandResponse = {
 
 /* ── Route handler ──────────────────────────────────────────── */
 
+/** POST /api/v1/voice/command — Accepts a voice transcript (text), forwards to the ai-service for GPT-4o intent parsing, and returns a structured action the client can execute (navigate, prefill form, confirm, etc.). */
 export async function POST(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)

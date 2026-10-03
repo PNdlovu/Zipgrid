@@ -45,6 +45,7 @@ const POLL_INTERVAL_MS = 30_000
 
 /* ── Hook ──────────────────────────────────────────────────── */
 
+/** In-app notifications with read/mark-all-read actions. */
 export function useNotifications(unreadOnly = false) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount,   setUnreadCount]   = useState(0)

@@ -27,6 +27,7 @@ const ProfileSchema = z.object({
   vatNumber: z.string().trim().max(20).optional(),
 })
 
+/** GET /api/v1/host/profile — the caller's host profile (404 if not a host). */
 export async function GET(request: NextRequest) {
   try {
     const { userId } = requireUser(request)
@@ -56,6 +57,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/** PATCH /api/v1/host/profile — become a host / update host details. */
 export async function PATCH(request: NextRequest) {
   try {
     const { userId, roles } = requireUser(request)

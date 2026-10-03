@@ -16,9 +16,7 @@ import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
-  Zap, MapPin, Navigation, Clock, PoundSterling,
-  AlertTriangle, Loader2, CheckCircle2, Battery,
-  ArrowLeft, ArrowRight,
+  Zap, MapPin, Navigation, Clock, AlertTriangle, Loader2, CheckCircle2, Battery, ArrowLeft, ArrowRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -53,6 +51,7 @@ const BATTERY_LEVELS = [5, 10, 15, 20]
 
 type Step = 'battery' | 'searching' | 'results' | 'booking'
 
+/** Page at /emergency — Emergency Charging Mode. */
 export default function EmergencyPage() {
   const router = useRouter()
   const [step, setStep] = useState<Step>('battery')
@@ -185,7 +184,7 @@ export default function EmergencyPage() {
               <Battery className="mx-auto mb-3 h-16 w-16 text-[hsl(var(--destructive))]" aria-hidden="true" strokeWidth={1.5} />
               <h1 className="text-xl font-semibold text-[hsl(var(--foreground))]">How much battery do you have?</h1>
               <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
-                We'll find every charger within your remaining range.
+                We&apos;ll find every charger within your remaining range.
               </p>
             </div>
 

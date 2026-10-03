@@ -22,7 +22,10 @@ import { WalletService } from '@/domains/payments/WalletService'
 import { ShortfallService } from '@/domains/payments/ShortfallService'
 
 export const WalletClosureService = {
-  /** @throws {ValidationError} when the wallet has reservations or the user owes money */
+  /**
+   * Checks the wallet can be closed.
+   * @throws {ValidationError} when the wallet has reservations or the user owes money
+   */
   async assertClosable(userId: string): Promise<void> {
     const b = await WalletService.getBalance(userId)
     if (b.pendingPence > 0) {

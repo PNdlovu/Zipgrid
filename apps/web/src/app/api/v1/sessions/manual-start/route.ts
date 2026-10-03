@@ -18,6 +18,7 @@ const BodySchema = z.object({
   pin: z.string().regex(/^\d{6}$/, 'PIN must be 6 digits'),
 })
 
+/** POST /api/v1/sessions/manual-start — start a session on a non-smart charger using the 6-digit booking PIN shown to the driver. */
 export async function POST(request: NextRequest) {
   try {
     const { userId } = requireUser(request)

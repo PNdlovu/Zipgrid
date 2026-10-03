@@ -12,6 +12,7 @@ import { apiResponse, apiError } from '@/lib/api/response'
 import { errorResponse, requireUser } from '@/lib/api/context'
 import { rateLimit } from '@/lib/rate-limit'
 
+/** POST /api/v1/auth/verify-phone/resend — text a new code to the signed-in user's own (unverified) phone number. */
 export async function POST(request: NextRequest) {
   try {
     const { userId } = requireUser(request)

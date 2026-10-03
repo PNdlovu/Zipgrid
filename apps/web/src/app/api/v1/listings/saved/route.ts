@@ -16,6 +16,7 @@ import { z } from 'zod'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
 
+/** GET /api/v1/listings/saved — list all saved listings for the authenticated driver. */
 export async function GET(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
@@ -51,6 +52,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/** POST /api/v1/listings/saved — save a listing. */
 export async function POST(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
@@ -78,6 +80,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/** DELETE /api/v1/listings/saved — remove a saved listing. */
 export async function DELETE(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)

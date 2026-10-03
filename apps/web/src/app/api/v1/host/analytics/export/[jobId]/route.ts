@@ -12,6 +12,7 @@ import { type NextRequest } from 'next/server'
 import { apiError } from '@/lib/api/response'
 import { NextResponse } from 'next/server'
 
+/** GET /api/v1/host/analytics/export/[jobId] — Polls the status of an async export job. */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ jobId: string }> },

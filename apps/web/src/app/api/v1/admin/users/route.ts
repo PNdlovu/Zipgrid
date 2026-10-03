@@ -22,6 +22,7 @@ function requireAdmin(request: NextRequest): boolean {
   return roles.split(',').map((r) => r.trim()).includes('admin')
 }
 
+/** GET /api/v1/admin/users — paginated user list with KYC status. */
 export async function GET(request: NextRequest) {
   if (!requireAdmin(request)) return apiError('FORBIDDEN', 'Admin access required', 403)
 
@@ -82,6 +83,7 @@ const PatchUserSchema = z.object({
   note: z.string().max(500).optional(),
 })
 
+/** PATCH /api/v1/admin/users — update user status (suspend/activate/assign role). */
 export async function PATCH(request: NextRequest) {
   const adminUserId = request.headers.get('x-user-id')
   if (!requireAdmin(request)) return apiError('FORBIDDEN', 'Admin access required', 403)

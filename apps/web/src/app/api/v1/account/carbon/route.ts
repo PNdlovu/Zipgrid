@@ -8,10 +8,10 @@
  * Formula (UK average):
  *   UK grid carbon intensity ≈ 233 gCO₂/kWh (2026 DESNZ estimate)
  *   Petrol car average:       ≈ 170 gCO₂/km  (SMMT 2025 fleet average)
- *   EV efficiency:            ≈ 3.5 miles/kWh → 2.18 km/kWh
+ *   EV efficiency:            ≈ 3.5 miles/kWh → 5.63 km/kWh
  *
  *   CO₂ from EV session:  kWh × 233 g
- *   CO₂ from petrol equiv: (kWh × 2.18 km/kWh) × 170 g/km
+ *   CO₂ from petrol equiv: (kWh × 5.63 km/kWh) × 170 g/km
  *   CO₂ avoided = petrol_equiv - ev_actual  (if positive)
  *
  * @module apps/web/api/v1/account/carbon
@@ -26,9 +26,9 @@ import { AppError } from '@/lib/errors/AppError'
 
 const GRID_INTENSITY_G_PER_KWH   = 233   // UK 2026 grid carbon intensity (gCO₂/kWh)
 const PETROL_G_PER_KM            = 170   // Petrol fleet average
-const EV_KM_PER_KWH              = 2.18  // 3.5 miles/kWh ≈ 5.63 km/kWh... corrected: 1 mile = 1.609km → 3.5×1.609 = 5.63; but real-world mixed is ~3.5 mi/kWh for typical EV = 5.63 km; so km/kWh = 5.63
-const EV_KM_PER_KWH_CORRECT      = 5.63  // real effective km/kWh
+const EV_KM_PER_KWH              = 5.63  // 3.5 miles/kWh real-world
 
+/** GET /api/v1/account/carbon — driver carbon footprint summary. */
 export async function GET(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       const year = Number(r['session_year'])
 
       const evCo2 = kwh * GRID_INTENSITY_G_PER_KWH
-      const petrolCo2 = kwh * EV_KM_PER_KWH_CORRECT * PETROL_G_PER_KM
+      const petrolCo2 = kwh * EV_KM_PER_KWH * PETROL_G_PER_KM
 
       totalKwh += kwh
       totalEvCo2Grams += evCo2

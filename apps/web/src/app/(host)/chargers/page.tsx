@@ -179,6 +179,7 @@ function ChargerCard({ charger }: { charger: Charger }) {
 
 /* ── Page ────────────────────────────────────────────────── */
 
+/** Page at /chargers — list of all paired chargers with live status. */
 export default function HostChargersPage() {
   const [chargers, setChargers] = useState<Charger[]>([])
   const [loading, setLoading]   = useState(true)

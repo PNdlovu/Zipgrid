@@ -12,6 +12,7 @@ import { errorResponse, requireUser } from '@/lib/api/context'
 
 type Params = { params: Promise<{ id: string }> }
 
+/** POST /api/v1/sessions/[id]/stop — stop a live session (driver or host). */
 export async function POST(request: NextRequest, { params }: Params) {
   try {
     const { userId } = requireUser(request)

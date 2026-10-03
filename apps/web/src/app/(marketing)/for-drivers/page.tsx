@@ -13,18 +13,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import {
-  MapPin,
-  Zap,
-  CalendarCheck,
-  Shield,
-  Mic,
-  CreditCard,
-  ArrowRight,
-  CheckCircle2,
-  Star,
-  Navigation,
-  BatteryCharging,
-  Clock,
+  MapPin, Zap, CalendarCheck, Mic, CreditCard, ArrowRight, CheckCircle2, Star, Navigation, BatteryCharging, Clock,
 } from 'lucide-react'
 import { SectionHeader } from '@/components/marketing/SectionHeader'
 import { FeatureCard } from '@/components/marketing/FeatureCard'

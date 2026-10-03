@@ -26,6 +26,7 @@ const CreateBookingSchema = z.object({
   message: 'Provide either paymentMethodId or payWithWallet: true',
 })
 
+/** POST /api/v1/bookings — create a booking. */
 export async function POST(request: NextRequest) {
   try {
     const { userId } = requireUser(request)

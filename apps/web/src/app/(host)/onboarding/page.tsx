@@ -640,6 +640,7 @@ function OnboardingWizard() {
   )
 }
 
+/** Page at /onboarding — Voice-guided host setup wizard. */
 export default function OnboardingPage() {
   return (
     <Suspense fallback={<div className="flex h-64 items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-green-600" /></div>}>

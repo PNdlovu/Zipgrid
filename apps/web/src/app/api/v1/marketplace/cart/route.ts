@@ -12,6 +12,7 @@ import { ProductService } from '@/domains/marketplace/ProductService'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
 
+/** GET /api/v1/marketplace/cart — view cart. */
 export async function GET(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
@@ -27,6 +28,7 @@ export async function GET(request: NextRequest) {
 
 const AddSchema = z.object({ productId: z.string().uuid(), quantity: z.number().int().positive().default(1) })
 
+/** POST /api/v1/marketplace/cart — add item. */
 export async function POST(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
@@ -43,6 +45,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/** DELETE /api/v1/marketplace/cart — remove item. */
 export async function DELETE(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)

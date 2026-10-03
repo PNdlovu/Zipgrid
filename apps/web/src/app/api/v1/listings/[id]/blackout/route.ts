@@ -43,6 +43,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
 }
 
+/** POST /api/v1/listings/[id]/blackout — add blackout date. */
 export async function POST(request: NextRequest, { params }: Params) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
@@ -66,6 +67,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   }
 }
 
+/** DELETE /api/v1/listings/[id]/blackout — remove blackout date. */
 export async function DELETE(request: NextRequest, { params }: Params) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)

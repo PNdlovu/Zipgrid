@@ -105,6 +105,7 @@ function RedeemModal({ totalPoints, onClose, onSuccess }: {
 
 /* ── Page ────────────────────────────────────────────────────── */
 
+/** Page at /rewards — Points balance, tier progress bar, badges, redeem CTA. */
 export default function RewardsPage() {
   const [balance, setBalance] = useState<RewardBalance | null>(null)
   const [badges, setBadges] = useState<Badge[]>([])

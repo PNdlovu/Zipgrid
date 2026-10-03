@@ -97,6 +97,7 @@ function YearBar({ year, co2Kg, maxCo2 }: { year: number; co2Kg: number; maxCo2:
 
 /* ── Page ───────────────────────────────────────────────────── */
 
+/** Page at /profile/carbon — ESG / Carbon Impact tracker. */
 export default function CarbonPage() {
   const [data, setData] = useState<CarbonData | null>(null)
   const [loading, setLoading] = useState(true)

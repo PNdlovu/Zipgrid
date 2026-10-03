@@ -22,6 +22,7 @@ const ConfirmSchema = z.object({
     .regex(/[0-9]/, 'Password must contain at least one number'),
 })
 
+/** POST /api/v1/auth/reset-password/confirm — set a new password from a reset token. */
 export async function POST(request: NextRequest) {
   const limit = await rateLimit(`reset-confirm:ip:${clientIp(request.headers)}`, 10, 15 * 60)
   if (!limit.allowed) return apiError('RATE_LIMITED', 'Too many attempts — please wait a few minutes.', 429)

@@ -32,6 +32,7 @@ const CreateSubscriptionSchema = z.object({
   events: z.array(z.enum(VALID_EVENTS)).min(1, 'Select at least one event'),
 })
 
+/** GET /api/v1/webhooks/subscriptions — list user's webhook subscriptions. */
 export async function GET(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
@@ -51,6 +52,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/** POST /api/v1/webhooks/subscriptions — register a new webhook endpoint. */
 export async function POST(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
@@ -92,6 +94,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/** DELETE /api/v1/webhooks/subscriptions — remove a subscription. */
 export async function DELETE(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)

@@ -584,6 +584,7 @@ function SessionPageInner() {
   )
 }
 
+/** Page at /session — Live charging session monitor. */
 export default function SessionPage() {
   return (
     <Suspense fallback={

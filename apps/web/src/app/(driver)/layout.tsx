@@ -13,7 +13,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { MapPin, CalendarDays, Zap, User, Wallet, Gift, AlertTriangle } from 'lucide-react'
+import { MapPin, CalendarDays, Zap, User, Wallet, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const BOTTOM_NAV = [

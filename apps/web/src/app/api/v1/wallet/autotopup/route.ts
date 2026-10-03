@@ -18,6 +18,7 @@ const AutoTopupSchema = z.object({
   amountPence: z.number().int().min(500).max(50000).optional(),
 })
 
+/** PATCH /api/v1/wallet/autotopup — configure auto top-up settings. */
 export async function PATCH(request: NextRequest) {
   try {
     const { userId } = requireUser(request)

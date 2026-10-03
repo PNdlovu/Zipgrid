@@ -20,6 +20,7 @@ import { AppError } from '@/lib/errors/AppError'
 
 type Params = { params: Promise<{ id: string }> }
 
+/** GET /api/v1/listings/[id]/safety-score — Returns the most recent calculated safety score for a listing. */
 export async function GET(request: NextRequest, { params }: Params) {
   const { id: listingId } = await params
   const userId = request.headers.get('x-user-id') // optional — may be null for public access

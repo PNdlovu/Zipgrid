@@ -10,6 +10,7 @@ import { type NextRequest } from 'next/server'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError, ForbiddenError, NotFoundError } from '@/lib/errors/AppError'
 
+/** DELETE /api/v1/fleet/drivers/[userId] — Fleet admin removes a driver from the fleet account. */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> },

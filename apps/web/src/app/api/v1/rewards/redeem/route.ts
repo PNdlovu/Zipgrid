@@ -14,6 +14,7 @@ const RedeemSchema = z.object({
   points: z.number().int().min(500).multipleOf(100),
 })
 
+/** POST /api/v1/rewards/redeem — redeem points as wallet credit. */
 export async function POST(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)

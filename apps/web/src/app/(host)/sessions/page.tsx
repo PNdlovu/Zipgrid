@@ -168,6 +168,7 @@ const FILTER_TABS: { key: StatusFilter; label: string }[] = [
   { key: 'faulted',   label: 'Faulted' },
 ]
 
+/** Page at /sessions — host's charging session history. */
 export default function HostSessionsPage() {
   const [sessions, setSessions]   = useState<HostSession[]>([])
   const [total, setTotal]         = useState(0)

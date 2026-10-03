@@ -20,6 +20,7 @@ const BodySchema = z.object({
   refreshPath: z.string().max(300).optional(),
 })
 
+/** GET /api/v1/account/payouts — payout account status + earnings summary. */
 export async function GET(request: NextRequest) {
   try {
     const { userId } = requireUser(request)
@@ -33,6 +34,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/** POST /api/v1/account/payouts — Stripe Connect onboarding link. */
 export async function POST(request: NextRequest) {
   try {
     const { userId } = requireUser(request)

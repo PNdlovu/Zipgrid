@@ -17,6 +17,7 @@ const BodySchema = z.object({
   requiresApproval:        z.boolean().optional(),
 })
 
+/** PATCH /api/v1/fleet/policy — Fleet admin updates spend policy. */
 export async function PATCH(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)

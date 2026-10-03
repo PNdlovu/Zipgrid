@@ -6,7 +6,7 @@
  */
 
 import Link from 'next/link'
-import { MapPin, Zap, Star, Clock } from 'lucide-react'
+import { MapPin, Zap, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export type ListingCardData = {

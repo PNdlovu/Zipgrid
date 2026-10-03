@@ -16,6 +16,7 @@ export type EmailMessage = {
   text: string
 }
 
+/** True when RESEND_API_KEY is set. */
 export function isEmailConfigured(): boolean {
   return Boolean(process.env['RESEND_API_KEY'])
 }

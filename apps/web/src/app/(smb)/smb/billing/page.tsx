@@ -14,8 +14,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import {
-  CheckCircle2, Loader2, Zap, AlertCircle, CreditCard,
-  TrendingUp, Building2, Star, ArrowRight, ExternalLink,
+  CheckCircle2, Loader2, AlertCircle, CreditCard, TrendingUp, Building2, Star, ArrowRight, ExternalLink,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -145,6 +144,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 /* ── Page ───────────────────────────────────────────────────── */
 
+/** Page at /smb/billing — SMB subscription billing management. */
 export default function SmbBillingPage() {
   const [billing, setBilling]   = useState<BillingStatus | null>(null)
   const [loading, setLoading]   = useState(true)

@@ -78,6 +78,7 @@ function InstallerCard({ installer }: { installer: Installer }) {
       {/* Logo */}
       <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gray-100">
         {installer.logoUrl
+          // eslint-disable-next-line @next/next/no-img-element -- user-uploaded image from an arbitrary host, size unknown
           ? <img src={installer.logoUrl} alt={installer.companyName} className="h-full w-full object-cover" />
           : <Wrench className="h-6 w-6 text-gray-400" />}
       </div>

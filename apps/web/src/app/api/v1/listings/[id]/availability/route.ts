@@ -25,6 +25,7 @@ import { AppError } from '@/lib/errors/AppError'
 
 type Params = { params: Promise<{ id: string }> }
 
+/** GET /api/v1/listings/[id]/availability — Returns the full availability picture for a listing so the booking form can show a calendar: weekly schedule, blackout dates, and existing bookings for the next 90 days. */
 export async function GET(request: NextRequest, { params }: Params) {
   const { id: listingId } = await params
   const { searchParams } = request.nextUrl

@@ -15,9 +15,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import {
-  Activity, AlertTriangle, CheckCircle2, WifiOff, Zap,
-  Clock, RefreshCw, Loader2, Shield, TrendingDown,
-  Info, ChevronRight, PlugZap,
+  Activity, AlertTriangle, CheckCircle2, WifiOff, Clock, RefreshCw, Loader2, Shield, TrendingDown, Info, ChevronRight, PlugZap,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -245,6 +243,7 @@ function HealthCard({ c }: { c: ChargerHealth }) {
 
 /* ── Page ───────────────────────────────────────────────────── */
 
+/** Page at /chargers/health — Charger health dashboard. */
 export default function ChargerHealthPage() {
   const [chargers, setChargers]   = useState<ChargerHealth[]>([])
   const [loading, setLoading]     = useState(true)
@@ -320,7 +319,7 @@ export default function ChargerHealthPage() {
         <div className="mb-4 flex items-start gap-2 rounded-lg bg-blue-50 border border-blue-200 p-3">
           <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600" />
           <p className="text-sm text-blue-800">
-            Non-networked chargers don't report live status. Upgrade to a smart charger for real-time monitoring.
+            Non-networked chargers don&apos;t report live status. Upgrade to a smart charger for real-time monitoring.
           </p>
         </div>
       )}

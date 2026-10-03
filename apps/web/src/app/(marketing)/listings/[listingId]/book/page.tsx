@@ -20,9 +20,7 @@ import { use, useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
-  ArrowLeft, Car, CreditCard, CalendarDays,
-  Clock, Zap, PoundSterling, CheckCircle,
-  AlertTriangle, Loader2, ChevronRight, Wallet,
+  ArrowLeft, Car, CreditCard, CalendarDays, Clock, Zap, PoundSterling, CheckCircle, AlertTriangle, Loader2, Wallet,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -98,6 +96,7 @@ const BRAND_ICONS: Record<string, string> = {
 
 /* ── Page ─────────────────────────────────────────────────── */
 
+/** Page at /listings/[listingId]/book — Booking creation flow. */
 export default function BookPage({
   params,
 }: {
@@ -513,7 +512,7 @@ export default function BookPage({
 
         {/* Terms note */}
         <p className="text-center text-xs text-[hsl(var(--muted-foreground))]">
-          By booking you agree to Zipgrid's{' '}
+          By booking you agree to Zipgrid&apos;s{' '}
           <Link href="/legal/terms" className="underline hover:text-[hsl(var(--foreground))]">Terms of Service</Link>
           {' '}and{' '}
           <Link href="/legal/privacy" className="underline hover:text-[hsl(var(--foreground))]">Privacy Policy</Link>.

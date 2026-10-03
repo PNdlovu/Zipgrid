@@ -105,6 +105,7 @@ function StatCard({ label, value, sub, icon: Icon, accent }: {
 
 /* ── Page ─────────────────────────────────────────────────── */
 
+/** Page at /earnings — Host earnings overview. */
 export default function HostEarningsPage() {
   const [period, setPeriod]     = useState<Period>('30d')
   const [summary, setSummary]   = useState<EarningsSummary | null>(null)
@@ -161,7 +162,7 @@ export default function HostEarningsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Earnings</h1>
           <p className="mt-0.5 text-sm text-[hsl(var(--muted-foreground))]">
-            Your net income after Zipgrid's 15% fee
+            Your net income after Zipgrid&apos;s 15% fee
           </p>
         </div>
         {/* Period selector */}

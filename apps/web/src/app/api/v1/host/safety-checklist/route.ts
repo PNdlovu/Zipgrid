@@ -23,6 +23,7 @@ const ChecklistSchema = z.object({
   termsAccepted: z.literal(true, { errorMap: () => ({ message: 'You must accept the host safety and insurance terms.' }) }),
 })
 
+/** POST /api/v1/host/safety-checklist — record a listing's safety declarations and the host's acceptance of the safety/insurance terms, then recompute its Safety Score. */
 export async function POST(request: NextRequest) {
   try {
     const { userId } = requireUser(request)

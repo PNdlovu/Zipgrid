@@ -14,16 +14,11 @@
 
 import Stripe from 'stripe'
 import { type NextRequest } from 'next/server'
-import { z } from 'zod'
+
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
 
-/** Map plan tier → Stripe Price ID (configured in env vars) */
-function getStripePriceId(tier: string, annual: boolean): string | null {
-  const key = `STRIPE_PRICE_${tier.toUpperCase()}_${annual ? 'ANNUAL' : 'MONTHLY'}`
-  return process.env[key] ?? null
-}
-
+/** GET /api/v1/host/billing — SMB subscription billing status. */
 export async function GET(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)

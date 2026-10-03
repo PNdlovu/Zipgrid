@@ -9,6 +9,7 @@ import { ProductService } from '@/domains/marketplace/ProductService'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
 
+/** GET /api/v1/marketplace/products/[id] — product detail. */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   try {

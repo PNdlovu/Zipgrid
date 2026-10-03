@@ -17,6 +17,7 @@ const StartSessionSchema = z.object({
   connectorId: z.number().int().positive().max(16).optional(),
 })
 
+/** POST /api/v1/sessions — start a charging session (OCPP RemoteStart). */
 export async function POST(request: NextRequest) {
   try {
     const { userId } = requireUser(request)
@@ -41,6 +42,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/** GET /api/v1/sessions — session history for the current driver or host. */
 export async function GET(request: NextRequest) {
   try {
     const { userId } = requireUser(request)

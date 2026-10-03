@@ -53,6 +53,7 @@ async function getJson<T>(url: string, init?: RequestInit): Promise<ApiEnvelope<
   return (await res.json()) as ApiEnvelope<T>
 }
 
+/** Wallet balance, ledger, top-ups (incl. 3-D Secure) and auto top-up settings. */
 export function useWallet() {
   const [balance, setBalance] = useState<WalletBalance | null>(null)
   const [outstandingPence, setOutstandingPence] = useState(0)

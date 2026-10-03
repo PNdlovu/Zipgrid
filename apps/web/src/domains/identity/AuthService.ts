@@ -45,6 +45,7 @@ export type LoginInput = {
   rememberMe: boolean
 }
 
+/** True when sign-in requires a verified email (REQUIRE_EMAIL_VERIFICATION). */
 export function isEmailVerificationRequired(): boolean {
   const flag = process.env['REQUIRE_EMAIL_VERIFICATION']
   if (flag === 'true') return true

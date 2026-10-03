@@ -154,10 +154,12 @@ async function route(request: NextRequest, params: Promise<{ provider: string }>
   return handleCallback(request, provider as Provider)
 }
 
+/** GET /api/v1/auth/oauth/[provider]/callback — Google sign-in callback (code exchange, then sign-in). */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ provider: string }> }) {
   return route(request, params)
 }
 
+/** POST /api/v1/auth/oauth/[provider]/callback — Apple sign-in callback (form_post id_token verified against Apple's JWKS). */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ provider: string }> }) {
   return route(request, params)
 }

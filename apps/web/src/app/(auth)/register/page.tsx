@@ -328,6 +328,7 @@ function RegisterForm() {
   )
 }
 
+/** Page at /register — New account registration page. */
 export default function RegisterPage() {
   return (
     <Suspense fallback={<div className="h-screen" />}>

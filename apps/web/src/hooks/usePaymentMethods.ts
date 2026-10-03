@@ -28,6 +28,7 @@ async function call<T>(url: string, init?: RequestInit): Promise<T> {
   return json.data
 }
 
+/** Saved cards for the signed-in user, plus the actions to manage them. */
 export function usePaymentMethods() {
   const [cards, setCards] = useState<SavedCard[] | null>(null)
   const [error, setError] = useState<string | null>(null)

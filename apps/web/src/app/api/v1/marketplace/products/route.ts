@@ -12,6 +12,7 @@ import { ProductService } from '@/domains/marketplace/ProductService'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
 
+/** GET /api/v1/marketplace/products — search products. */
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))

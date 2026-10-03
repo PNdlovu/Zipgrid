@@ -103,6 +103,7 @@ function ActionMenu({ user, onAction }: {
 
 const PAGE_SIZE = 50
 
+/** Page at /admin/users — User management table with search, KYC status filter, account status filter, and inline actions (suspend/activate/verify KYC). */
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([])
   const [total, setTotal] = useState(0)

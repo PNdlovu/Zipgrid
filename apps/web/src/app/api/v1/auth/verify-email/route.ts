@@ -17,6 +17,7 @@ const VerifyEmailSchema = z.object({
   code: z.string().regex(/^\d{6}$/, 'Code must be 6 digits'),
 })
 
+/** POST /api/v1/auth/verify-email — confirm the 6-digit email code. */
 export async function POST(request: NextRequest) {
   let body: unknown
   try { body = await request.json() } catch {

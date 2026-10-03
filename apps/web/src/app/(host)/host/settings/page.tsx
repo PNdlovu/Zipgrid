@@ -42,6 +42,7 @@ const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
 
 /* ── Page ─────────────────────────────────────────────── */
 
+/** Page at /host/settings — Host account settings. */
 export default function HostSettingsPage() {
   const [tab, setTab]             = useState<Tab>('payout')
   const [profile, setProfile]     = useState<HostProfile | null>(null)
@@ -210,7 +211,7 @@ export default function HostSettingsPage() {
                   <span className="font-mono text-xs">{profile.stripeConnectAccountId ?? 'Connected'}</span>
                 </div>
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                  Payouts are processed every Monday for the previous week's sessions. Minimum payout: £5.
+                  Payouts are processed every Monday for the previous week&apos;s sessions. Minimum payout: £5.
                 </p>
                 <a
                   href="https://dashboard.stripe.com"
@@ -225,7 +226,7 @@ export default function HostSettingsPage() {
             ) : (
               <div className="mt-4 space-y-3">
                 <div className="rounded-[6px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
-                  You won't receive payouts until you connect a bank account.
+                  You won&apos;t receive payouts until you connect a bank account.
                 </div>
                 <button
                   onClick={() => { void handleStartStripeOnboarding() }}

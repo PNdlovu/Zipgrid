@@ -90,6 +90,7 @@ function StarPicker({
 
 /* ── Modal ──────────────────────────────────────────────────── */
 
+/** Modal for rating a completed booking (listing review). */
 export function LeaveReviewModal({
   bookingId,
   listingId,

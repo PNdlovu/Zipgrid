@@ -14,8 +14,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
-  Search, SlidersHorizontal, Star, Wrench, ShoppingCart,
-  Zap, Package, ChevronRight, Loader2,
+  Search, SlidersHorizontal, Star, Wrench, Zap, Package, ChevronRight, Loader2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -361,6 +360,7 @@ function MarketplaceContent() {
   )
 }
 
+/** Page at /marketplace — Product grid with category filters, search, and installer CTA. */
 export default function MarketplacePage() {
   return (
     <Suspense fallback={

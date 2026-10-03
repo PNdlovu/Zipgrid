@@ -52,6 +52,7 @@ function upcomingDates(dayOfWeek: number, weeks: number, timeZone: string): stri
   return out
 }
 
+/** POST /api/v1/bookings/recurring — book the same weekly slot for several weeks. */
 export async function POST(request: NextRequest) {
   try {
     const { userId } = requireUser(request)
@@ -113,6 +114,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/** GET /api/v1/bookings/recurring — the driver's upcoming recurring occurrences. */
 export async function GET(request: NextRequest) {
   try {
     const { userId } = requireUser(request)

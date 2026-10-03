@@ -52,6 +52,7 @@ function getLastWeekPeriod(): { periodStart: Date; periodEnd: Date } {
 
 /* ── GET — payout status overview ─────────────────────────── */
 
+/** GET /api/v1/admin/payouts — returns payout batch summary. */
 export async function GET(request: NextRequest) {
   if (!requireAdmin(request)) return apiError('FORBIDDEN', 'Admin access required', 403)
 
@@ -103,6 +104,7 @@ export async function GET(request: NextRequest) {
 
 /* ── POST — run payout batch ──────────────────────────────── */
 
+/** POST /api/v1/admin/payouts — triggers the weekly payout batch. */
 export async function POST(request: NextRequest) {
   if (!requireAdmin(request)) return apiError('FORBIDDEN', 'Admin access required', 403)
 

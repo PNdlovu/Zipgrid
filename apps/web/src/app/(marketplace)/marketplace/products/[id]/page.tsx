@@ -12,7 +12,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   Star, ShoppingCart, Loader2, AlertTriangle, ArrowLeft,
@@ -71,7 +71,6 @@ function fmtPence(p: number) { return `£${(p / 100).toFixed(2)}` }
 /** Product detail page with image gallery, specs, and checkout initiation. */
 export default function ProductDetailPage() {
   const params  = useParams<{ id: string }>()
-  const router  = useRouter()
   const [product, setProduct]   = useState<ProductDetail | null>(null)
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState<string | null>(null)
@@ -133,6 +132,7 @@ export default function ProductDetailPage() {
         <div>
           <div className="mb-3 aspect-square overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
             {product.imageUrls[activeImg] ? (
+              // eslint-disable-next-line @next/next/no-img-element -- user-uploaded image from an arbitrary host, size unknown
               <img src={product.imageUrls[activeImg]} alt={product.name} className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full items-center justify-center">
@@ -148,6 +148,7 @@ export default function ProductDetailPage() {
                   onClick={() => setActiveImg(i)}
                   className={cn('h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-colors', activeImg === i ? 'border-green-500' : 'border-gray-200')}
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded image from an arbitrary host, size unknown */}
                   <img src={url} alt="" className="h-full w-full object-cover" />
                 </button>
               ))}

@@ -11,6 +11,7 @@ import { WalletService } from '@/domains/payments/WalletService'
 import { apiResponse } from '@/lib/api/response'
 import { errorResponse, requireUser } from '@/lib/api/context'
 
+/** GET /api/v1/wallet/history — paginated wallet ledger, newest first. */
 export async function GET(request: NextRequest) {
   try {
     const { userId } = requireUser(request)

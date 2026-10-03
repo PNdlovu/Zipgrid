@@ -59,8 +59,8 @@ export async function GET(request: NextRequest) {
          cl.title AS charger_name,
          ROUND((cs.energy_consumed_wh / 1000.0)::NUMERIC, 3) AS energy_kwh,
          COALESCE(t.total_charged_cents, 0) AS gross_pence,
-         ROUND((COALESCE(t.total_charged_cents, 0) / 1.20)::NUMERIC, 0) AS net_pence,
-         ROUND((COALESCE(t.total_charged_cents, 0) - COALESCE(t.total_charged_cents, 0) / 1.20)::NUMERIC, 0) AS vat_pence,
+         ROUND((COALESCE(t.total_charged_cents, 0) / (1 + $4::NUMERIC))::NUMERIC, 0) AS net_pence,
+         ROUND((COALESCE(t.total_charged_cents, 0) - COALESCE(t.total_charged_cents, 0) / (1 + $4::NUMERIC))::NUMERIC, 0) AS vat_pence,
          COALESCE(t.host_earnings_cents, 0) AS host_earnings_pence
        FROM bookings b
        JOIN charger_listings cl ON cl.id = b.listing_id
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
          AND b.completed_at >= $2 AND b.completed_at < $3
          AND b.status = 'completed'
        ORDER BY cs.started_at ASC`,
-      [host.id, fromTs, toTs],
+      [host.id, fromTs, toTs, VAT_RATE],
     )
 
     type Row = {

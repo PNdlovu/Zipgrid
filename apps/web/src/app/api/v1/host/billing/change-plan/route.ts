@@ -29,6 +29,7 @@ const BodySchema = z.object({
   annual: z.boolean().default(false),
 })
 
+/** POST /api/v1/host/billing/change-plan — Creates a Stripe Checkout session for upgrading/downgrading an SMB plan. */
 export async function POST(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)

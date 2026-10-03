@@ -30,6 +30,7 @@ const NAV_ITEMS = [
   { href: '/settings',      icon: Settings, label: 'Settings' },
 ] as const
 
+/** Layout for the (smb) route group — SMB host portal layout — sidebar with analytics-focused nav. */
 export default function SmbLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)

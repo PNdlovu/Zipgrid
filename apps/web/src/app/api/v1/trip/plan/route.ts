@@ -134,6 +134,7 @@ function chargeTimeMinutes(
 
 /* ── Route handler ──────────────────────────────────────────── */
 
+/** POST /api/v1/trip/plan — AI multi-stop trip planner. */
 export async function POST(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)

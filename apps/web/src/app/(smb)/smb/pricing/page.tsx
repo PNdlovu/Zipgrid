@@ -253,6 +253,7 @@ function PriceInput({
 
 /* ── Page ───────────────────────────────────────────────────── */
 
+/** Page at /smb/pricing — AI-powered dynamic pricing engine for SMB hosts. */
 export default function SmbPricingPage() {
   const [listings, setListings] = useState<ListingPricing[]>([])
   const [loading, setLoading]   = useState(true)

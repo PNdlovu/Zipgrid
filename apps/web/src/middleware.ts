@@ -161,6 +161,7 @@ function json(status: number, code: string, message: string): NextResponse {
 
 /* ── Middleware ─────────────────────────────────────────────── */
 
+/** Authenticates every request, strips client-supplied identity headers and enforces route access. */
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl
   const method = request.method

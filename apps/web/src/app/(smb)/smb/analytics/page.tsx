@@ -38,6 +38,7 @@ const PERIODS = [
   { key: '90d', label: '90d' }, { key: '365d', label: '1yr' },
 ]
 
+/** Page at /smb/analytics — Full per-charger analytics: revenue breakdown, utilisation rate bars, session value distribution, and dynamic pricing suggestions. */
 export default function SmbAnalyticsPage() {
   const [period, setPeriod] = useState('30d')
   const [data, setData] = useState<Analytics | null>(null)

@@ -13,9 +13,9 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
-import { Shield, ExternalLink, CheckCircle2, Loader2, Star, ChevronRight } from 'lucide-react'
+import { Shield, ExternalLink, CheckCircle2, Star, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /* ── Types ──────────────────────────────────────────────────── */

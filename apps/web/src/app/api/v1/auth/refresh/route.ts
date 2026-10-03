@@ -14,6 +14,7 @@ import { clearAuthCookies, getRefreshTokenFromCookies, setAuthCookies } from '@/
 import { apiResponse, apiError } from '@/lib/api/response'
 import { clientIp } from '@/lib/rate-limit'
 
+/** POST /api/v1/auth/refresh — rotate the session. */
 export async function POST(request: NextRequest) {
   let token = getRefreshTokenFromCookies(request.cookies)
   if (!token) {

@@ -101,6 +101,7 @@ async function getReviews(listingId: string): Promise<ReviewItem[]> {
 
 type Props = { params: Promise<{ listingId: string }> }
 
+/** SEO/Open Graph metadata for a public listing. */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { listingId } = await params
   const listing = await getListing(listingId)
@@ -142,13 +143,6 @@ const CHARGER_LEVEL_LABELS: Record<string, string> = {
   dc_ultra_fast: 'DC Ultra-fast',
 }
 
-const PRICING_MODEL_LABELS: Record<string, string> = {
-  per_kwh: 'Per kWh',
-  per_hour: 'Per hour',
-  per_session: 'Flat rate per session',
-  hybrid: 'kWh + time',
-}
-
 const ACCESS_TYPE_LABELS: Record<string, string> = {
   always_open: 'Always open',
   gate_code: 'Gate code (shown after booking)',
@@ -172,6 +166,7 @@ function formatPrice(listing: ListingDetail): string {
 
 /* ── Page ────────────────────────────────────────────────── */
 
+/** Page at /listings/[listingId] — Public listing detail page. */
 export default async function ListingDetailPage({ params }: Props) {
   const { listingId } = await params
   const [listing, reviews] = await Promise.all([

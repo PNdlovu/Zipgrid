@@ -33,6 +33,7 @@ export type Badge = {
   earnedAt: string
 }
 
+/** Reward points balance, tier and redemption. */
 export function useRewards() {
   const [balance, setBalance] = useState<RewardsBalance | null>(null)
   const [badges, setBadges] = useState<Badge[]>([])

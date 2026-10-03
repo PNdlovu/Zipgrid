@@ -48,6 +48,7 @@ const AI_MODES: { value: AiMode; label: string; description: string }[] = [
 
 /* ── Page ─────────────────────────────────────────────────── */
 
+/** Page at /settings — Driver account settings. */
 export default function DriverSettingsPage() {
   const [tab,        setTab]        = useState<Tab>('ai')
 

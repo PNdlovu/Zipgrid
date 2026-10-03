@@ -28,8 +28,6 @@ import { AppError } from '@/lib/errors/AppError'
 
 // gCO₂ avoided per kWh (petrol equivalent minus UK grid intensity)
 const CO2_AVOIDED_G_PER_KWH = 724
-// 1 carbon credit = 1 kgCO₂ avoided
-const KG_PER_CREDIT = 1
 // Market rate for carbon credits in pence (£0.01 per credit = £10/tCO₂)
 const CREDIT_VALUE_PENCE = 1
 

@@ -147,6 +147,7 @@ function fmtTime(iso: string) {
 
 /* ── Page ───────────────────────────────────────────────────── */
 
+/** Page at /host/listings/[listingId] — Host listing detail / overview page. */
 export default function HostListingDetailPage({
   params,
 }: {

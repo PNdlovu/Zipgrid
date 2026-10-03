@@ -2,9 +2,7 @@
  * @file page.tsx
  * @description Blog index page — /blog
  * EV guides, earnings stories, product news, policy updates.
- * Contentlayer + MDX — articles live in content/blog/*.mdx
- * Shell version: renders category nav and placeholder article cards.
- * Full MDX integration wired in Module F (Content & Blog System build).
+ * Articles come from src/content/blog.ts. ?category=<slug> filters the list.
  *
  * @module apps/web/app/(marketing)/blog
  * @version 0.1.0
@@ -17,6 +15,7 @@ import Link from 'next/link'
 import { ArrowRight, Zap } from 'lucide-react'
 import { SectionHeader } from '@/components/marketing/SectionHeader'
 import { cn } from '@/lib/utils'
+import { ARTICLES, BLOG_CATEGORIES } from '@/content/blog'
 
 export const metadata: Metadata = {
   title: 'Blog — EV Charging Guides, Earnings Stories & Product News',
@@ -25,77 +24,16 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://zipgrid.co.uk/blog' },
 }
 
-const CATEGORIES = [
-  { slug: 'all', label: 'All' },
-  { slug: 'ev-guides', label: 'EV Guides' },
-  { slug: 'host-stories', label: 'Host Stories' },
-  { slug: 'product-news', label: 'Product News' },
-  { slug: 'policy-tailwinds', label: 'Policy & Market' },
-  { slug: 'trip-planning', label: 'Trip Planning' },
-  { slug: 'cost-savings', label: 'Cost Savings' },
-] as const
+type Props = { searchParams: Promise<{ category?: string }> }
 
-/** Featured article placeholder — replaced by real MDX data in Module F */
-const FEATURED_ARTICLE = {
-  slug: 'how-much-can-you-earn-from-your-home-charger',
-  category: 'Host Stories',
-  title: 'How much can you really earn from your home EV charger?',
-  excerpt:
-    'We analysed 500 UK host listings and 3 months of session data. Here\'s the honest breakdown of what hosts earn — and how to maximise it.',
-  readMinutes: 7,
-  publishedAt: 'September 24, 2026',
-  author: 'Zipgrid Editorial',
-} as const
+/** Page at /blog — article index, optionally filtered by category. */
+export default async function BlogPage({ searchParams }: Props) {
+  const { category } = await searchParams
+  const active = BLOG_CATEGORIES.find((c) => c.slug === category) ?? null
+  const featured = ARTICLES[0]
+  const listed = active ? ARTICLES.filter((a) => a.category === active.category) : ARTICLES.slice(1)
+  const chips = [{ slug: 'all', label: 'All' }, ...BLOG_CATEGORIES]
 
-/** Article card placeholders — replaced by real Contentlayer allPosts in Module F */
-const PLACEHOLDER_ARTICLES = [
-  {
-    slug: 'ev-charger-brands-compared-uk-2026',
-    category: 'EV Guides',
-    title: 'EV home charger brands compared: EO, Zappi, Ohme, Andersen, and Rolec',
-    excerpt: 'What the specs don\'t tell you — real-world OCPP reliability, app quality, and smart scheduling for UK tariffs.',
-    readMinutes: 9,
-    publishedAt: 'September 22, 2026',
-  },
-  {
-    slug: 'octopus-agile-smart-charging-guide',
-    category: 'Cost Savings',
-    title: 'Octopus Agile and smart charging: how to pay under 5p/kWh',
-    excerpt: 'The Agile tariff can be genuinely free at some slots. Here\'s how Zipgrid\'s scheduler exploits every cheap window.',
-    readMinutes: 6,
-    publishedAt: 'September 19, 2026',
-  },
-  {
-    slug: 'uk-ev-charging-infrastructure-2026',
-    category: 'Policy & Market',
-    title: 'UK EV infrastructure in 2026: what the government data actually shows',
-    excerpt: 'Public charging growth is not keeping pace with EV sales. That\'s exactly why P2P host charging exists.',
-    readMinutes: 8,
-    publishedAt: 'September 15, 2026',
-  },
-  {
-    slug: 'manchester-to-london-ev-trip-planner',
-    category: 'Trip Planning',
-    title: 'Manchester to London in an EV: the definitive charging stop guide',
-    excerpt: 'Real timings, real prices, real reliability ratings for every charging stop on the M6/M1 corridor in 2026.',
-    readMinutes: 11,
-    publishedAt: 'September 10, 2026',
-  },
-  {
-    slug: 'zipgrid-voice-commands-complete-guide',
-    category: 'Product News',
-    title: 'Every Zipgrid voice command: the complete 2026 guide',
-    excerpt: 'From "charge now" to full multi-stop trip planning. All 90+ commands, with examples and tips.',
-    readMinutes: 5,
-    publishedAt: 'September 8, 2026',
-  },
-] as const
-
-/**
- * Blog index page — article listing shell.
- * Full Contentlayer MDX integration added in Module F.
- */
-export default function BlogPage() {
   return (
     <>
       {/* ── HERO ─────────────────────────────────────────────────── */}
@@ -126,13 +64,14 @@ export default function BlogPage() {
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <nav aria-label="Article categories">
             <ul role="list" className="flex flex-wrap gap-2">
-              {CATEGORIES.map(({ slug, label }) => (
+              {chips.map(({ slug, label }) => (
                 <li key={slug}>
                   <Link
-                    href={slug === 'all' ? '/blog' : `/blog/category/${slug}`}
+                    href={slug === 'all' ? '/blog' : `/blog?category=${slug}`}
+                    aria-current={(active?.slug ?? 'all') === slug ? 'page' : undefined}
                     className={cn(
                       'rounded-[6px] border px-3 py-1.5 text-sm font-medium transition-colors',
-                      slug === 'all'
+                      (active?.slug ?? 'all') === slug
                         ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.08)] text-[hsl(var(--primary))]'
                         : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]',
                     )}
@@ -147,19 +86,20 @@ export default function BlogPage() {
       </section>
 
       {/* ── FEATURED ARTICLE ─────────────────────────────────────── */}
+      {!active && featured && (
       <section
         aria-label="Featured article"
         className="border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]"
       >
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
           <Link
-            href={`/blog/${FEATURED_ARTICLE.slug}`}
+            href={`/blog/${featured.slug}`}
             className={cn(
               'group flex flex-col gap-5 rounded-[6px] border border-[hsl(var(--border))]',
               'bg-[hsl(var(--card))] p-8 transition-colors hover:border-[hsl(var(--primary)/0.4)]',
               'sm:flex-row sm:items-center',
             )}
-            aria-label={`Featured: ${FEATURED_ARTICLE.title}`}
+            aria-label={`Featured: ${featured.title}`}
           >
             {/* Featured icon */}
             <div
@@ -174,23 +114,24 @@ export default function BlogPage() {
                 <span className="rounded-[4px] bg-[hsl(var(--primary)/0.1)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--primary))]">
                   Featured
                 </span>
-                <span className="text-xs text-[hsl(var(--muted-foreground))]">{FEATURED_ARTICLE.category}</span>
+                <span className="text-xs text-[hsl(var(--muted-foreground))]">{featured.category}</span>
               </div>
               <h2 className="text-xl font-semibold text-[hsl(var(--foreground))] group-hover:text-[hsl(var(--primary))] transition-colors">
-                {FEATURED_ARTICLE.title}
+                {featured.title}
               </h2>
               <p className="text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">
-                {FEATURED_ARTICLE.excerpt}
+                {featured.excerpt}
               </p>
               <div className="flex items-center gap-3 text-xs text-[hsl(var(--muted-foreground))]">
-                <span>{FEATURED_ARTICLE.publishedAt}</span>
+                <span>{featured.publishedAt}</span>
                 <span aria-hidden="true">·</span>
-                <span>{FEATURED_ARTICLE.readMinutes} min read</span>
+                <span>{featured.readMinutes} min read</span>
               </div>
             </div>
           </Link>
         </div>
       </section>
+      )}
 
       {/* ── ARTICLE GRID ─────────────────────────────────────────── */}
       <section
@@ -198,12 +139,15 @@ export default function BlogPage() {
         className="border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]"
       >
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-          <SectionHeader align="left" headline="Recent articles" />
+          <SectionHeader align="left" headline={active ? active.label : 'Recent articles'} />
+          {listed.length === 0 && (
+            <p className="mt-8 text-sm text-[hsl(var(--muted-foreground))]">No articles in this category yet.</p>
+          )}
           <ul
             role="list"
             className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
           >
-            {PLACEHOLDER_ARTICLES.map(({ slug, category, title, excerpt, readMinutes, publishedAt }) => (
+            {listed.map(({ slug, category, title, excerpt, readMinutes, publishedAt }) => (
               <li key={slug}>
                 <Link
                   href={`/blog/${slug}`}
@@ -223,7 +167,7 @@ export default function BlogPage() {
                     {excerpt}
                   </p>
                   <div className="flex items-center justify-between text-xs text-[hsl(var(--muted-foreground))]">
-                    <span>{publishedAt}</span>
+                    <span>{publishedAt} · {readMinutes} min read</span>
                     <span className="flex items-center gap-1 text-[hsl(var(--primary))]">
                       Read <ArrowRight className="h-3 w-3" aria-hidden="true" />
                     </span>

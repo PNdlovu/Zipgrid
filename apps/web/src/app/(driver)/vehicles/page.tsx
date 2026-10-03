@@ -157,6 +157,7 @@ function VehicleCard({
 
 /* ── Page ─────────────────────────────────────────────────── */
 
+/** Page at /vehicles — Driver vehicles page — add, view, and manage registered EVs. */
 export default function VehiclesPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [loading, setLoading] = useState(true)

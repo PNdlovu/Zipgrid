@@ -32,6 +32,7 @@ const TopupSchema = z.object({
   idempotencyKey: z.string().uuid('idempotencyKey must be a UUID'),
 })
 
+/** POST /api/v1/wallet/topup — charge a saved card to top up the wallet. */
 export async function POST(request: NextRequest) {
   try {
     const { userId } = requireUser(request)

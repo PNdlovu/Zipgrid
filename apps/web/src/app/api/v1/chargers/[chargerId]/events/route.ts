@@ -18,6 +18,7 @@ import { type NextRequest } from 'next/server'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
 
+/** GET /api/v1/chargers/[chargerId]/events — Returns the OCPP event log for a specific charger (by listing ID). */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ chargerId: string }> },

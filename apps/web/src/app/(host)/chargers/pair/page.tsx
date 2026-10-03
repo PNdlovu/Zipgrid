@@ -18,7 +18,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
-  Zap, CheckCircle2, Copy, Loader2, AlertTriangle, ArrowLeft, ArrowRight, Wifi,
+  Zap, CheckCircle2, Copy, Loader2, ArrowLeft, ArrowRight, Wifi,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 

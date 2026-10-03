@@ -17,6 +17,7 @@ const BodySchema = z.object({
   reason: z.string().max(500).optional(),
 })
 
+/** POST /api/v1/marketplace/checkout/cancel — release escrow. */
 export async function POST(request: NextRequest) {
   try {
     const user = requireUser(request)

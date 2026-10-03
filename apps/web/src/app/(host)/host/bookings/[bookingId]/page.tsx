@@ -14,11 +14,8 @@
 
 import { use, useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import {
-  ArrowLeft, CalendarDays, Clock, PoundSterling, Zap,
-  User, MapPin, CheckCircle, XCircle, AlertTriangle,
-  Loader2, Shield, BatteryCharging,
+  ArrowLeft, CalendarDays, Clock, PoundSterling, Zap, MapPin, CheckCircle, XCircle, AlertTriangle, Loader2, Shield, BatteryCharging,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -93,13 +90,13 @@ function InfoRow({ label, value, icon: Icon }: {
 
 /* ── Page ─────────────────────────────────────────────────── */
 
+/** Page at /host/bookings/[bookingId] — Host view of a single booking. */
 export default function HostBookingDetailPage({
   params,
 }: {
   params: Promise<{ bookingId: string }>
 }) {
   const { bookingId } = use(params)
-  const router = useRouter()
 
   const [booking,       setBooking]       = useState<BookingDetail | null>(null)
   const [loading,       setLoading]       = useState(true)

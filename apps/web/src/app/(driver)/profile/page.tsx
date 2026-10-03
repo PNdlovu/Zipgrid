@@ -68,6 +68,7 @@ const AI_MODES: { value: Profile['aiMode']; label: string; description: string }
 
 /* ── Page ─────────────────────────────────────────────────── */
 
+/** Page at /profile — Driver profile page — view and update account details, KYC verification, AI mode preference, notification preferences. */
 export default function ProfilePage() {
   const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -215,6 +216,7 @@ export default function ProfilePage() {
       <div className="mb-6 flex items-center gap-4">
         <div className="relative">
           {profile.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- user-uploaded image from an arbitrary host, size unknown
             <img
               src={profile.avatarUrl}
               alt={profile.displayName}

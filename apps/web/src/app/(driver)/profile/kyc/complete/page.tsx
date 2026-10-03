@@ -11,7 +11,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Loader2, CheckCircle2, AlertTriangle, Clock } from 'lucide-react'
 
@@ -23,20 +22,27 @@ async function fetchKycStatus(): Promise<KycStatus> {
   return json.data?.kyc.status ?? 'pending'
 }
 
+/** Poll every 3 s for up to 2 minutes. */
+const MAX_POLLS = 40
+
+/** Page at /profile/kyc/complete — Stripe Identity return URL; polls KYC status and shows the result. */
 export default function KycCompletePage() {
-  const router = useRouter()
   const [status, setStatus] = useState<KycStatus | null>(null)
-  const [polls, setPolls]   = useState(0)
+  const [timedOut, setTimedOut] = useState(false)
 
   useEffect(() => {
     let id: ReturnType<typeof setInterval>
+    let polls = 0
 
     const check = async () => {
       const s = await fetchKycStatus()
       setStatus(s)
-      setPolls((p) => p + 1)
+      polls++
       if (s === 'verified' || s === 'rejected') {
         clearInterval(id)
+      } else if (polls >= MAX_POLLS) {
+        clearInterval(id)
+        setTimedOut(true)
       }
     }
 
@@ -45,13 +51,25 @@ export default function KycCompletePage() {
     return () => clearInterval(id)
   }, [])
 
+  if (timedOut && (!status || status === 'pending')) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
+        <h1 className="text-xl font-bold text-gray-900">Still reviewing your documents</h1>
+        <p className="mt-2 max-w-sm text-sm text-gray-500">
+          Some checks take longer. You can close this page — we&apos;ll notify you as soon as your verification is complete.
+        </p>
+        <a href="/profile" className="mt-6 text-sm font-semibold text-green-600 hover:underline">Back to profile</a>
+      </div>
+    )
+  }
+
   if (!status || status === 'pending') {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
         <Loader2 className="mb-4 h-10 w-10 animate-spin text-green-600" />
         <h1 className="text-xl font-bold text-gray-900">Verifying your identity…</h1>
         <p className="mt-2 text-sm text-gray-500">
-          This usually takes 30–60 seconds. Please don't close this tab.
+          This usually takes 30–60 seconds. Please don&apos;t close this tab.
         </p>
       </div>
     )
@@ -96,7 +114,7 @@ export default function KycCompletePage() {
       </div>
       <h1 className="text-2xl font-extrabold text-gray-900">Verification unsuccessful</h1>
       <p className="mt-2 text-sm text-gray-500">
-        We couldn't verify your identity. This can happen if the document image was unclear or didn't match.
+        We couldn&apos;t verify your identity. This can happen if the document image was unclear or didn&apos;t match.
         You can try again — make sure your ID is well-lit and not blurry.
       </p>
       <Link

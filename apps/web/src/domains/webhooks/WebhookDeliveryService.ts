@@ -23,19 +23,8 @@
 
 import crypto from 'crypto'
 import { v4 as uuidv4 } from 'uuid'
-import { eventBus, type DomainEvent } from '@/lib/events/event-bus'
+import { eventBus } from '@/lib/events/event-bus'
 import { getDb } from '@/lib/db'
-
-/* ── Domain event → webhook event mapping ────────────────────── */
-
-const EVENT_MAP: Partial<Record<DomainEvent['type'], string>> = {
-  SESSION_COMPLETED:   'session.completed',
-  BOOKING_CONFIRMED:   'booking.confirmed',
-  BOOKING_CANCELLED:   'booking.cancelled',
-  PAYMENT_CAPTURED:    'payout.paid',
-  LISTING_PUBLISHED:   'listing.published',
-  INCIDENT_REPORTED:   'charger.faulted',
-}
 
 /* ── Delivery ─────────────────────────────────────────────────── */
 
@@ -161,6 +150,7 @@ async function fanOut(webhookEvent: string, payload: Record<string, unknown>): P
 
 let _bootstrapped = false
 
+/** Subscribes partner webhook delivery to domain events. Idempotent; called once at startup. */
 export function bootstrapWebhookDelivery(): void {
   if (_bootstrapped) return
   _bootstrapped = true

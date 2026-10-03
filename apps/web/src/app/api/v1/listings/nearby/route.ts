@@ -51,6 +51,7 @@ async function geocodePostcode(
   }
 }
 
+/** GET /api/v1/listings/nearby — PostGIS geo-proximity charger search. */
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
 

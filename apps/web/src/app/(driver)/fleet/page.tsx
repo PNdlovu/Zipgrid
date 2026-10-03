@@ -15,9 +15,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import {
-  Building2, Users, PoundSterling, Zap, Car,
-  Shield, Clock, CheckCircle2, AlertCircle,
-  Loader2, ChevronRight, BarChart3,
+  Building2, Users, PoundSterling, Zap, Shield, CheckCircle2, AlertCircle, Loader2, ChevronRight, BarChart3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -56,6 +54,7 @@ function fmtPence(p: number) { return `£${(p / 100).toFixed(2)}` }
 
 /* ── Page ───────────────────────────────────────────────────── */
 
+/** Page at /fleet — Corporate fleet account overview. */
 export default function FleetPage() {
   const [fleet, setFleet]   = useState<FleetMembership | null | undefined>(undefined)
   const [loading, setLoading] = useState(true)
@@ -79,7 +78,7 @@ export default function FleetPage() {
         <h1 className="text-xl font-bold text-gray-700">No fleet account</h1>
         <p className="mt-2 text-sm text-gray-500">
           You are not currently part of a corporate fleet account.
-          Ask your company's fleet manager to invite you, or contact Zipgrid Business.
+          Ask your company&apos;s fleet manager to invite you, or contact Zipgrid Business.
         </p>
         <Link href="/for-businesses" className="mt-6 inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700">
           Zipgrid for Business <ChevronRight className="h-4 w-4" />

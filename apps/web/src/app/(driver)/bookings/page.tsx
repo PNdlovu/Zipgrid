@@ -220,6 +220,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'all', label: 'All' },
 ]
 
+/** Page at /bookings — Driver's booking history with status badges, tab filter (upcoming / past / all), and deep-link to booking detail. */
 export default function BookingsPage() {
   const [tab, setTab] = useState<Tab>('upcoming')
   const [bookings, setBookings] = useState<BookingRow[]>([])

@@ -14,9 +14,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import {
-  PoundSterling, Play, RefreshCw, CheckCircle2,
-  AlertTriangle, Clock, Loader2, ChevronLeft, ChevronRight,
-  ArrowUpRight,
+  PoundSterling, Play, RefreshCw, CheckCircle2, AlertTriangle, Clock, Loader2, ArrowUpRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 

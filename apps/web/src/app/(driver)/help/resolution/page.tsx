@@ -99,6 +99,7 @@ function timelineIndex(status: CaseStatus): number {
 
 /* ── Page ───────────────────────────────────────────────────── */
 
+/** Page at /help/resolution — Driver-facing Resolution Centre. */
 export default function ResolutionCentrePage() {
   const [cases, setCases] = useState<DisputeCase[]>([])
   const [loading, setLoading] = useState(true)

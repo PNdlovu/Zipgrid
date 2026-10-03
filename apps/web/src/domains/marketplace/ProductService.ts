@@ -11,7 +11,7 @@
 
 import { v4 as uuidv4 } from 'uuid'
 import { getDb } from '@/lib/db'
-import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/errors/AppError'
+import { NotFoundError, ValidationError } from '@/lib/errors/AppError'
 
 /* ── Types ──────────────────────────────────────────────────── */
 

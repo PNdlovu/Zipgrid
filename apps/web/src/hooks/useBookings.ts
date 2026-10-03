@@ -44,6 +44,7 @@ export type Booking = {
   createdAt: string
 }
 
+/** Driver bookings, optionally filtered by status. */
 export function useBookings(statusFilter?: BookingStatus) {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [total, setTotal] = useState(0)

@@ -197,6 +197,7 @@ const FILTER_TYPES: Record<FilterKey, NotificationType[] | null> = {
 
 /* ── Page ───────────────────────────────────────────────────── */
 
+/** Page at /notifications — In-app notification centre. */
 export default function NotificationsPage() {
   const [all, setAll]               = useState<Notification[]>([])
   const [loading, setLoading]       = useState(true)
@@ -301,7 +302,7 @@ export default function NotificationsPage() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-          {groups.map((group, gi) => (
+          {groups.map((group) => (
             <div key={group.label}>
               {/* Date group label */}
               <div className="border-b border-gray-100 bg-gray-50 px-4 py-2">

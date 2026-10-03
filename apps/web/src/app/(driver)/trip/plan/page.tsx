@@ -16,9 +16,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import {
-  ArrowLeft, MapPin, Battery, Thermometer, Clock,
-  Zap, PoundSterling, ChevronRight, Loader2, AlertTriangle,
-  CheckCircle2, Car, Navigation, CalendarDays,
+  ArrowLeft, MapPin, Battery, Thermometer, Clock, Zap, ChevronRight, Loader2, AlertTriangle, CheckCircle2, Car, Navigation, CalendarDays,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -198,6 +196,7 @@ const COMMON_VEHICLES = [
   { label: 'Peugeot e-208', rangeMiles: 224 },
 ]
 
+/** Page at /trip/plan — Multi-stop AI trip planner. */
 export default function TripPlannerPage() {
   // Form state
   const [destLat,  setDestLat]  = useState('')
@@ -216,9 +215,6 @@ export default function TripPlannerPage() {
   const [planning, setPlanning] = useState(false)
   const [planError, setPlanError] = useState<string | null>(null)
 
-  // Booking state
-  const [bookingId, setBookingId] = useState<string | null>(null)
-  const [bookError, setBookError] = useState<string | null>(null)
 
   const handlePlan = async () => {
     const lat = parseFloat(destLat)
@@ -587,16 +583,6 @@ export default function TripPlannerPage() {
               Plan a different trip
             </button>
 
-            {/* Book error */}
-            {bookError && (
-              <p role="alert" className="text-sm text-[hsl(var(--destructive))]">{bookError}</p>
-            )}
-            {bookingId && (
-              <p className="flex items-center gap-2 text-sm text-[hsl(var(--primary))]">
-                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                Stop booked — ref: <code className="font-mono text-xs">{bookingId.slice(0, 8).toUpperCase()}</code>
-              </p>
-            )}
           </div>
         )}
       </main>

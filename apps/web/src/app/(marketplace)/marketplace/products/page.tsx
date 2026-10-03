@@ -15,8 +15,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import {
-  Search, Filter, Star, ShoppingCart, Loader2,
-  AlertCircle, ChevronRight, Tag, Zap,
+  Search, Star, Loader2, AlertCircle, Tag, Zap,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -85,6 +84,7 @@ function ProductCard({ p }: { p: Product }) {
       {/* Image */}
       <div className="relative aspect-square overflow-hidden bg-gray-50">
         {p.imageUrls[0] ? (
+          // eslint-disable-next-line @next/next/no-img-element -- user-uploaded image from an arbitrary host, size unknown
           <img src={p.imageUrls[0]} alt={p.name} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
         ) : (
           <div className="flex h-full items-center justify-center">

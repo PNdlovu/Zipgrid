@@ -70,6 +70,7 @@ async function resolveUser(userId: string | undefined): Promise<string | null> {
   return null
 }
 
+/** POST /api/v1/voice/google-home — Google Home / Google Assistant Action endpoint. */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   let body: DialogflowRequest
   try {
@@ -79,7 +80,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const intentName = body.queryResult?.intent?.displayName ?? ''
-  const queryText  = body.queryResult?.queryText ?? ''
   const params     = body.queryResult?.parameters ?? {}
   const googleUserId = body.originalDetectIntentRequest?.payload?.user?.userId
   const zipgridUserId = await resolveUser(googleUserId)

@@ -16,6 +16,7 @@ import { apiResponse } from '@/lib/api/response'
 import { errorResponse, requireUser } from '@/lib/api/context'
 import { ServiceUnavailableError } from '@/lib/errors/AppError'
 
+/** POST /api/v1/payments/setup-intent — Creates a Stripe SetupIntent (usage: off_session) so the client can save a card with Stripe Elements (stripe.confirmSetup). */
 export async function POST(request: NextRequest) {
   try {
     const { userId } = requireUser(request)

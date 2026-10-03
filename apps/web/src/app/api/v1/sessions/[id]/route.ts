@@ -11,6 +11,7 @@ import { errorResponse, requireUser } from '@/lib/api/context'
 
 type Params = { params: Promise<{ id: string }> }
 
+/** GET /api/v1/sessions/[id] — session detail for its driver or host. */
 export async function GET(request: NextRequest, { params }: Params) {
   try {
     const { userId } = requireUser(request)

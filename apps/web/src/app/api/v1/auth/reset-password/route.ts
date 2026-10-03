@@ -13,6 +13,7 @@ import { clientIp, rateLimit } from '@/lib/rate-limit'
 
 const ResetRequestSchema = z.object({ email: z.string().email().max(254) })
 
+/** POST /api/v1/auth/reset-password — email a single-use reset link if the account exists. */
 export async function POST(request: NextRequest) {
   let body: unknown
   try { body = await request.json() } catch {

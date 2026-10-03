@@ -14,6 +14,7 @@ import { Scheduler } from '@/domains/scheduling/Scheduler'
 
 export const dynamic = 'force-dynamic'
 
+/** GET /api/cron/reveal-reviews — publish one-sided reviews older than 14 days now (manual trigger; the scheduler runs it daily via /api/v1/cron/tick). */
 export async function GET(request: NextRequest) {
   if (!hasValidServiceSecret(request.headers, 'CRON_SECRET', 'x-cron-secret')) {
     return apiError('UNAUTHORIZED', 'Invalid cron secret', 401)

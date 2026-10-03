@@ -15,9 +15,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import {
-  CalendarDays, MapPin, ChevronRight, Loader2,
-  Clock, CheckCircle, XCircle, AlertTriangle,
-  User, PoundSterling, RefreshCw,
+  CalendarDays, MapPin, ChevronRight, Loader2, Clock, CheckCircle, XCircle, AlertTriangle, PoundSterling, RefreshCw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -184,6 +182,7 @@ function BookingCard({
 
 /* ── Page ─────────────────────────────────────────────────── */
 
+/** Page at /host/bookings — Host's incoming bookings. */
 export default function HostBookingsPage() {
   const [tab, setTab]                 = useState<Tab>('pending')
   const [bookings, setBookings]       = useState<Booking[]>([])

@@ -22,6 +22,7 @@ const LoginSchema = z.object({
   rememberMe: z.boolean().optional().default(false),
 })
 
+/** POST /api/v1/auth/login — email + password sign-in. */
 export async function POST(request: NextRequest) {
   let body: unknown
   try { body = await request.json() } catch {

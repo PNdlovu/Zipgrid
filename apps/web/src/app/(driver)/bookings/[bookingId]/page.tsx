@@ -152,13 +152,11 @@ function CopyButton({ value, label }: { value: string; label: string }) {
 /* ── Cancel modal ────────────────────────────────────────────── */
 
 function CancelModal({
-  bookingId,
   onConfirm,
   onClose,
   loading,
   error,
 }: {
-  bookingId: string
   onConfirm: (reason: string) => void
   onClose: () => void
   loading: boolean
@@ -239,6 +237,7 @@ function CancelModal({
 
 /* ── Page ────────────────────────────────────────────────────── */
 
+/** Page at /bookings/[bookingId] — Booking detail. */
 export default function BookingDetailPage({
   params,
 }: {
@@ -643,7 +642,6 @@ export default function BookingDetailPage({
       {/* Cancel modal */}
       {showCancel && (
         <CancelModal
-          bookingId={bookingId}
           onConfirm={handleCancel}
           onClose={() => setShowCancel(false)}
           loading={cancelling}

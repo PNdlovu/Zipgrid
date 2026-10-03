@@ -25,7 +25,7 @@
  * @author Zipgrid Engineering
  */
 
-import { v4 as uuidv4 } from 'uuid'
+
 import { getDb, transaction } from '@/lib/db'
 import { ValidationError } from '@/lib/errors/AppError'
 import { WalletService } from '@/domains/payments/WalletService'

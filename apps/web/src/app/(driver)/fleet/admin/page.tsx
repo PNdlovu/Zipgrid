@@ -14,9 +14,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import {
-  Users, PoundSterling, Zap, Car, Download, Plus, Trash2,
-  Settings, BarChart3, CheckCircle2, AlertCircle, Loader2,
-  Mail, UserPlus, Shield, ChevronRight, TrendingUp,
+  PoundSterling, Zap, Download, Trash2, BarChart3, CheckCircle2, Loader2, UserPlus, Shield, TrendingUp,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -97,10 +95,6 @@ function fmtPence(p: number | null | undefined): string {
   return `£${(p / 100).toFixed(2)}`
 }
 
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-}
-
 const STATUS_STYLES: Record<FleetDriver['status'], string> = {
   active:    'bg-green-100 text-green-700',
   invited:   'bg-blue-100 text-blue-700',
@@ -113,6 +107,7 @@ type Tab = 'drivers' | 'analytics' | 'policy' | 'invoices'
 
 /* ── Page ───────────────────────────────────────────────────── */
 
+/** Page at /fleet/admin — Corporate fleet management portal. */
 export default function FleetAdminPage() {
   const [fleet, setFleet]       = useState<FleetAccount | null>(null)
   const [loading, setLoading]   = useState(true)
@@ -152,7 +147,7 @@ export default function FleetAdminPage() {
     return <div className="flex h-64 items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-green-600" /></div>
   }
   if (!fleet) {
-    return <div className="p-8 text-center text-sm text-gray-500">Fleet account not found or you don't have admin access.</div>
+    return <div className="p-8 text-center text-sm text-gray-500">Fleet account not found or you don&apos;t have admin access.</div>
   }
 
   const { analytics: a } = fleet
@@ -285,7 +280,7 @@ export default function FleetAdminPage() {
           {a.topDriverName && (
             <div className="mt-4 rounded-lg bg-green-50 border border-green-100 p-3">
               <p className="text-sm text-green-800">
-                🏆 <strong>{a.topDriverName}</strong> is this month's top driver by spend.
+                🏆 <strong>{a.topDriverName}</strong> is this month&apos;s top driver by spend.
               </p>
             </div>
           )}
@@ -301,7 +296,7 @@ export default function FleetAdminPage() {
             onClick={() => window.open('/api/v1/fleet/invoice/current', '_blank')}
             className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
           >
-            <Download className="h-4 w-4" /> Download this month's invoice
+            <Download className="h-4 w-4" /> Download this month&apos;s invoice
           </button>
         </div>
       )}

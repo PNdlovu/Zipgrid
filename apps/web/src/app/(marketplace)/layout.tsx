@@ -23,6 +23,7 @@ const TABS = [
   { href: '/marketplace/installers', label: 'Find an Installer', icon: Wrench, exact: false },
 ] as const
 
+/** Layout for the (marketplace) route group — Marketplace route group layout — top nav with categories + cart icon. */
 export default function MarketplaceLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 

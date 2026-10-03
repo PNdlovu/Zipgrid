@@ -11,6 +11,7 @@ import { type NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
 import { safeEqual } from '@/lib/env'
 
+/** Verifies an OCPI partner `Authorization: Token <token>` header. */
 export async function verifyOcpiToken(request: NextRequest): Promise<boolean> {
   const header = request.headers.get('authorization') ?? ''
   if (!header.startsWith('Token ')) return false

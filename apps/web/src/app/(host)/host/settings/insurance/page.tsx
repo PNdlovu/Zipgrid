@@ -101,6 +101,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 
 /* ── Page ───────────────────────────────────────────────────── */
 
+/** Page at /host/settings/insurance — Host-facing Insurance Hub. */
 export default function HostInsuranceHubPage() {
   const [listings, setListings] = useState<ListingStatus[]>([])
   const [loading, setLoading] = useState(true)
@@ -234,7 +235,7 @@ export default function HostInsuranceHubPage() {
               Notify your home insurer
             </h3>
             <p className="mb-3 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">
-              If you have home contents or buildings insurance, you should declare that you\'re using your property commercially. Use this template to notify your insurer.
+              If you have home contents or buildings insurance, you should declare that you\&apos;re using your property commercially. Use this template to notify your insurer.
             </p>
             <div className="rounded-[6px] border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3 text-xs">
               <p className="mb-1 font-semibold text-[hsl(var(--foreground))]">Letter template (plain text)</p>

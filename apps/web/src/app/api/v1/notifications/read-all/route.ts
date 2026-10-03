@@ -15,6 +15,7 @@ import { NotificationService } from '@/domains/notifications/NotificationService
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
 
+/** POST /api/v1/notifications/read-all — Marks every unread notification as read for the authenticated user. */
 export async function POST(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)

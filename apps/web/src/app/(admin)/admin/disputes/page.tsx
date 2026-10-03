@@ -95,8 +95,8 @@ function ResolveModal({
             <select id="action" value={action} onChange={(e) => setAction(e.target.value)} required
               className="w-full rounded-[6px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary)/0.4)]">
               <option value="">Select outcome…</option>
-              <option value="resolve_driver">Resolve in driver's favour</option>
-              <option value="resolve_host">Resolve in host's favour</option>
+              <option value="resolve_driver">Resolve in driver&apos;s favour</option>
+              <option value="resolve_host">Resolve in host&apos;s favour</option>
               <option value="resolve_split">Split resolution</option>
               <option value="escalate">Escalate</option>
               <option value="close">Close without resolution</option>
@@ -140,6 +140,7 @@ function ResolveModal({
 
 const PAGE_SIZE = 25
 
+/** Page at /admin/disputes — Dispute queue with case management. */
 export default function AdminDisputesPage() {
   const [disputes, setDisputes] = useState<DisputeRow[]>([])
   const [total, setTotal] = useState(0)
@@ -260,7 +261,7 @@ export default function AdminDisputesPage() {
                       )}
                     </div>
                     {d.resolution_notes && (
-                      <p className="mt-2 text-xs text-[hsl(var(--muted-foreground))] italic">"{d.resolution_notes}"</p>
+                      <p className="mt-2 text-xs text-[hsl(var(--muted-foreground))] italic">&quot;{d.resolution_notes}&quot;</p>
                     )}
                   </div>
                   {isOpen && (

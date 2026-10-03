@@ -21,6 +21,7 @@ const CheckoutSchema = z.object({
   message: 'Provide exactly one of installerJobId or productId',
 })
 
+/** POST /api/v1/marketplace/checkout — escrow payment for a product order or an installer job (see CheckoutService for the full lifecycle). */
 export async function POST(request: NextRequest) {
   try {
     const { userId } = requireUser(request)

@@ -21,7 +21,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   PlugZap, Loader2, CheckCircle2, AlertTriangle,
@@ -121,9 +121,9 @@ function PinInput({ value, onChange, disabled }: { value: string; onChange: (v: 
 
 type Step = 'loading' | 'smart_charger_redirect' | 'instructions' | 'pin_entry' | 'confirming' | 'success' | 'error'
 
+/** Page at /bookings/[bookingId]/confirm-arrival — starts a session on a non-smart charger once the driver enters the booking's session PIN. */
 export default function ConfirmArrivalPage() {
   const params = useParams<{ bookingId: string }>()
-  const router = useRouter()
   const bookingId = params.bookingId
 
   const [booking, setBooking]   = useState<BookingDetails | null>(null)
@@ -248,7 +248,7 @@ export default function ConfirmArrivalPage() {
           <ArrowLeft className="h-4 w-4" /> Back
         </Link>
         <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">Confirm your arrival</h1>
-        <p className="mt-1 text-sm text-gray-500">This charger doesn't have remote connectivity — follow the steps below.</p>
+        <p className="mt-1 text-sm text-gray-500">This charger doesn&apos;t have remote connectivity — follow the steps below.</p>
 
         <div className="mt-6 space-y-3">
           <Step num={1} title="Go to the charger">
@@ -278,7 +278,7 @@ export default function ConfirmArrivalPage() {
         <div className="mt-6 rounded-xl border border-dashed border-green-300 bg-green-50 p-5 text-center">
           <p className="text-xs font-semibold uppercase tracking-wide text-green-600">Your session PIN</p>
           <p className="mt-2 font-mono text-4xl font-extrabold tracking-[0.3em] text-gray-900">{booking.sessionPin}</p>
-          <p className="mt-1 text-xs text-gray-400">You'll enter this on the next screen to confirm you're there</p>
+          <p className="mt-1 text-xs text-gray-400">You&apos;ll enter this on the next screen to confirm you&apos;re there</p>
         </div>
 
         <div className="mt-4 flex items-start gap-2 rounded-lg bg-blue-50 border border-blue-100 p-3">
@@ -290,7 +290,7 @@ export default function ConfirmArrivalPage() {
           onClick={() => setStep('pin_entry')}
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3.5 text-sm font-semibold text-white hover:bg-green-700"
         >
-          <PlugZap className="h-4 w-4" /> I'm plugged in — enter PIN
+          <PlugZap className="h-4 w-4" /> I&apos;m plugged in — enter PIN
         </button>
       </div>
     )
@@ -303,7 +303,7 @@ export default function ConfirmArrivalPage() {
         <ArrowLeft className="h-4 w-4" /> Back
       </button>
       <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">Enter your PIN</h1>
-      <p className="mt-1 text-sm text-gray-500">Type the 6-digit session PIN shown on your booking to confirm you're at the charger.</p>
+      <p className="mt-1 text-sm text-gray-500">Type the 6-digit session PIN shown on your booking to confirm you&apos;re at the charger.</p>
 
       <div className="mt-8">
         <PinInput value={pin} onChange={setPin} disabled={step === 'confirming'} />

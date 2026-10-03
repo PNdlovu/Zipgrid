@@ -14,6 +14,7 @@ import { clientIp, rateLimit } from '@/lib/rate-limit'
 
 const ResendSchema = z.object({ email: z.string().email('Enter a valid email address').max(254) })
 
+/** POST /api/v1/auth/verify-email/resend — send a new email code. */
 export async function POST(request: NextRequest) {
   let body: unknown
   try { body = await request.json() } catch {

@@ -114,6 +114,7 @@ function CardRow({ card, onDefault, onRemove }: { card: SavedCard; onDefault: ()
 
 /* ── Manager ─────────────────────────────────────────────────── */
 
+/** Saved-card manager: list, make default, remove, and add a card with Stripe Elements. */
 export function PaymentMethodsManager() {
   const { cards, error, refresh, createSetupIntent, setDefault, remove } = usePaymentMethods()
   const [clientSecret, setClientSecret] = useState<string | null>(null)

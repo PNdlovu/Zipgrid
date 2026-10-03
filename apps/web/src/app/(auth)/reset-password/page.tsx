@@ -209,6 +209,7 @@ function ResetPasswordForm() {
   )
 }
 
+/** Page at /reset-password — Set a new password using a reset token. */
 export default function ResetPasswordPage() {
   return (
     <Suspense fallback={<div className="h-screen" />}>

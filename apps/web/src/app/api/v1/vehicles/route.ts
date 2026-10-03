@@ -28,6 +28,7 @@ const AddVehicleSchema = z.object({
   isPrimary: z.boolean().optional(),
 })
 
+/** GET /api/v1/vehicles — list authenticated driver's registered vehicles. */
 export async function GET(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
@@ -80,6 +81,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/** POST /api/v1/vehicles — add a new vehicle. */
 export async function POST(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)

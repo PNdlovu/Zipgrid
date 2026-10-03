@@ -14,8 +14,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import {
-  ShoppingBag, PoundSterling, Star, Package, Loader2,
-  AlertCircle, CheckCircle2, Clock, ArrowRight, TrendingUp,
+  ShoppingBag, PoundSterling, Star, Package, Loader2, AlertCircle, CheckCircle2, TrendingUp,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -157,7 +156,7 @@ export default function VendorDashboardPage() {
         {pendingOrders.length === 0 ? (
           <div className="rounded-xl border border-dashed border-gray-200 p-8 text-center">
             <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-gray-300" />
-            <p className="text-sm text-gray-400">No pending orders — you're all caught up!</p>
+            <p className="text-sm text-gray-400">No pending orders — you&apos;re all caught up!</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -168,7 +167,7 @@ export default function VendorDashboardPage() {
                     <p className="text-sm font-bold text-gray-900">{order.productName}</p>
                     <p className="text-xs text-gray-500">{order.buyerEmail} · qty {order.quantityOrdered}</p>
                     {order.requestedDate && <p className="text-xs text-gray-400">Requested: {new Date(order.requestedDate).toLocaleDateString('en-GB')}</p>}
-                    {order.notes && <p className="mt-1 text-xs text-gray-500 italic">"{order.notes}"</p>}
+                    {order.notes && <p className="mt-1 text-xs text-gray-500 italic">&quot;{order.notes}&quot;</p>}
                   </div>
                   <div className="flex flex-shrink-0 flex-col items-end gap-2">
                     <span className="text-base font-bold text-gray-900">{fmtPence(order.totalPence)}</span>

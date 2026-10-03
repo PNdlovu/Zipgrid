@@ -30,6 +30,7 @@ const EventSchema = z.discriminatedUnion('event', [
   }),
 ])
 
+/** POST /api/v1/webhooks/ocpp — events from the OCPP service. */
 export async function POST(request: NextRequest) {
   if (!hasValidServiceSecret(request.headers, 'OCPP_SERVICE_SECRET')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

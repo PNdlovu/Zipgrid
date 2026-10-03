@@ -66,7 +66,6 @@ export default function SessionPage({ params }: { params: Promise<{ sessionId: s
   const [stopping, setStopping] = useState(false)
   const [stopError, setStopError] = useState<string | null>(null)
   const [elapsed, setElapsed] = useState('0s')
-  const [pulseKey, setPulseKey] = useState(0)
   const [showReview, setShowReview] = useState(false)
   const [hasReviewed, setHasReviewed] = useState(false)
 
@@ -77,7 +76,6 @@ export default function SessionPage({ params }: { params: Promise<{ sessionId: s
         const data = await res.json() as { success: boolean; data: SessionState }
         if (data.success) {
           setSession(data.data)
-          setPulseKey((k) => k + 1) // trigger pulse animation on update
         }
       }
     } finally {

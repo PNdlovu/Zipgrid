@@ -8,7 +8,7 @@
  */
 
 import { type NextRequest } from 'next/server'
-import { apiResponse, apiError } from '@/lib/api/response'
+import { apiResponse } from '@/lib/api/response'
 import { LOCALE_CONFIGS, type SupportedLocale } from '@zipgrid/types'
 
 /** GET /api/v1/region/currency */

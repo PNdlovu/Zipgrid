@@ -21,6 +21,7 @@ function requireAdmin(req: NextRequest) {
   return (req.headers.get('x-user-roles') ?? '').split(',').map((r) => r.trim()).includes('admin')
 }
 
+/** GET /api/v1/admin/listings — listings moderation queue. */
 export async function GET(request: NextRequest) {
   if (!requireAdmin(request)) return apiError('FORBIDDEN', 'Admin access required', 403)
 
@@ -73,6 +74,7 @@ const PatchListingSchema = z.object({
   note: z.string().max(500).optional(),
 })
 
+/** PATCH /api/v1/admin/listings — approve, flag, deactivate a listing. */
 export async function PATCH(request: NextRequest) {
   const adminUserId = request.headers.get('x-user-id')
   if (!requireAdmin(request)) return apiError('FORBIDDEN', 'Admin access required', 403)

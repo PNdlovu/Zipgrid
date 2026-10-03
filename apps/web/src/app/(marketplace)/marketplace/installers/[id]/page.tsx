@@ -16,9 +16,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
-  Star, CheckCircle2, MapPin, Wrench, Loader2,
-  AlertTriangle, ArrowLeft, Shield, Phone, Globe,
-  CalendarDays, PoundSterling,
+  Star, CheckCircle2, Wrench, Loader2, AlertTriangle, ArrowLeft, Shield, Phone, Globe, CalendarDays, PoundSterling,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { usePaymentMethods } from '@/hooks/usePaymentMethods'
@@ -141,6 +139,7 @@ export default function InstallerDetailPage() {
       {/* Header */}
       <div className="mb-6 flex items-start gap-4">
         <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gray-100">
+          {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded image from an arbitrary host, size unknown */}
           {installer.logoUrl ? <img src={installer.logoUrl} alt="" className="h-full w-full object-cover" /> : <Wrench className="h-8 w-8 text-gray-400" />}
         </div>
         <div className="min-w-0 flex-1">
@@ -291,7 +290,7 @@ export default function InstallerDetailPage() {
                 {booking ? <Loader2 className="h-4 w-4 animate-spin" /> : <PoundSterling className="h-4 w-4" />}
                 {booking ? 'Requesting…' : 'Request booking'}
               </button>
-              <p className="mt-2 text-center text-xs text-gray-400">Your card is held. You're only charged when the job is confirmed complete.</p>
+              <p className="mt-2 text-center text-xs text-gray-400">Your card is held. You&apos;re only charged when the job is confirmed complete.</p>
             </>
           )}
         </div>

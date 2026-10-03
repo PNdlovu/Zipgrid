@@ -111,6 +111,7 @@ function fmtDate(iso: string | null): string {
 
 /* ── Page ────────────────────────────────────────────────── */
 
+/** Page at /dashboard — Host dashboard — live earnings, session activity, charger status. */
 export default function HostDashboardPage() {
   const [analytics, setAnalytics]       = useState<AnalyticsSummary | null>(null)
   const [recentSessions, setRecentSessions] = useState<RecentSession[]>([])

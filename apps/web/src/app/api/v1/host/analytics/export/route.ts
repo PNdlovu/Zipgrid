@@ -38,6 +38,7 @@ function buildCsv(headers: string[], rows: unknown[][]): string {
   return [headers.join(','), ...lines].join('\n')
 }
 
+/** POST /api/v1/host/analytics/export — Creates an async export job for sessions, earnings, customers, or VAT invoices. */
 export async function POST(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
@@ -201,8 +202,3 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET /api/v1/host/analytics/export/:jobId — poll job status
-// (jobs are synchronous in this implementation; always 'ready')
-export async function GET(_request: NextRequest) {
-  return apiError('NOT_FOUND', 'Job lookup not needed — all exports are synchronous', 404)
-}

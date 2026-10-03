@@ -67,7 +67,7 @@ function ask(text: string, reprompt: string): AlexaResponse {
 }
 
 /** Map Alexa userId → Zipgrid userId via account linking. */
-async function resolveZipgridUserId(alexaUserId: string): Promise<string | null> {
+async function resolveZipgridUserId(_alexaUserId: string): Promise<string | null> {
   // In production: look up the account-linked token from a DB table
   // alexa_account_links (alexa_user_id → zipgrid_user_id)
   // For now: return null (requires account linking setup in Alexa developer console)
@@ -93,6 +93,7 @@ async function callAgent(userId: string, input: string, role: string): Promise<s
   }
 }
 
+/** POST /api/v1/voice/alexa — Amazon Alexa Smart Home Skill endpoint. */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   let body: AlexaRequest
   try {

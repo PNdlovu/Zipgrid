@@ -7,6 +7,7 @@
  * @see https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation
  */
 
+/** Next.js startup hook: initialises Sentry and background event subscribers. */
 export async function register() {
   const dsn = process.env['SENTRY_DSN']
 

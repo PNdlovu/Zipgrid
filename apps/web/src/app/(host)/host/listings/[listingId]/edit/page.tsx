@@ -739,6 +739,7 @@ function ScheduleTab({ listingId }: { listingId: string }) {
 
 /* ── Page ────────────────────────────────────────────────── */
 
+/** Page at /host/listings/[listingId]/edit — Edit an existing charger listing. */
 export default function EditListingPage({
   params,
 }: {

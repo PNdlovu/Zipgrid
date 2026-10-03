@@ -143,6 +143,7 @@ export default function LeaderboardPage() {
                   {/* Avatar */}
                   <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 text-sm font-bold text-gray-600">
                     {entry.avatarUrl
+                      // eslint-disable-next-line @next/next/no-img-element -- user-uploaded image from an arbitrary host, size unknown
                       ? <img src={entry.avatarUrl} alt="" className="h-full w-full object-cover" />
                       : entry.displayName[0]?.toUpperCase()}
                   </div>

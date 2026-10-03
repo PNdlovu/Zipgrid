@@ -15,7 +15,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Building2, Users, PlusCircle, Loader2, ChevronRight, Zap, PoundSterling, Settings } from 'lucide-react'
+import { Building2, Users, PlusCircle, Loader2, ChevronRight, Zap, PoundSterling } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /* ── Types ──────────────────────────────────────────────────── */

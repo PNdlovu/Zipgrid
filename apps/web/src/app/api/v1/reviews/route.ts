@@ -39,6 +39,7 @@ const PostReviewSchema = z.discriminatedUnion('subject', [
   }),
 ])
 
+/** POST /api/v1/reviews — submit a review after a completed booking. */
 export async function POST(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
@@ -80,6 +81,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/** GET /api/v1/reviews — published reviews for a listing. */
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
   const listingId  = searchParams.get('listingId')

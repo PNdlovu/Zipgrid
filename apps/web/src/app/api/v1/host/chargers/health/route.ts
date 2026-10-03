@@ -14,6 +14,7 @@ import { type NextRequest } from 'next/server'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError } from '@/lib/errors/AppError'
 
+/** GET /api/v1/host/chargers/health — Returns OCPP health, fault history, safety score, uptime, and predictive maintenance warnings for all chargers owned by the host. */
 export async function GET(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
@@ -100,9 +101,6 @@ export async function GET(request: NextRequest) {
       session_count_30d: number
     }
 
-    const SAFETY_BANDS: Record<string, string> = {
-      excellent: 'excellent', good: 'good', fair: 'fair', needs_attention: 'needs_attention',
-    }
     function scoreToBand(score: number | null) {
       if (score == null) return null
       if (score >= 90) return 'excellent'

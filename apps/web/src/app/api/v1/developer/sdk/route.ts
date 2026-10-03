@@ -28,8 +28,7 @@ const RegisterSchema = z.object({
 })
 
 /** GET /api/v1/developer/sdk — return SDK documentation and embed snippet. */
-export async function GET(request: NextRequest) {
-  const userId = request.headers.get('x-user-id')
+export async function GET(_request: NextRequest) {
   const appUrl = process.env['NEXT_PUBLIC_APP_URL'] ?? 'https://zipgrid.app'
 
   // Return SDK documentation

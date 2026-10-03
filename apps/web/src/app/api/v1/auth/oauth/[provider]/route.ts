@@ -59,6 +59,7 @@ function appleAuthUrl(state: string): string {
   return `https://appleid.apple.com/auth/authorize?${params.toString()}`
 }
 
+/** GET /api/v1/auth/oauth/[provider] — OAuth redirect initiator. */
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ provider: string }> },

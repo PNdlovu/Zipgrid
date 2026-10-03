@@ -166,6 +166,7 @@ function SkeletonCard() {
 
 /* ── Page ────────────────────────────────────────────────── */
 
+/** Page at /listings — Public listings browse page. */
 export default function ListingsPage() {
   const [listings, setListings]     = useState<Listing[]>([])
   const [total, setTotal]           = useState(0)

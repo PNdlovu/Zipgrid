@@ -25,6 +25,7 @@ function toPath(url: unknown): string | undefined {
   }
 }
 
+/** GET /api/v1/host/stripe-onboarding — payout account status. */
 export async function GET(request: NextRequest) {
   try {
     const { userId } = requireUser(request)
@@ -35,6 +36,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/** POST /api/v1/host/stripe-onboarding — Stripe Connect onboarding link. */
 export async function POST(request: NextRequest) {
   try {
     const { userId } = requireUser(request)

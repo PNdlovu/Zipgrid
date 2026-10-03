@@ -148,9 +148,11 @@ export async function DELETE(request: NextRequest) {
        SET is_active = FALSE, updated_at = NOW()
        FROM charger_listings cl
        JOIN host_profiles hp ON hp.id = cl.host_profile_id
-       WHERE lar.id = $1 AND lar.listing_id = cl.id AND hp.user_id = $2`,
+       WHERE lar.id = $1 AND lar.listing_id = cl.id AND hp.user_id = $2
+       RETURNING lar.id`,
       [ruleId, userId],
     )
+    if (res.rows.length === 0) return apiError('NOT_FOUND', 'Access rule not found', 404)
 
     return apiResponse({ removed: true, ruleId })
   } catch (err) {

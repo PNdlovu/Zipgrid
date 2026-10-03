@@ -20,6 +20,7 @@ import { AppError } from '@/lib/errors/AppError'
 
 const PERIOD_DAYS: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90, '365d': 365 }
 
+/** GET /api/v1/host/analytics — Returns SMB host analytics: per-charger revenue, utilisation rate, peak hours heatmap, session value breakdown, and earnings summary. */
 export async function GET(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)

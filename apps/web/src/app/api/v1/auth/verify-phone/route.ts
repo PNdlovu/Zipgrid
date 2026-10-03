@@ -15,6 +15,7 @@ import { rateLimit } from '@/lib/rate-limit'
 
 const VerifyPhoneSchema = z.object({ code: z.string().regex(/^\d{6}$/, 'Code must be 6 digits') })
 
+/** POST /api/v1/auth/verify-phone — confirm the SMS code for the signed-in user's own phone number. */
 export async function POST(request: NextRequest) {
   try {
     const { userId } = requireUser(request)

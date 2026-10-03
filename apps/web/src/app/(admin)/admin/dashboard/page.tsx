@@ -101,6 +101,7 @@ function GmvSparkline({ data }: { data: Array<{ date: string; gmvPence: number }
 
 const PERIODS = [{ key: '7', label: '7d' }, { key: '30', label: '30d' }, { key: '90', label: '90d' }]
 
+/** Page at /admin/dashboard — Platform KPIs: GMV, MAU, sessions/day, listing health, open disputes, daily GMV sparkline. */
 export default function AdminDashboardPage() {
   const [days, setDays] = useState('30')
   const [data, setData] = useState<Analytics | null>(null)

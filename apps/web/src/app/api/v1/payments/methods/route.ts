@@ -19,6 +19,7 @@ import { errorResponse, requireUser } from '@/lib/api/context'
 
 const PM_ID = /^pm_[A-Za-z0-9]+$/
 
+/** GET /api/v1/payments/methods — list saved cards. */
 export async function GET(request: NextRequest) {
   try {
     const { userId } = requireUser(request)
@@ -32,6 +33,7 @@ export async function GET(request: NextRequest) {
 
 const SetDefaultSchema = z.object({ paymentMethodId: z.string().regex(PM_ID, 'Invalid paymentMethodId') })
 
+/** PATCH /api/v1/payments/methods — { paymentMethodId } set the default card. */
 export async function PATCH(request: NextRequest) {
   try {
     const { userId } = requireUser(request)
@@ -51,6 +53,7 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
+/** DELETE /api/v1/payments/methods?pmId=pm_xxx — remove a saved card. */
 export async function DELETE(request: NextRequest) {
   try {
     const { userId } = requireUser(request)

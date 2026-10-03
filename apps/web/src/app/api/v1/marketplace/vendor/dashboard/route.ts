@@ -26,6 +26,7 @@ const UI_STATUS: Record<string, string> = {
   refunded: 'cancelled',
 }
 
+/** GET /api/v1/marketplace/vendor/dashboard — sales KPIs and the order queue for the signed-in vendor. */
 export async function GET(request: NextRequest) {
   try {
     const { userId } = requireUser(request)

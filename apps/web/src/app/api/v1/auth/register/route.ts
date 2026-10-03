@@ -27,6 +27,7 @@ const RegisterSchema = z.object({
   role: z.enum(['driver', 'host', 'both']),
 })
 
+/** POST /api/v1/auth/register — create an account (driver, host or both) with its profiles, send the email verification code and sign in. */
 export async function POST(request: NextRequest) {
   const ip = clientIp(request.headers)
   const limit = await rateLimit(`register:ip:${ip}`, 5, 60 * 60)

@@ -201,6 +201,7 @@ function AutoTopupSettings({ balance, save: saveSettings }: {
 
 /* ── Page ────────────────────────────────────────────────────── */
 
+/** Page at /wallet — Wallet balance card, top-up form, transaction history. */
 export default function WalletPage() {
   const { balance, outstandingPence, transactions: allTxns, hasMore, loading, error, topUp, setAutoTopup, loadMore } = useWallet()
   const [showTopup, setShowTopup] = useState(false)

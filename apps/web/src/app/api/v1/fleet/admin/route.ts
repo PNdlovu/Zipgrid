@@ -14,6 +14,7 @@ import { type NextRequest } from 'next/server'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { AppError, ForbiddenError } from '@/lib/errors/AppError'
 
+/** GET /api/v1/fleet/admin — Returns full fleet account data for fleet admins: drivers, policy, analytics (this month vs last month), and top driver. */
 export async function GET(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)

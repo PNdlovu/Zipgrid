@@ -16,6 +16,7 @@ const BodySchema = z.object({
   orderId: z.string().uuid(),
 })
 
+/** POST /api/v1/marketplace/checkout/release — capture escrow. */
 export async function POST(request: NextRequest) {
   try {
     const user = requireUser(request)

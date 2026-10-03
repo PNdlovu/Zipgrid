@@ -13,6 +13,7 @@ import { hasEnv } from '@/lib/env'
 
 export const dynamic = 'force-dynamic'
 
+/** GET /api/health — liveness/readiness probe for Railway and uptime monitors. */
 export async function GET() {
   const database = await pingDb()
   return NextResponse.json(

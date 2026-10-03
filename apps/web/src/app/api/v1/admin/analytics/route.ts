@@ -17,6 +17,7 @@ function requireAdmin(req: NextRequest) {
   return (req.headers.get('x-user-roles') ?? '').split(',').map((r) => r.trim()).includes('admin')
 }
 
+/** GET /api/v1/admin/analytics — platform-wide KPIs. */
 export async function GET(request: NextRequest) {
   if (!requireAdmin(request)) return apiError('FORBIDDEN', 'Admin access required', 403)
 

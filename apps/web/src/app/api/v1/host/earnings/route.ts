@@ -21,6 +21,7 @@ const PERIOD_DAYS: Record<string, number> = {
   all_time: 3650,
 }
 
+/** GET /api/v1/host/earnings — host earnings summary. */
 export async function GET(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
   if (!userId) return apiError('UNAUTHORIZED', 'Authentication required', 401)
