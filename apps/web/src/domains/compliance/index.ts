@@ -9,3 +9,5 @@
 
 export { AuditLogger } from './AuditLogger'
 export { GdprService } from './GdprService'
+export { PolicyService, POLICIES, policiesForRoles } from './PolicyService'
+export type { PolicyKey } from './PolicyService'

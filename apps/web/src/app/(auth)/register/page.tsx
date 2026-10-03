@@ -109,6 +109,7 @@ function RegisterForm() {
           email: data.email,
           password: data.password,
           role: data.role,
+          acceptTerms: data.acceptTerms,
         }),
       })
 
@@ -282,6 +283,32 @@ function RegisterForm() {
               >
                 Privacy Policy
               </Link>
+              {selectedRole !== 'host' && (
+                <>
+                  , and the{' '}
+                  <Link
+                    href="/legal/driver-terms"
+                    className="font-medium text-[hsl(var(--foreground))] underline hover:no-underline"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Driver Responsibilities
+                  </Link>
+                </>
+              )}
+              {selectedRole !== 'driver' && (
+                <>
+                  {selectedRole === 'both' ? ' and ' : ', and the '}
+                  <Link
+                    href="/legal/host-terms"
+                    className="font-medium text-[hsl(var(--foreground))] underline hover:no-underline"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Host Terms
+                  </Link>
+                </>
+              )}
             </span>
           </label>
           {errors.acceptTerms && (

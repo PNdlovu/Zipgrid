@@ -17,6 +17,8 @@ import { StripeService } from '@/domains/payments/StripeService'
 import { EarningsAllocator } from '@/domains/payments/EarningsAllocator'
 import { WalletService } from '@/domains/payments/WalletService'
 import { AuditLogger } from '@/domains/compliance/AuditLogger'
+import { DisputeService } from '@/domains/trust/DisputeService'
+import { ShortfallService } from '@/domains/payments/ShortfallService'
 
 function requireAdmin(req: NextRequest) {
   return (req.headers.get('x-user-roles') ?? '').split(',').map((r) => r.trim()).includes('admin')
@@ -48,14 +50,22 @@ export async function GET(request: NextRequest) {
                 d.resolution_amount_cents AS refund_amount_cents, d.booking_id,
                 u_raiser.full_name AS raised_by_name, u_raiser.email AS raised_by_email,
                 u_against.full_name AS raised_against_name,
-                b.scheduled_start, cl.title AS listing_title
+                b.scheduled_start, cl.title AS listing_title,
+                d.description, d.session_snapshot, d.damage_charge_pence,
+                d.acknowledge_by, d.acknowledged_at,
+                (d.acknowledged_at IS NULL AND d.acknowledge_by < NOW()) AS acknowledgement_overdue,
+                (hp.user_id = d.raised_by_user_id) AS raised_by_host,
+                (SELECT COUNT(*)::INT FROM dispute_evidence e WHERE e.dispute_id = d.id) AS evidence_count
          FROM disputes d
          JOIN users u_raiser ON u_raiser.id = d.raised_by_user_id
          LEFT JOIN users u_against ON u_against.id = d.against_user_id
          LEFT JOIN bookings b ON b.id = d.booking_id
          LEFT JOIN charger_listings cl ON cl.id = b.listing_id
+         LEFT JOIN host_profiles hp ON hp.id = cl.host_profile_id
          ${where}
-         ORDER BY (d.dispute_type::text = 'safety_incident' AND d.status::text NOT LIKE 'resolved%' AND d.status::text <> 'closed') DESC, d.created_at DESC
+         ORDER BY (d.dispute_type::text = 'safety_incident' AND d.status::text NOT LIKE 'resolved%' AND d.status::text <> 'closed') DESC,
+                  (d.acknowledged_at IS NULL AND d.status::text = 'open') DESC,
+                  d.acknowledge_by ASC NULLS LAST, d.created_at DESC
          LIMIT $${i} OFFSET $${i + 1}`,
         [...values, pageSize, offset],
       ),
@@ -72,9 +82,11 @@ export async function GET(request: NextRequest) {
 
 const PatchDisputeSchema = z.object({
   disputeId: z.string().uuid(),
-  action: z.enum(['resolve_driver', 'resolve_host', 'resolve_split', 'escalate', 'close']),
+  action: z.enum(['acknowledge', 'resolve_driver', 'resolve_host', 'resolve_split', 'escalate', 'close']),
   resolutionNotes: z.string().max(2000).optional(),
   refundAmountPence: z.number().int().nonnegative().optional(),
+  /** resolve_host on a host's property damage case: amount recovered from the driver. */
+  damageChargePence: z.number().int().positive().optional(),
 })
 
 /** PATCH /api/v1/admin/disputes — resolve/escalate a dispute. */
@@ -88,9 +100,13 @@ export async function PATCH(request: NextRequest) {
   const parsed = PatchDisputeSchema.safeParse(body)
   if (!parsed.success) return apiError('VALIDATION_ERROR', parsed.error.errors[0]?.message ?? 'Invalid', 422)
 
-  const { disputeId, action, resolutionNotes, refundAmountPence } = parsed.data
+  const { disputeId, action, resolutionNotes, refundAmountPence, damageChargePence } = parsed.data
+  if (damageChargePence && action !== 'resolve_host') {
+    return apiError('VALIDATION_ERROR', 'A damage charge can only be applied when resolving in the host\'s favour.', 422)
+  }
 
   const STATUS_MAP: Record<string, string> = {
+    acknowledge: 'under_review',
     resolve_driver: 'resolved_driver_favour',
     resolve_host: 'resolved_host_favour',
     resolve_split: 'resolved_split',
@@ -100,11 +116,11 @@ export async function PATCH(request: NextRequest) {
   const newStatus = STATUS_MAP[action]!
 
   const refundPence = action === 'resolve_driver' || action === 'resolve_split' ? (refundAmountPence ?? 0) : 0
-  const isResolution = action !== 'escalate'
+  const isResolution = action !== 'escalate' && action !== 'acknowledge'
 
   try {
     const { transaction } = await import('@/lib/db')
-    const refunded = await transaction(async (tx) => {
+    const outcome = await transaction(async (tx) => {
       const res = await tx.execute(
         `SELECT d.status, t.id AS transaction_id, t.status AS txn_status,
                 t.stripe_payment_intent_id, t.payment_source, d.booking_id, dp.user_id AS driver_user_id,
@@ -156,29 +172,44 @@ export async function PATCH(request: NextRequest) {
         await EarningsAllocator.allocateRefund(tx, d['transaction_id'] as string, Math.round(refundPence * (1 - feeRate)), `refund:${disputeId.slice(0, 30)}`)
       }
 
+      // A host's upheld damage claim is recovered from the driver (collected after commit).
+      const damageShortfallId = damageChargePence
+        ? await DisputeService.openDamageCharge(tx, disputeId, damageChargePence)
+        : null
+
+      // Any admin action counts as acknowledging the case; 'acknowledge' alone
+      // only moves a still-open case into review.
       await tx.execute(
         `UPDATE disputes
-         SET status = $2::dispute_status,
+         SET status = CASE WHEN $7 AND status::text <> 'open' THEN status ELSE $2::dispute_status END,
              resolution_notes = COALESCE($3, resolution_notes),
              resolution_amount_cents = CASE WHEN $4 > 0 THEN $4 ELSE resolution_amount_cents END,
              assigned_agent_id = COALESCE(assigned_agent_id, $5),
              resolved_at = CASE WHEN $6 THEN NOW() ELSE resolved_at END,
+             acknowledged_at = COALESCE(acknowledged_at, NOW()),
              updated_at = NOW()
          WHERE id = $1`,
-        [disputeId, newStatus, resolutionNotes ?? null, refundPence, adminUserId, isResolution],
+        [disputeId, newStatus, resolutionNotes ?? null, refundPence, adminUserId, isResolution, action === 'acknowledge'],
       )
-      return refundPence
+      return { refundPence, damageShortfallId }
     })
+
+    if (outcome.damageShortfallId) {
+      await ShortfallService.collect(outcome.damageShortfallId).catch((err: unknown) =>
+        console.error('[PATCH /api/v1/admin/disputes] damage collection', err))
+      await DisputeService.notifyDamageCharge(disputeId)
+    }
+    const refunded = outcome.refundPence
 
     await AuditLogger.logAsync({
       eventType: 'admin.dispute_resolved',
       actorId: adminUserId ?? undefined,
       targetId: disputeId,
       targetType: 'dispute',
-      metadata: { action, newStatus, refundedPence: refunded },
+      metadata: { action, newStatus, refundedPence: refunded, damageChargePence: damageChargePence ?? 0 },
     })
 
-    return apiResponse({ updated: true, disputeId, newStatus, refundedPence: refunded })
+    return apiResponse({ updated: true, disputeId, newStatus, refundedPence: refunded, damageChargePence: damageChargePence ?? 0 })
   } catch (err) {
     if (err instanceof AppError) return apiError(err.code, err.message, err.statusCode)
     console.error('[PATCH /api/v1/admin/disputes]', err)

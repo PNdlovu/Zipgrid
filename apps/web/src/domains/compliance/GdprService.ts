@@ -71,6 +71,10 @@ export type DataExport = {
   notifications: unknown[]
   reviews: unknown[]
   consentHistory: unknown[]
+  /** Versions of the Terms, Privacy Policy and host/driver terms accepted. */
+  policyAcceptances: unknown[]
+  /** Resolution Centre cases raised by or against the user. */
+  disputes: unknown[]
   vehicles: unknown[]
   residencies: unknown[]
   /** Concierge conversations: what you asked and what it replied. */
@@ -244,7 +248,7 @@ export const GdprService = {
 
     if (profileRes.rows.length === 0) throw new NotFoundError('User', userId)
 
-    const [vehicleRes, residencyRes, conciergeRes] = await Promise.all([
+    const [vehicleRes, residencyRes, conciergeRes, policyRes, disputeRes] = await Promise.all([
       db.execute(
         `SELECT v.make, v.model, v.year, v.color, v.license_plate, v.plug_types, v.battery_capacity_kwh, v.created_at
          FROM driver_vehicles v JOIN driver_profiles dp ON dp.id = v.driver_profile_id WHERE dp.user_id = $1`,
@@ -256,6 +260,17 @@ export const GdprService = {
         [userId],
       ),
       ConciergeService.history(userId),
+      db.execute(
+        `SELECT policy, version, accepted_at FROM policy_acceptances WHERE user_id = $1 ORDER BY accepted_at DESC`,
+        [userId],
+      ),
+      db.execute(
+        `SELECT id, dispute_type, status, description, damage_charge_pence, created_at, resolved_at,
+                (raised_by_user_id = $1) AS raised_by_me
+         FROM disputes WHERE raised_by_user_id = $1 OR against_user_id = $1
+         ORDER BY created_at DESC`,
+        [userId],
+      ),
     ])
 
     await AuditLogger.logAsync({
@@ -276,6 +291,8 @@ export const GdprService = {
       notifications:     notifRes.rows,
       reviews:           reviewRes.rows,
       consentHistory:    consentRes.rows,
+      policyAcceptances: policyRes.rows,
+      disputes:          disputeRes.rows,
       vehicles:          vehicleRes.rows,
       residencies:       residencyRes.rows,
       conciergeConversations: conciergeRes,

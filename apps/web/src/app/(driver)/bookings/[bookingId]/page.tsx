@@ -634,6 +634,14 @@ export default function BookingDetailPage({
               <span className="font-mono font-semibold">
                 {booking.id.slice(0, 8).toUpperCase()}
               </span>
+              {(isCompleted || isActive || booking.status.startsWith('cancelled')) && (
+                <>
+                  {' · '}
+                  <Link href={`/help/resolution?booking=${booking.id.slice(0, 8)}`} className="underline hover:text-[hsl(var(--foreground))]">
+                    Report a problem
+                  </Link>
+                </>
+              )}
             </p>
           </div>
         </main>

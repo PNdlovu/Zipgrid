@@ -32,7 +32,8 @@ const ZIPGRID_DOES = [
   { title: 'Payment secured before arrival', detail: 'A card hold or wallet reservation is in place before a session, and the session is charged at the price you set.' },
   { title: 'A record of every booking', detail: 'Who booked, when, the arrival code used and the session data, ready if you need to make a claim.' },
   { title: 'Reviews both ways', detail: 'Drivers and hosts review each other after every booking.' },
-  { title: 'Incident reporting and the Resolution Centre', detail: 'Report damage or a problem with a driver and we review it with the booking record.' },
+  { title: 'Incident reporting and the Resolution Centre', detail: 'Report damage or a problem with a driver within 14 days and we review it with the booking and charging-session record.' },
+  { title: 'Damage recovered from the driver', detail: 'If a driver damaged your property, we charge them the repair cost (up to £1,000) and pay it to you in full, with no commission. Larger losses go to your insurer, with our booking record.' },
 ]
 
 const FAQ_ITEMS = [
@@ -42,11 +43,11 @@ const FAQ_ITEMS = [
   },
   {
     q: 'A driver damaged my property. What should I do?',
-    a: 'Take photos straight away, then report it in the Resolution Centre. We review it with the booking record and the driver\'s verified identity, which you can also use with your insurer.',
+    a: 'Take photos straight away, then open the booking and choose Report a problem (within 14 days). Add a repair quote or invoice. We review it with the booking record and the driver\'s side, and if the driver is responsible we recover the cost from them for you.',
   },
   {
     q: 'Is the driver responsible for damage they cause?',
-    a: 'Yes. Drivers agree to use chargers with care and are responsible for damage they cause. The booking record identifies who was there and when.',
+    a: 'Yes. Drivers agree to use chargers with care and are responsible for damage they cause. Once we have reviewed both sides, we collect up to £1,000 from the driver\'s wallet or card and add it to your next payout. See the Host Terms at /legal/host-terms.',
   },
 ]
 

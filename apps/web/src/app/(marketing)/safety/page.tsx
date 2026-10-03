@@ -86,14 +86,14 @@ const HOST_PROTECTIONS = [
   'Payment is secured before the driver arrives',
   'Choose instant booking, or approve each request yourself',
   'Every booking has a record of who booked, when and the arrival code used',
-  'Report damage in the Resolution Centre; the driver is responsible for damage they cause',
+  'If a driver damages your property, we recover the cost from them and pay it to you in full',
 ] as const
 
 const INCIDENT_STEPS = [
   { step: '01', title: 'Stay safe', description: 'If anyone is hurt or in danger, call 999 first.' },
   { step: '02', title: 'Report it', description: 'In the Resolution Centre, choose Safety problem, Property damage, Billing or another type, and add photos and details.' },
   { step: '03', title: 'We review it', description: 'We look at the booking record, the session data and what both sides tell us.' },
-  { step: '04', title: 'Resolution', description: 'We tell both sides the outcome. Refunds go back to the original payment method; damage claims can be taken to your insurer with the booking record.' },
+  { step: '04', title: 'Resolution', description: 'We tell both sides the outcome. Refunds go back to the original payment method. If a driver caused damage, we charge them and pay the host (up to £1,000; larger losses go to the host’s insurer with the booking record).' },
 ] as const
 
 /**

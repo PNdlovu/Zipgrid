@@ -262,6 +262,21 @@ export default function HostBookingDetailPage({
         </section>
       )}
 
+      {/* Report a problem — damage or driver conduct, within 14 days */}
+      {(isCompleted || isActive || booking.status.startsWith('cancelled')) && (
+        <section className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-[6px] border border-[hsl(var(--border))] p-4" aria-label="Report a problem">
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">
+            Damage or a problem with this driver? Report it within 14 days with photos.
+          </p>
+          <Link
+            href={`/help/resolution?booking=${booking.id.slice(0, 8)}&type=property_damage`}
+            className="rounded-[6px] border border-[hsl(var(--border))] px-3 py-1.5 text-xs font-medium hover:bg-[hsl(var(--secondary))]"
+          >
+            Report a problem
+          </Link>
+        </section>
+      )}
+
       {/* Cancellation reason */}
       {booking.cancellationReason && (
         <section className="mb-5 rounded-[6px] border border-[hsl(var(--border))] p-4" aria-label="Cancellation details">

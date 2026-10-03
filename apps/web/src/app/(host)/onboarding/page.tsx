@@ -305,14 +305,14 @@ function SafetyStep({ draft, update, onNext }: StepProps) {
         <input type="number" min="2000" max={new Date().getFullYear()} value={draft.installYear} onChange={(e) => update({ installYear: e.target.value })} placeholder={String(new Date().getFullYear())} className={inputClass} />
       </Field>
       <div className="mb-2 rounded-xl border border-amber-200 bg-amber-50 p-4">
-        <p className="mb-2 text-sm font-semibold text-amber-900">Platform Insurance Terms</p>
+        <p className="mb-2 text-sm font-semibold text-amber-900">Host Terms and Protection</p>
         <p className="mb-3 text-xs leading-relaxed text-amber-800">
-          By listing on Zipgrid, you confirm your charger meets UK electrical safety standards. You retain responsibility for the physical installation and ongoing maintenance of your charger.
+          By listing on Zipgrid, you confirm your charger meets UK electrical safety standards and you keep it in good repair. Zipgrid does not insure you: keep home and public liability cover that allows charger sharing, and tell your insurer. If a driver damages your property, report it within 14 days and we recover the cost from the driver.
         </p>
         <label className="flex cursor-pointer items-start gap-2.5">
           <input type="checkbox" checked={draft.tosAccepted} onChange={(e) => update({ tosAccepted: e.target.checked })} className="mt-0.5 h-4 w-4 rounded accent-green-600" />
           <span className="text-xs text-amber-800">
-            I accept the <a href="/legal/host-terms" className="font-semibold underline" target="_blank" rel="noopener noreferrer">Platform Insurance Terms</a> and confirm my charger is safely installed.
+            I accept the <a href="/legal/host-terms" className="font-semibold underline" target="_blank" rel="noopener noreferrer">Host Terms and Protection</a> and confirm my charger is safely installed.
           </span>
         </label>
       </div>

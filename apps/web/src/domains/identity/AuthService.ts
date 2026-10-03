@@ -25,6 +25,7 @@ import { getDb, transaction, type Db } from '@/lib/db'
 import { eventBus } from '@/lib/events/event-bus'
 import { escapeHtml, isEmailConfigured, sendEmail } from '@/lib/email'
 import { createSession, revokeAllSessions, type IssuedTokens, type SessionContext } from '@/lib/auth/sessions'
+import { PolicyService, policiesForRoles } from '@/domains/compliance/PolicyService'
 
 const BCRYPT_ROUNDS = 12
 const OTP_EXPIRY_MINUTES = 10
@@ -97,6 +98,8 @@ export const AuthService = {
         [userId, email, input.displayName.trim(), passwordHash, roles],
       )
       await ensureProfiles(tx, userId, roles)
+      // Sign-up requires accepting the Terms, Privacy Policy and the role's terms.
+      await PolicyService.recordAcceptance(userId, policiesForRoles(roles), ctx, tx)
     })
 
     eventBus.publish({ type: 'USER_REGISTERED', userId, role: roles.includes('host') ? 'host' : 'driver' })

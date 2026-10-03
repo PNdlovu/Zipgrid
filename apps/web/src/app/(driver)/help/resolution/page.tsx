@@ -1,8 +1,8 @@
 /**
  * @file page.tsx
- * @description /driver/help/resolution — Driver-facing Resolution Centre.
- * Allows drivers to raise a dispute on a completed booking, upload evidence,
- * and track the case status through its lifecycle.
+ * @description /help/resolution — Resolution Centre for drivers and hosts.
+ * Either party to a booking can open a case (raised against the other party),
+ * upload evidence and track it. Open with ?booking=<ref>[&type=<category>] to prefill.
  *
  * @module apps/web/app/(driver)/help/resolution
  * @version 0.1.0
@@ -34,18 +34,23 @@ type CaseStatus =
   | 'resolved_host_favour'
   | 'resolved_split'
   | 'closed'
-  | 'escalated'
+  | 'escalated_to_insurer'
 
 type DisputeCase = {
   id: string
   status: CaseStatus
   disputeType: DisputeCategory
+  raisedByUserId: string
+  raisedBy: 'driver' | 'host' | null
   bookingId: string | null
   listingTitle: string | null
   raisedAt: string
   updatedAt: string
   resolutionNotes: string | null
   refundAmountPence: number | null
+  damageChargePence: number
+  acknowledgeBy: string | null
+  acknowledgedAt: string | null
 }
 
 type EvidenceFile = {
@@ -64,8 +69,8 @@ const CATEGORY_OPTIONS: Array<{ value: DisputeCategory; label: string; descripti
   { value: 'session_fault',       label: 'Charger fault',          description: 'The charger failed during my session' },
   { value: 'charger_unavailable', label: 'Charger unavailable',    description: 'The charger was inaccessible or broken on arrival' },
   { value: 'billing',             label: 'Billing issue',          description: 'I was charged the wrong amount' },
-  { value: 'property_damage',     label: 'Property damage',        description: 'Damage to my vehicle or the host\'s property' },
-  { value: 'driver_behaviour',    label: 'Host behaviour',         description: 'Concern about the host\'s conduct' },
+  { value: 'property_damage',     label: 'Property damage',        description: 'Damage to a charger, property or vehicle. Report within 14 days and add photos and a repair quote' },
+  { value: 'driver_behaviour',    label: 'Behaviour',              description: 'Concern about the other person\'s conduct' },
   { value: 'other',               label: 'Other',                  description: 'Something else went wrong' },
 ]
 
@@ -74,10 +79,10 @@ const STATUS_CONFIG: Record<CaseStatus, { label: string; color: string; bg: stri
   evidence_requested:       { label: 'Evidence requested', color: 'text-amber-700',                        bg: 'bg-amber-50 dark:bg-amber-900/20' },
   evidence_received:        { label: 'Evidence received',  color: 'text-amber-700',                        bg: 'bg-amber-50 dark:bg-amber-900/20' },
   under_review:             { label: 'Under review',       color: 'text-blue-700',                         bg: 'bg-blue-50 dark:bg-blue-900/20' },
-  resolved_driver_favour:   { label: 'Resolved in your favour', color: 'text-[hsl(var(--primary))]',      bg: 'bg-[hsl(var(--primary)/0.08)]' },
-  resolved_host_favour:     { label: 'Resolved — host favour',  color: 'text-[hsl(var(--muted-foreground))]', bg: 'bg-[hsl(var(--secondary))]' },
+  resolved_driver_favour:   { label: 'Resolved — driver favour', color: 'text-[hsl(var(--foreground))]', bg: 'bg-[hsl(var(--secondary))]' },
+  resolved_host_favour:     { label: 'Resolved — host favour',  color: 'text-[hsl(var(--foreground))]', bg: 'bg-[hsl(var(--secondary))]' },
   resolved_split:           { label: 'Resolved — split decision', color: 'text-[hsl(var(--foreground))]', bg: 'bg-[hsl(var(--secondary))]' },
-  escalated:                { label: 'Escalated',          color: 'text-amber-700',                        bg: 'bg-amber-50 dark:bg-amber-900/20' },
+  escalated_to_insurer:     { label: 'Escalated',          color: 'text-amber-700',                        bg: 'bg-amber-50 dark:bg-amber-900/20' },
   closed:                   { label: 'Closed',             color: 'text-[hsl(var(--muted-foreground))]',  bg: 'bg-[hsl(var(--secondary))]' },
 }
 
@@ -92,7 +97,7 @@ function fmtDate(iso: string) {
 function timelineIndex(status: CaseStatus): number {
   const map: Record<CaseStatus, number> = {
     open: 0, evidence_requested: 1, evidence_received: 1,
-    under_review: 2, escalated: 2,
+    under_review: 2, escalated_to_insurer: 2,
     resolved_driver_favour: 4, resolved_host_favour: 4, resolved_split: 4, closed: 4,
   }
   return map[status] ?? 0
@@ -122,7 +127,7 @@ export default function ResolutionCentrePage() {
   const fetchCases = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/v1/disputes?role=driver')
+      const res = await fetch('/api/v1/disputes')
       if (res.ok) {
         const json = await res.json() as { data: DisputeCase[] }
         setCases(json.data ?? [])
@@ -141,6 +146,17 @@ export default function ResolutionCentrePage() {
   }, [])
 
   useEffect(() => { void fetchCases() }, [fetchCases])
+
+  // Links from a booking open the form prefilled: ?booking=<ref>&type=<category>
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const ref = params.get('booking')
+    const type = params.get('type') as DisputeCategory | null
+    if (!ref) return
+    setBookingId(ref.slice(0, 8).toUpperCase())
+    if (type && CATEGORY_OPTIONS.some((o) => o.value === type)) setCategory(type)
+    setShowNewForm(true)
+  }, [])
   useEffect(() => {
     if (activeCase) void fetchEvidence(activeCase.id)
     else setEvidence([])
@@ -148,6 +164,7 @@ export default function ResolutionCentrePage() {
 
   const handleSubmitCase = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!bookingId.trim()) { setSubmitError('Enter the booking reference this is about.'); return }
     if (!description.trim()) { setSubmitError('Please describe what happened.'); return }
     setSubmitting(true)
     setSubmitError(null)
@@ -159,7 +176,7 @@ export default function ResolutionCentrePage() {
         body: JSON.stringify({
           disputeType: category,
           description: description.trim(),
-          ...(bookingId.trim() ? { bookingId: bookingId.trim() } : {}),
+          bookingId: bookingId.trim(),
         }),
       })
       const json = await res.json() as { success: boolean; data?: DisputeCase; error?: { message: string } }
@@ -278,16 +295,28 @@ export default function ResolutionCentrePage() {
           {/* Booking ID */}
           <div>
             <label htmlFor="booking-id" className="mb-1 block text-xs font-medium text-[hsl(var(--muted-foreground))]">
-              Booking reference (optional)
+              Booking reference
             </label>
             <input
               id="booking-id"
               type="text"
+              required
               value={bookingId}
               onChange={(e) => setBookingId(e.target.value)}
               placeholder="e.g. 3F7A1B2C"
+              maxLength={36}
               className="h-10 w-full rounded-[6px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 font-mono text-sm focus:border-[hsl(var(--primary))] focus:outline-none"
             />
+            <p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">
+              The 8-character reference on the booking. Drivers and hosts can both open a case; the other person is told and can add their side.
+            </p>
+          </div>
+
+          <div className="rounded-[6px] bg-[hsl(var(--secondary))] p-3 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">
+            We acknowledge safety problems within 1 hour and other cases within 24 hours. Add photos, video or a repair quote
+            after you submit. If a driver is found responsible for damage, we recover the cost from them and pay the host.
+            See the <Link href="/legal/host-terms" className="underline">Host Terms</Link> and{' '}
+            <Link href="/legal/driver-terms" className="underline">Driver Responsibilities</Link>.
           </div>
 
           {/* Description */}
@@ -353,7 +382,13 @@ export default function ResolutionCentrePage() {
                 </p>
                 <p className="mt-0.5 font-mono text-xs text-[hsl(var(--muted-foreground))]">
                   Case #{activeCase.id.slice(0, 8).toUpperCase()}
+                  {activeCase.raisedBy && <span className="font-sans"> · raised by the {activeCase.raisedBy}</span>}
                 </p>
+                {!activeCase.acknowledgedAt && activeCase.acknowledgeBy && activeCase.status === 'open' && (
+                  <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
+                    We&apos;ll pick this up by {new Date(activeCase.acknowledgeBy).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                )}
               </div>
               <span className={cn(
                 'rounded-full px-2.5 py-0.5 text-xs font-semibold',
@@ -405,6 +440,11 @@ export default function ResolutionCentrePage() {
                 {activeCase.refundAmountPence != null && activeCase.refundAmountPence > 0 && (
                   <p className="mt-2 text-sm font-semibold text-[hsl(var(--primary))]">
                     Refund: £{(activeCase.refundAmountPence / 100).toFixed(2)}
+                  </p>
+                )}
+                {activeCase.damageChargePence > 0 && (
+                  <p className="mt-2 text-sm font-semibold text-[hsl(var(--foreground))]">
+                    Damage recovered from the driver: £{(activeCase.damageChargePence / 100).toFixed(2)}
                   </p>
                 )}
               </div>

@@ -14,6 +14,8 @@ import { assertListingOwner } from '@/domains/charging/AvailabilityService'
 import { SafetyScoreService } from '@/domains/safety/SafetyScoreService'
 import { apiResponse, apiError } from '@/lib/api/response'
 import { errorResponse, requireUser } from '@/lib/api/context'
+import { clientIp } from '@/lib/rate-limit'
+import { PolicyService } from '@/domains/compliance/PolicyService'
 
 const ChecklistSchema = z.object({
   listingId: z.string().uuid(),
@@ -54,6 +56,10 @@ export async function POST(request: NextRequest) {
        WHERE id = $1`,
       [d.listingId],
     )
+    await PolicyService.recordAcceptance(userId, ['host_terms'], {
+      ip: clientIp(request.headers),
+      userAgent: request.headers.get('user-agent'),
+    })
     const score = await SafetyScoreService.calculate(d.listingId).catch((err: unknown) => {
       console.error('[host/safety-checklist] score calculation failed', err)
       return null

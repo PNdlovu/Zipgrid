@@ -327,13 +327,13 @@ export default function DriverSettingsPage() {
           <div className="rounded-[6px] border border-[hsl(var(--border))] p-5">
             <h2 className="text-sm font-semibold">Data retention</h2>
             <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
-              Transaction records are retained for 7 years (HMRC requirement). Charging session energy data for 2 years. All other personal data is deleted on account closure.
+              Payment records are kept for 7 years (HMRC requirement) and Resolution Centre cases for 6 years after they close. Other personal data is deleted or anonymised when you close your account. Full details are in our <Link href="/legal/privacy" className="text-[hsl(var(--primary))] hover:underline">Privacy Policy</Link>.
             </p>
           </div>
           <div className="rounded-[6px] border border-[hsl(var(--border))] p-5">
             <h2 className="text-sm font-semibold">Consent management</h2>
             <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
-              We only use analytics and personalisation cookies. We never sell your data. See our <Link href="/legal/privacy" className="text-[hsl(var(--primary))] hover:underline">Privacy Policy</Link>.
+              We only use essential sign-in cookies, with no advertising or tracking cookies. We never sell your data. See our <Link href="/legal/privacy" className="text-[hsl(var(--primary))] hover:underline">Privacy Policy</Link>.
             </p>
           </div>
         </div>

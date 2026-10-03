@@ -25,6 +25,9 @@ const RegisterSchema = z.object({
     .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
     .regex(/[0-9]/, 'Password must contain at least one number'),
   role: z.enum(['driver', 'host', 'both']),
+  acceptTerms: z.literal(true, {
+    errorMap: () => ({ message: 'You must accept the Terms of Service and Privacy Policy to create an account.' }),
+  }),
 })
 
 /** POST /api/v1/auth/register — create an account (driver, host or both) with its profiles, send the email verification code and sign in. */

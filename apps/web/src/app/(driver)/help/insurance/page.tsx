@@ -48,12 +48,12 @@ const NOT_COVERED: Array<{ title: string; detail: string }> = [
   {
     title: 'Vehicle damage',
     detail:
-      'Damage to your vehicle during a session is not covered by Zipgrid\'s platform coverage. Your own vehicle insurance (comprehensive) should cover damage to your EV.',
+      'Zipgrid does not provide insurance. Damage to your own vehicle is a matter for your motor insurer (comprehensive cover), or the host\'s insurer if their equipment was at fault.',
   },
   {
-    title: 'Deliberate misuse of the charger',
+    title: 'Damage you cause',
     detail:
-      'Damage caused by deliberate or negligent misuse of the host\'s equipment is not covered and may result in you being liable for repair costs.',
+      'If you damage the host\'s charger or property through misuse or carelessness, you are responsible for the repair cost. After reviewing both sides we can charge up to £1,000 to your wallet or card (see Driver Responsibilities).',
   },
   {
     title: 'Power outage or grid failure',
@@ -219,6 +219,9 @@ export default function InsuranceHubPage() {
           Go to Resolution Centre
           <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </Link>
+        <p className="mt-3 text-center text-xs text-[hsl(var(--muted-foreground))]">
+          Read the <Link href="/legal/driver-terms" className="underline">Driver Responsibilities</Link> for what you are responsible for and how damage claims work.
+        </p>
       </section>
 
       {/* Expected timelines */}

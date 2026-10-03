@@ -11,6 +11,11 @@
  * is taken from the wallet automatically on the next top-up. The settlement
  * cron retries card collection every RETRY_INTERVAL_HOURS, up to MAX_ATTEMPTS.
  *
+ * Damage charges (kind 'damage', opened by DisputeService when a host's damage
+ * claim is upheld) are collected the same way. They do not change the session
+ * transaction's totals; each amount collected is credited to the host in full
+ * as an earnings allocation, paid out with their next payout.
+ *
  * @module domains/payments
  */
 
@@ -25,6 +30,14 @@ export const RETRY_INTERVAL_HOURS = 6
 
 export type CollectOptions = { useCard?: boolean }
 
+export type ShortfallKind = 'session' | 'damage'
+
+/** How each kind appears on wallet statements and card descriptors. */
+const LABEL: Record<ShortfallKind, string> = {
+  session: 'Outstanding session balance',
+  damage: 'Damage charge',
+}
+
 const fmt = (pence: number) => `£${(pence / 100).toFixed(2)}`
 
 export const ShortfallService = {
@@ -33,7 +46,7 @@ export const ShortfallService = {
     if (amountPence <= 0) return null
     const res = await tx.execute(
       `INSERT INTO payment_shortfalls (transaction_id, user_id, amount_pence) VALUES ($1, $2, $3)
-       ON CONFLICT (transaction_id) DO NOTHING RETURNING id`,
+       ON CONFLICT (transaction_id) WHERE kind = 'session' DO NOTHING RETURNING id`,
       [transactionId, userId, amountPence],
     )
     return (res.rows[0]?.['id'] as string | undefined) ?? null
@@ -57,7 +70,7 @@ export const ShortfallService = {
   async collect(shortfallId: string, { useCard = true }: CollectOptions = {}): Promise<number> {
     const state = await transaction(async (tx) => {
       const res = await tx.execute(
-        `SELECT s.user_id, s.amount_pence, s.collected_pence, s.attempts, s.transaction_id, t.booking_id
+        `SELECT s.user_id, s.amount_pence, s.collected_pence, s.attempts, s.transaction_id, s.kind, t.booking_id
          FROM payment_shortfalls s JOIN transactions t ON t.id = s.transaction_id
          WHERE s.id = $1 AND s.status = 'open'
          FOR UPDATE OF s`,
@@ -67,16 +80,16 @@ export const ShortfallService = {
       if (!r) return null
       const userId = r['user_id'] as string
       const remaining = Number(r['amount_pence']) - Number(r['collected_pence'])
-      const fromWallet = await WalletService.debitAvailable(tx, userId, r['booking_id'] as string, remaining)
+      const fromWallet = await WalletService.debitAvailable(tx, userId, r['booking_id'] as string, remaining, LABEL[r['kind'] as ShortfallKind])
       if (fromWallet > 0) await this._applyPayment(tx, shortfallId, r['transaction_id'] as string, fromWallet, null)
-      return { userId, remaining: remaining - fromWallet, attempts: Number(r['attempts']) }
+      return { userId, remaining: remaining - fromWallet, attempts: Number(r['attempts']), kind: r['kind'] as ShortfallKind }
     })
     if (!state || state.remaining === 0) return 0
     if (!useCard || state.remaining < STRIPE_MIN_CHARGE_PENCE || !StripeService.isConfigured()) return state.remaining
 
     const card = await StripeCustomer.defaultCard(state.userId)
     if (!card) {
-      await this._recordAttempt(shortfallId, state.userId, state.attempts, state.remaining, 'No saved card')
+      await this._recordAttempt(shortfallId, state.userId, state.attempts, state.remaining, 'No saved card', state.kind)
       return state.remaining
     }
 
@@ -85,7 +98,7 @@ export const ShortfallService = {
         amountPence: state.remaining,
         stripeCustomerId: card.customerId,
         paymentMethodId: card.paymentMethodId,
-        description: `Zipgrid outstanding session balance ${fmt(state.remaining)}`,
+        description: `Zipgrid ${LABEL[state.kind].toLowerCase()} ${fmt(state.remaining)}`,
         metadata: { purpose: 'shortfall', shortfall_id: shortfallId },
         idempotencyKey: `shortfall-${shortfallId}-${state.attempts + 1}`,
       })
@@ -95,11 +108,11 @@ export const ShortfallService = {
       }
       if (charge.status === 'processing') return state.remaining // webhook applies it
       await StripeService.cancelPaymentIntent(charge.paymentIntentId, 'abandoned').catch(() => {})
-      await this._recordAttempt(shortfallId, state.userId, state.attempts, state.remaining, 'Bank authentication required')
+      await this._recordAttempt(shortfallId, state.userId, state.attempts, state.remaining, 'Bank authentication required', state.kind)
     } catch (err) {
       const message = StripeService.isCardError(err) ? err.message : 'Payment provider unavailable'
       if (!StripeService.isCardError(err)) console.error('[ShortfallService.collect]', shortfallId, err)
-      await this._recordAttempt(shortfallId, state.userId, state.attempts, state.remaining, message)
+      await this._recordAttempt(shortfallId, state.userId, state.attempts, state.remaining, message, state.kind)
     }
     return state.remaining
   },
@@ -150,15 +163,32 @@ export const ShortfallService = {
   },
 
   async _applyPayment(tx: Db, shortfallId: string, transactionId: string, amountPence: number, stripePiId: string | null) {
-    await tx.execute(
+    const updated = await tx.execute(
       `UPDATE payment_shortfalls
        SET collected_pence = LEAST(amount_pence, collected_pence + $2),
            stripe_pi_id = COALESCE($3, stripe_pi_id),
            status = CASE WHEN collected_pence + $2 >= amount_pence THEN 'collected' ELSE status END,
            resolved_at = CASE WHEN collected_pence + $2 >= amount_pence THEN NOW() ELSE resolved_at END
-       WHERE id = $1`,
+       WHERE id = $1
+       RETURNING kind, collected_pence`,
       [shortfallId, amountPence, stripePiId],
     )
+    if (updated.rows[0]?.['kind'] === 'damage') {
+      // Damage recovered from the driver goes to the host in full (no platform fee).
+      // The reason is unique per collection step, so partial payments each get a row.
+      await tx.execute(
+        `INSERT INTO earnings_allocations (transaction_id, beneficiary_user_id, share, amount_pence, reason)
+         SELECT t.id, hp.user_id, 'host', $2, $3
+         FROM transactions t
+         JOIN bookings b          ON b.id = t.booking_id
+         JOIN charger_listings cl ON cl.id = b.listing_id
+         JOIN host_profiles hp    ON hp.id = cl.host_profile_id
+         WHERE t.id = $1
+         ON CONFLICT (transaction_id, beneficiary_user_id, share, reason) DO NOTHING`,
+        [transactionId, amountPence, `damage:${shortfallId.slice(0, 8)}:${Number(updated.rows[0]['collected_pence'])}`],
+      )
+      return
+    }
     await tx.execute(
       `UPDATE transactions
        SET total_charged_cents = COALESCE(total_charged_cents, 0) + $2,
@@ -168,7 +198,7 @@ export const ShortfallService = {
     )
   },
 
-  async _recordAttempt(shortfallId: string, userId: string, previousAttempts: number, owedPence: number, error: string) {
+  async _recordAttempt(shortfallId: string, userId: string, previousAttempts: number, owedPence: number, error: string, kind: ShortfallKind = 'session') {
     const db = await getDb()
     await db.execute(
       `UPDATE payment_shortfalls
@@ -181,8 +211,10 @@ export const ShortfallService = {
     await NotificationService.send({
       userId,
       category: 'payment_issue',
-      title: 'Outstanding balance on your last charge',
-      body: `Your last session cost ${fmt(owedPence)} more than was held, and we couldn't collect it (${error}). Top up your wallet or update your card to keep booking — it's collected automatically.`,
+      title: kind === 'damage' ? 'Damage charge outstanding' : 'Outstanding balance on your last charge',
+      body: kind === 'damage'
+        ? `We couldn't collect the ${fmt(owedPence)} damage charge (${error}). Top up your wallet or update your card to keep booking — it's collected automatically.`
+        : `Your last session cost ${fmt(owedPence)} more than was held, and we couldn't collect it (${error}). Top up your wallet or update your card to keep booking — it's collected automatically.`,
       actionUrl: '/wallet',
       channels: ['in_app', 'email'],
     }).catch((e: unknown) => console.error('[ShortfallService.notify]', e))

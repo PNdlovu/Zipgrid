@@ -193,11 +193,11 @@ export const WalletService = {
    * Debits up to `maxPence` of the available balance towards a session
    * shortfall, inside the caller's transaction. Returns the amount debited.
    */
-  async debitAvailable(tx: Db, userId: string, bookingId: string, maxPence: number): Promise<number> {
+  async debitAvailable(tx: Db, userId: string, bookingId: string, maxPence: number, description = 'Outstanding session balance'): Promise<number> {
     const { balance, pending } = await lockWallet(tx, userId)
     const amount = Math.max(0, Math.min(maxPence, balance - pending))
     if (amount > 0) {
-      await post(tx, userId, { type: 'shortfall_payment', amountPence: -amount, description: 'Outstanding session balance', bookingId })
+      await post(tx, userId, { type: 'shortfall_payment', amountPence: -amount, description, bookingId })
     }
     return amount
   },

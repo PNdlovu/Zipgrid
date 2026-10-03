@@ -10,10 +10,16 @@ import { useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
-  ScrollView,
+  ScrollView, Linking,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
+
+/** Opens a legal page (served by the web app at the API origin) in the browser. */
+function openLegal(slug: 'terms' | 'privacy' | 'host-terms' | 'driver-terms') {
+  const base = process.env['EXPO_PUBLIC_API_URL'] ?? 'https://api.zipgrid.co.uk'
+  void Linking.openURL(`${base}/legal/${slug}`)
+}
 
 export default function RegisterScreen() {
   const router = useRouter()
@@ -46,10 +52,11 @@ export default function RegisterScreen() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fullName: fullName.trim(),
+          displayName: fullName.trim(),
           email: email.trim().toLowerCase(),
           password,
           role,
+          acceptTerms: true, // accepted by tapping Create account (see the notice above the button)
         }),
       })
 
@@ -65,7 +72,7 @@ export default function RegisterScreen() {
       }
 
       await SecureStore.setItemAsync('access_token',  json.data.accessToken)
-      await SecureStore.setItemAsync('refresh_token', json.data.refreshToken)
+      if (json.data.refreshToken) await SecureStore.setItemAsync('refresh_token', json.data.refreshToken)
 
       router.replace('/(app)')
     } catch {
@@ -181,9 +188,13 @@ export default function RegisterScreen() {
 
           <Text style={styles.terms}>
             By creating an account you agree to our{' '}
-            <Text style={styles.termsLink}>Terms of Service</Text>
-            {' '}and{' '}
-            <Text style={styles.termsLink}>Privacy Policy</Text>.
+            <Text style={styles.termsLink} onPress={() => openLegal('terms')} accessibilityRole="link">Terms of Service</Text>
+            ,{' '}
+            <Text style={styles.termsLink} onPress={() => openLegal('privacy')} accessibilityRole="link">Privacy Policy</Text>
+            {' '}and the{' '}
+            {role === 'host'
+              ? <Text style={styles.termsLink} onPress={() => openLegal('host-terms')} accessibilityRole="link">Host Terms</Text>
+              : <Text style={styles.termsLink} onPress={() => openLegal('driver-terms')} accessibilityRole="link">Driver Responsibilities</Text>}.
           </Text>
 
           <TouchableOpacity

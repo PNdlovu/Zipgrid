@@ -27,15 +27,39 @@ type DisputeRow = {
   raised_against_name: string | null; booking_id: string | null
   scheduled_start: string | null; listing_title: string | null
   refund_amount_cents: number | null; resolution_notes: string | null
+  description: string | null
+  session_snapshot: SessionSnapshot | null
+  damage_charge_pence: number | null
+  acknowledge_by: string | null; acknowledged_at: string | null
+  acknowledgement_overdue: boolean | null
+  raised_by_host: boolean | null
+  evidence_count: number | null
 }
+
+/** Booking + charging session captured when the case was opened (DisputeService.captureSnapshot). */
+type SessionSnapshot = {
+  started_at?: string | null; ended_at?: string | null
+  scheduled_start?: string | null; scheduled_end?: string | null
+  energy_consumed_wh?: number | null; stop_reason?: string | null; fault_code?: string | null
+  vehicle_make?: string | null; vehicle_model?: string | null; vehicle_plate?: string | null
+}
+
+type ResolveInput = { action: string; notes: string; refundPence?: number; damagePence?: number }
+
+/** Mirrors DisputeService.MAX_DAMAGE_CHARGE_PENCE (server enforces it). */
+const MAX_DAMAGE_POUNDS = 1000
+
+const fmtTime = (iso?: string | null) =>
+  iso ? new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'
 
 /* ── Status config ───────────────────────────────────────────── */
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   open:                    { label: 'Open',              color: 'text-yellow-600',                 bg: 'bg-yellow-500/10' },
   under_review:            { label: 'Under review',      color: 'text-blue-600',                   bg: 'bg-blue-500/10' },
-  awaiting_evidence:       { label: 'Awaiting evidence', color: 'text-yellow-600',                 bg: 'bg-yellow-500/10' },
-  escalated:               { label: 'Escalated',         color: 'text-[hsl(var(--destructive))]',  bg: 'bg-[hsl(var(--destructive)/0.08)]' },
+  evidence_requested:      { label: 'Evidence requested', color: 'text-yellow-600',                bg: 'bg-yellow-500/10' },
+  evidence_received:       { label: 'Evidence received', color: 'text-blue-600',                   bg: 'bg-blue-500/10' },
+  escalated_to_insurer:    { label: 'Escalated',         color: 'text-[hsl(var(--destructive))]',  bg: 'bg-[hsl(var(--destructive)/0.08)]' },
   resolved_driver_favour:  { label: 'Resolved (driver)', color: 'text-[hsl(var(--primary))]',      bg: 'bg-[hsl(var(--primary)/0.1)]' },
   resolved_host_favour:    { label: 'Resolved (host)',   color: 'text-[hsl(var(--primary))]',      bg: 'bg-[hsl(var(--primary)/0.1)]' },
   resolved_split:          { label: 'Resolved (split)',  color: 'text-[hsl(var(--primary))]',      bg: 'bg-[hsl(var(--primary)/0.1)]' },
@@ -50,7 +74,7 @@ const DISPUTE_TYPE_LABELS: Record<string, string> = {
   driver_no_show: 'Driver no-show', host_cancelled: 'Host cancelled', other: 'Other',
 }
 
-const OPEN_STATUSES = new Set(['open', 'under_review', 'awaiting_evidence', 'escalated'])
+const OPEN_STATUSES = new Set(['open', 'under_review', 'evidence_requested', 'evidence_received', 'escalated_to_insurer'])
 
 /* ── Resolution modal ────────────────────────────────────────── */
 
@@ -60,19 +84,27 @@ function ResolveModal({
   onClose,
 }: {
   dispute: DisputeRow
-  onResolve: (action: string, notes: string, refundPence?: number) => void
+  onResolve: (input: ResolveInput) => Promise<void>
   onClose: () => void
 }) {
   const [action, setAction] = useState('')
   const [notes, setNotes] = useState('')
   const [refundPence, setRefundPence] = useState('')
+  const [damagePounds, setDamagePounds] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const canChargeDamage = dispute.dispute_type === 'property_damage' && !!dispute.raised_by_host && !dispute.damage_charge_pence
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!action) return
     setSubmitting(true)
-    onResolve(action, notes, refundPence ? Math.round(parseFloat(refundPence) * 100) : undefined)
+    await onResolve({
+      action,
+      notes,
+      refundPence: refundPence ? Math.round(parseFloat(refundPence) * 100) : undefined,
+      damagePence: action === 'resolve_host' && damagePounds ? Math.round(parseFloat(damagePounds) * 100) : undefined,
+    })
+    setSubmitting(false)
   }
 
   return (
@@ -97,6 +129,7 @@ function ResolveModal({
             <select id="action" value={action} onChange={(e) => setAction(e.target.value)} required
               className="w-full rounded-[6px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary)/0.4)]">
               <option value="">Select outcome…</option>
+              {dispute.status === 'open' && <option value="acknowledge">Acknowledge and start review</option>}
               <option value="resolve_driver">Resolve in driver&apos;s favour</option>
               <option value="resolve_host">Resolve in host&apos;s favour</option>
               <option value="resolve_split">Split resolution</option>
@@ -111,6 +144,21 @@ function ResolveModal({
               <input id="refund" type="number" min="0" step="0.01" value={refundPence} onChange={(e) => setRefundPence(e.target.value)}
                 placeholder="0.00"
                 className="w-full rounded-[6px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary)/0.4)]" />
+            </div>
+          )}
+
+          {action === 'resolve_host' && canChargeDamage && (
+            <div>
+              <label htmlFor="damage" className="mb-1 block text-xs font-medium text-[hsl(var(--foreground))]">
+                Charge the driver for damage (£, optional)
+              </label>
+              <input id="damage" type="number" min="0" max={MAX_DAMAGE_POUNDS} step="0.01" value={damagePounds}
+                onChange={(e) => setDamagePounds(e.target.value)} placeholder="0.00"
+                className="w-full rounded-[6px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary)/0.4)]" />
+              <p className="mt-1 text-[11px] leading-snug text-[hsl(var(--muted-foreground))]">
+                Use the repair quote or invoice in the evidence ({dispute.evidence_count ?? 0} file{dispute.evidence_count === 1 ? '' : 's'}).
+                Collected from the driver&apos;s wallet, then card, and paid to the host in full. Up to £{MAX_DAMAGE_POUNDS}; larger losses go to the host&apos;s insurer.
+              </p>
             </div>
           )}
 
@@ -167,14 +215,17 @@ export default function AdminDisputesPage() {
 
   useEffect(() => { setPage(1); void fetchDisputes(1) }, [fetchDisputes])
 
-  const handleResolve = async (action: string, notes: string, refundPence?: number) => {
+  const handleResolve = async ({ action, notes, refundPence, damagePence }: ResolveInput) => {
     if (!resolving) return
     setActionError(null)
     try {
       const res = await fetch('/api/v1/admin/disputes', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ disputeId: resolving.id, action, resolutionNotes: notes, refundAmountPence: refundPence }),
+        body: JSON.stringify({
+          disputeId: resolving.id, action, resolutionNotes: notes || undefined,
+          refundAmountPence: refundPence, damageChargePence: damagePence,
+        }),
       })
       const json = await res.json() as { success: boolean; error?: { message: string } }
       if (!json.success) { setActionError(json.error?.message ?? 'Action failed'); return }
@@ -200,7 +251,8 @@ export default function AdminDisputesPage() {
             <option value="">All statuses</option>
             <option value="open">Open</option>
             <option value="under_review">Under review</option>
-            <option value="escalated">Escalated</option>
+            <option value="evidence_received">Evidence received</option>
+            <option value="escalated_to_insurer">Escalated</option>
             <option value="resolved_driver_favour">Resolved</option>
             <option value="closed">Closed</option>
           </select>
@@ -239,7 +291,21 @@ export default function AdminDisputesPage() {
                       </span>
                       <span className="text-xs text-[hsl(var(--muted-foreground))]">
                         {DISPUTE_TYPE_LABELS[d.dispute_type] ?? d.dispute_type}
+                        {d.raised_by_host != null && <> · raised by {d.raised_by_host ? 'host' : 'driver'}</>}
                       </span>
+                      {d.acknowledgement_overdue && (
+                        <span className="rounded-full bg-[hsl(var(--destructive)/0.1)] px-2 py-0.5 text-[10px] font-semibold text-[hsl(var(--destructive))]">
+                          Acknowledgement overdue
+                        </span>
+                      )}
+                      {!d.acknowledged_at && !d.acknowledgement_overdue && d.acknowledge_by && isOpen && (
+                        <span className="text-[10px] text-[hsl(var(--muted-foreground))]">Acknowledge by {fmtTime(d.acknowledge_by)}</span>
+                      )}
+                      {!!d.damage_charge_pence && (
+                        <span className="rounded-full bg-[hsl(var(--secondary))] px-2 py-0.5 text-[10px] font-semibold text-[hsl(var(--foreground))]">
+                          Damage charged £{(d.damage_charge_pence / 100).toFixed(2)}
+                        </span>
+                      )}
                       <span className="ml-auto text-xs text-[hsl(var(--muted-foreground))]">
                         {new Date(d.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                       </span>
@@ -262,6 +328,19 @@ export default function AdminDisputesPage() {
                         </span>
                       )}
                     </div>
+                    {d.description && (
+                      <p className="mt-2 line-clamp-3 text-xs text-[hsl(var(--foreground))]">{d.description}</p>
+                    )}
+                    {d.session_snapshot && (
+                      <p className="mt-1.5 text-[11px] text-[hsl(var(--muted-foreground))]">
+                        Session: {fmtTime(d.session_snapshot.started_at ?? d.session_snapshot.scheduled_start)} → {fmtTime(d.session_snapshot.ended_at ?? d.session_snapshot.scheduled_end)}
+                        {d.session_snapshot.energy_consumed_wh != null && <> · {(Number(d.session_snapshot.energy_consumed_wh) / 1000).toFixed(1)} kWh</>}
+                        {d.session_snapshot.stop_reason && <> · stop: {d.session_snapshot.stop_reason}</>}
+                        {d.session_snapshot.fault_code && <> · fault: {d.session_snapshot.fault_code}</>}
+                        {d.session_snapshot.vehicle_make && <> · {d.session_snapshot.vehicle_make} {d.session_snapshot.vehicle_model} {d.session_snapshot.vehicle_plate ?? ''}</>}
+                        {' · '}{d.evidence_count ?? 0} evidence file{d.evidence_count === 1 ? '' : 's'}
+                      </p>
+                    )}
                     {d.resolution_notes && (
                       <p className="mt-2 text-xs text-[hsl(var(--muted-foreground))] italic">&quot;{d.resolution_notes}&quot;</p>
                     )}
